@@ -4,6 +4,19 @@
   import { initLocale, locale, setLocale, t, type Locale } from "$lib/i18n";
   import defaultConfig from "$lib/shared/default-config.json";
   import type { AppConfig } from "$lib/core";
+  import SettingsShell, {
+    type SettingsSectionItem,
+  } from "$lib/features/settings/SettingsShell.svelte";
+  import GeneralSection from "$lib/features/settings/sections/GeneralSection.svelte";
+  import MouseSection from "$lib/features/settings/sections/MouseSection.svelte";
+  import LayersSection from "$lib/features/settings/sections/LayersSection.svelte";
+  import HotkeysSection from "$lib/features/settings/sections/HotkeysSection.svelte";
+  import OverlaySection from "$lib/features/settings/sections/OverlaySection.svelte";
+  import ToastStack, {
+    type ToastItem,
+    type ToastTone,
+  } from "$lib/features/settings/ui/ToastStack.svelte";
+  import { canonicalizeHotkey } from "$lib/features/settings/hotkey-utils";
 
   const initialConfig = ensureLayerFontSizesInConfig(
     JSON.parse(JSON.stringify(defaultConfig)) as AppConfig,
@@ -14,7 +27,7 @@
   const textAreaClass =
     "mt-2 w-full min-h-[100px] rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs leading-relaxed text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 disabled:cursor-not-allowed disabled:bg-zinc-100";
   const compactSelectClass =
-    "rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 disabled:cursor-not-allowed disabled:bg-zinc-100";
+    "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm transition focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 disabled:cursor-not-allowed disabled:bg-zinc-100 appearance-none pr-10";
 
   const keyPool = [
     "q",
@@ -49,6 +62,10 @@
     "/",
   ];
 
+  const AUTO_APPLY_DELAY_MS = 320;
+
+  type SectionId = "general" | "mouse" | "layers" | "hotkeys" | "overlay";
+
   let config = $state<AppConfig>(initialConfig);
   let status = $state("");
   let error = $state("");
@@ -57,16 +74,71 @@
   let isResetting = $state(false);
   let isImporting = $state(false);
   let isExporting = $state(false);
+  let activeSection = $state<SectionId>("general");
+  let toasts = $state<ToastItem[]>([]);
   let fileInput: HTMLInputElement | null = null;
+  let toastSeed = 0;
+
+  let autoApplyTimer: ReturnType<typeof setTimeout> | null = null;
+  let reapplyAfterCurrent = false;
+
   type ComboLayerConfig = Extract<
     AppConfig["layers"][number],
     { mode: "combo" }
   >;
   type ComboStageConfig = ComboLayerConfig["stage0"];
 
+  const sections = $derived<SettingsSectionItem[]>([
+    {
+      id: "general",
+      label: $t("general.section"),
+      icon: "general",
+    },
+    {
+      id: "hotkeys",
+      label: $t("hotkeys.section"),
+      icon: "hotkeys",
+    },
+    {
+      id: "layers",
+      label: $t("layers.section"),
+      icon: "layers",
+    },
+    {
+      id: "overlay",
+      label: $t("overlay.section"),
+      icon: "overlay",
+    },
+    {
+      id: "mouse",
+      label: $t("mouse.section"),
+      icon: "mouse",
+    },
+  ]);
+
   function clearFeedback() {
     status = "";
     error = "";
+  }
+
+  function clearAutoApplyTimer() {
+    if (!autoApplyTimer) {
+      return;
+    }
+    clearTimeout(autoApplyTimer);
+    autoApplyTimer = null;
+  }
+
+  function pushToast(tone: ToastTone, message: string) {
+    const id = ++toastSeed;
+    toasts = [...toasts, { id, tone, message }];
+    setTimeout(() => {
+      dismissToast(id);
+    }, 2600);
+  }
+
+  function dismissToast(id: number) {
+    toasts = toasts.filter((toast) => toast.id !== id);
   }
 
   function normalizePositiveInt(value: number, fallback: number): number {
@@ -124,30 +196,10 @@
     return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
   }
 
-  function toNonNegativeInt(value: string, fallback: number): number {
-    const parsed = Number.parseInt(value, 10);
-    return Number.isFinite(parsed) && parsed >= 0 ? parsed : fallback;
-  }
-
-  function clampInt(value: string, min: number, max: number, fallback: number) {
-    const parsed = Number.parseInt(value, 10);
-    if (!Number.isFinite(parsed)) {
-      return fallback;
-    }
-    return Math.min(Math.max(parsed, min), max);
-  }
-
-  function clampNumber(
-    value: string,
-    min: number,
-    max: number,
-    fallback: number,
-  ) {
-    const parsed = Number.parseFloat(value);
-    if (!Number.isFinite(parsed)) {
-      return fallback;
-    }
-    return Math.min(Math.max(parsed, min), max);
+  function updateNudgeStep(event: Event) {
+    const target = event.currentTarget as HTMLInputElement;
+    config.nudge.stepPx = toPositiveInt(target.value, config.nudge.stepPx);
+    onConfigMutated();
   }
 
   function parseKeys(value: string): string[] {
@@ -209,214 +261,50 @@
     };
   }
 
-  function onLocaleChange(event: Event) {
-    const target = event.currentTarget as HTMLSelectElement;
-    const next = target.value as Locale;
-    setLocale(next);
-    config.app.locale = next;
-    clearFeedback();
-    void invoke("set_locale", { locale: next }).catch((err) => {
-      error = err instanceof Error ? err.message : String(err);
-    });
-  }
-
-  function switchLayerMode(index: number, mode: "single" | "combo") {
-    const layer = config.layers[index];
-    if (!layer || layer.mode === mode) {
+  function scheduleAutoApply() {
+    if (isLoading || isImporting || isResetting || isExporting) {
       return;
     }
 
-    if (mode === "single") {
-      const defaults = getDefaultSingleLayer();
-      const pooled =
-        layer.mode === "combo"
-          ? [...layer.stage0.keys, ...layer.stage1.keys]
-          : layer.keys;
-      const nextLayers = [...config.layers];
-      nextLayers[index] = {
-        mode: "single",
-        rows: defaults.rows,
-        cols: defaults.cols,
-        keys: fillKeys(pooled, defaults.rows * defaults.cols),
-      };
-      config.layers = nextLayers;
-      clearFeedback();
-      return;
-    }
-
-    const defaults = getDefaultComboLayer();
-    const pooled =
-      layer.mode === "single"
-        ? layer.keys
-        : [...layer.stage0.keys, ...layer.stage1.keys];
-    const nextLayers = [...config.layers];
-    nextLayers[index] = {
-      mode: "combo",
-      stage0: {
-        ...defaults.stage0,
-        keys: fillKeys(pooled, defaults.stage0.rows * defaults.stage0.cols),
-      },
-      stage1: {
-        ...defaults.stage1,
-        keys: fillKeys(pooled, defaults.stage1.rows * defaults.stage1.cols),
-      },
-    };
-    config.layers = nextLayers;
-    clearFeedback();
+    clearAutoApplyTimer();
+    autoApplyTimer = setTimeout(() => {
+      autoApplyTimer = null;
+      void applyConfig();
+    }, AUTO_APPLY_DELAY_MS);
   }
 
-  function addSingleLayer() {
-    const fallbackFontSize = Math.max(
-      1,
-      Math.round(config.overlay.font.sizePx),
-    );
-    const base = getDefaultSingleLayer();
-    config.layers = [
-      ...config.layers,
+  function onConfigMutated() {
+    clearFeedback();
+    scheduleAutoApply();
+  }
+
+  function getHotkeyEntries(candidate: AppConfig) {
+    return [
       {
-        mode: "single",
-        rows: base.rows,
-        cols: base.cols,
-        keys: fillKeys(base.keys, base.rows * base.cols),
+        label: $t("hotkeys.trigger"),
+        value: candidate.hotkeys.activation.trigger,
       },
-    ];
-    config.overlay.font.layerSizePx = [
-      ...config.overlay.font.layerSizePx,
-      fallbackFontSize,
-    ];
-    clearFeedback();
-  }
-
-  function addComboLayer() {
-    const fallbackFontSize = Math.max(
-      1,
-      Math.round(config.overlay.font.sizePx),
-    );
-    const base = getDefaultComboLayer();
-    config.layers = [
-      ...config.layers,
       {
-        mode: "combo",
-        stage0: {
-          ...base.stage0,
-          keys: fillKeys(base.stage0.keys, base.stage0.rows * base.stage0.cols),
-        },
-        stage1: {
-          ...base.stage1,
-          keys: fillKeys(base.stage1.keys, base.stage1.rows * base.stage1.cols),
-        },
+        label: $t("hotkeys.switchAction"),
+        value: candidate.hotkeys.controls.switchAction,
+      },
+      {
+        label: $t("hotkeys.cancel"),
+        value: candidate.hotkeys.controls.cancel,
+      },
+      {
+        label: $t("hotkeys.undo"),
+        value: candidate.hotkeys.controls.undo,
+      },
+      {
+        label: $t("hotkeys.directClick"),
+        value: candidate.hotkeys.controls.directClick,
+      },
+      {
+        label: $t("hotkeys.nextMonitor"),
+        value: candidate.hotkeys.controls.nextMonitor,
       },
     ];
-    config.overlay.font.layerSizePx = [
-      ...config.overlay.font.layerSizePx,
-      fallbackFontSize,
-    ];
-    clearFeedback();
-  }
-  function moveLayer(index: number, direction: -1 | 1) {
-    const nextIndex = index + direction;
-    if (nextIndex < 0 || nextIndex >= config.layers.length) {
-      return;
-    }
-    const nextLayers = [...config.layers];
-    const [moved] = nextLayers.splice(index, 1);
-    nextLayers.splice(nextIndex, 0, moved);
-    config.layers = nextLayers;
-    const nextLayerFontSizes = [...config.overlay.font.layerSizePx];
-    const [movedFontSize] = nextLayerFontSizes.splice(index, 1);
-    const fallbackFontSize = Math.max(
-      1,
-      Math.round(config.overlay.font.sizePx),
-    );
-    nextLayerFontSizes.splice(nextIndex, 0, movedFontSize ?? fallbackFontSize);
-    config.overlay.font.layerSizePx = nextLayerFontSizes;
-    clearFeedback();
-  }
-
-  function removeLayer(index: number) {
-    if (config.layers.length <= 1) {
-      error = $t("errors.layersRequired");
-      return;
-    }
-    if (!confirm($t("errors.removeLayerConfirm", { index: index + 1 }))) {
-      return;
-    }
-    config.layers = config.layers.filter(
-      (_, layerIndex) => layerIndex !== index,
-    );
-    config.overlay.font.layerSizePx = config.overlay.font.layerSizePx.filter(
-      (_, layerIndex) => layerIndex !== index,
-    );
-    clearFeedback();
-  }
-
-  function updateSingleLayerGrid(
-    index: number,
-    field: "rows" | "cols",
-    event: Event,
-  ) {
-    const layer = config.layers[index];
-    if (!layer || layer.mode !== "single") {
-      return;
-    }
-    const target = event.currentTarget as HTMLInputElement;
-    layer[field] = toPositiveInt(target.value, layer[field]);
-    clearFeedback();
-  }
-
-  function updateSingleLayerKeys(index: number, event: Event) {
-    const layer = config.layers[index];
-    if (!layer || layer.mode !== "single") {
-      return;
-    }
-    const target = event.currentTarget as HTMLTextAreaElement;
-    layer.keys = parseKeys(target.value);
-    clearFeedback();
-  }
-
-  function updateComboStageGrid(
-    index: number,
-    stage: 0 | 1,
-    field: "rows" | "cols",
-    event: Event,
-  ) {
-    const layer = config.layers[index];
-    if (!layer || layer.mode !== "combo") {
-      return;
-    }
-    const target = event.currentTarget as HTMLInputElement;
-    if (stage === 0) {
-      layer.stage0.rows = 1;
-      if (field === "cols") {
-        layer.stage0.cols = toPositiveInt(target.value, layer.stage0.cols);
-      }
-    } else {
-      layer.stage1.cols = 1;
-      if (field === "rows") {
-        layer.stage1.rows = toPositiveInt(target.value, layer.stage1.rows);
-      }
-    }
-    clearFeedback();
-  }
-
-  function updateComboStageKeys(index: number, stage: 0 | 1, event: Event) {
-    const layer = config.layers[index];
-    if (!layer || layer.mode !== "combo") {
-      return;
-    }
-    const target = event.currentTarget as HTMLTextAreaElement;
-    const stageConfig = stage === 0 ? layer.stage0 : layer.stage1;
-    stageConfig.keys = parseKeys(target.value);
-    clearFeedback();
-  }
-
-  function updateLayerFontSize(index: number, event: Event) {
-    const target = event.currentTarget as HTMLInputElement;
-    const next = [...config.overlay.font.layerSizePx];
-    const fallback = next[index] ?? config.overlay.font.sizePx;
-    next[index] = toPositiveInt(target.value, fallback);
-    config.overlay.font.layerSizePx = next;
-    clearFeedback();
   }
 
   function validateConfig(candidate: AppConfig): string[] {
@@ -481,24 +369,25 @@
       }
     });
 
-    if (!candidate.hotkeys.activation.trigger.trim()) {
-      issues.push($t("errors.activationHotkeyEmpty"));
+    const seenHotkeys: Record<string, string> = {};
+    for (const entry of getHotkeyEntries(candidate)) {
+      const canonical = canonicalizeHotkey(entry.value);
+      if (!canonical) {
+        continue;
+      }
+      const existing = seenHotkeys[canonical];
+      if (existing && existing !== entry.label) {
+        issues.push(
+          $t("errors.hotkeyConflict", {
+            first: existing,
+            second: entry.label,
+          }),
+        );
+        break;
+      }
+      seenHotkeys[canonical] = entry.label;
     }
-    if (!candidate.hotkeys.controls.cancel.trim()) {
-      issues.push($t("errors.cancelHotkeyEmpty"));
-    }
-    if (!candidate.hotkeys.controls.undo.trim()) {
-      issues.push($t("errors.undoHotkeyEmpty"));
-    }
-    if (!candidate.hotkeys.controls.directClick.trim()) {
-      issues.push($t("errors.directClickHotkeyEmpty"));
-    }
-    if (!candidate.hotkeys.controls.switchAction.trim()) {
-      issues.push($t("errors.switchActionHotkeyEmpty"));
-    }
-    if (!candidate.hotkeys.controls.nextMonitor.trim()) {
-      issues.push($t("errors.nextMonitorHotkeyEmpty"));
-    }
+
     if (candidate.nudge.stepPx <= 0) {
       issues.push($t("errors.nudgeStep"));
     }
@@ -632,28 +521,44 @@
   }
 
   async function applyConfig() {
-    error = "";
-    status = "";
+    if (isLoading) {
+      return;
+    }
+
+    if (isApplying) {
+      reapplyAfterCurrent = true;
+      return;
+    }
+
     config = ensureLayerFontSizesInConfig(config);
     const issues = validateConfig(config);
     if (issues.length) {
+      status = "";
       error = issues[0];
       return;
     }
+
     isApplying = true;
+    error = "";
+
     try {
       await invoke("apply_config", { config });
-      status = $t("status.applied");
     } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? err.message : String(err);
+      error = message;
+      pushToast("error", message);
     } finally {
       isApplying = false;
+      if (reapplyAfterCurrent) {
+        reapplyAfterCurrent = false;
+        scheduleAutoApply();
+      }
     }
   }
 
   async function resetConfig() {
-    error = "";
-    status = "";
+    clearAutoApplyTimer();
+    clearFeedback();
     isResetting = true;
     try {
       const reset = await invoke<AppConfig>("reset_config");
@@ -662,16 +567,18 @@
         setLocale(reset.app.locale);
       }
       status = $t("status.reset");
+      pushToast("success", $t("status.reset"));
     } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? err.message : String(err);
+      error = message;
+      pushToast("error", message);
     } finally {
       isResetting = false;
     }
   }
 
   async function exportOverrideJson() {
-    error = "";
-    status = "";
+    clearFeedback();
     isExporting = true;
     try {
       const json = await invoke<string>("export_override_json");
@@ -685,8 +592,11 @@
       anchor.remove();
       URL.revokeObjectURL(url);
       status = $t("status.exported");
+      pushToast("success", $t("status.exported"));
     } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? err.message : String(err);
+      error = message;
+      pushToast("error", message);
     } finally {
       isExporting = false;
     }
@@ -704,9 +614,10 @@
       return;
     }
 
-    error = "";
-    status = "";
+    clearAutoApplyTimer();
+    clearFeedback();
     isImporting = true;
+
     try {
       const json = await file.text();
       const imported = await invoke<AppConfig>("import_override_json", {
@@ -717,15 +628,282 @@
         setLocale(imported.app.locale);
       }
       status = $t("status.imported");
+      pushToast("success", $t("status.imported"));
     } catch (err) {
-      error = err instanceof Error ? err.message : String(err);
+      const message = err instanceof Error ? err.message : String(err);
+      error = message;
+      pushToast("error", message);
     } finally {
       isImporting = false;
     }
   }
 
+  function onLocaleChange(next: Locale) {
+    setLocale(next);
+    config.app.locale = next;
+    clearFeedback();
+    void invoke("set_locale", { locale: next }).catch((err) => {
+      const message = err instanceof Error ? err.message : String(err);
+      error = message;
+      pushToast("error", message);
+    });
+    scheduleAutoApply();
+  }
+
+  function switchLayerMode(index: number, mode: "single" | "combo") {
+    const layer = config.layers[index];
+    if (!layer || layer.mode === mode) {
+      return;
+    }
+
+    if (mode === "single") {
+      const defaults = getDefaultSingleLayer();
+      const pooled =
+        layer.mode === "combo"
+          ? [...layer.stage0.keys, ...layer.stage1.keys]
+          : layer.keys;
+      const nextLayers = [...config.layers];
+      nextLayers[index] = {
+        mode: "single",
+        rows: defaults.rows,
+        cols: defaults.cols,
+        keys: fillKeys(pooled, defaults.rows * defaults.cols),
+      };
+      config.layers = nextLayers;
+      onConfigMutated();
+      return;
+    }
+
+    const defaults = getDefaultComboLayer();
+    const pooled =
+      layer.mode === "single"
+        ? layer.keys
+        : [...layer.stage0.keys, ...layer.stage1.keys];
+    const nextLayers = [...config.layers];
+    nextLayers[index] = {
+      mode: "combo",
+      stage0: {
+        ...defaults.stage0,
+        keys: fillKeys(pooled, defaults.stage0.rows * defaults.stage0.cols),
+      },
+      stage1: {
+        ...defaults.stage1,
+        keys: fillKeys(pooled, defaults.stage1.rows * defaults.stage1.cols),
+      },
+    };
+    config.layers = nextLayers;
+    onConfigMutated();
+  }
+
+  function addSingleLayer() {
+    const fallbackFontSize = Math.max(
+      1,
+      Math.round(config.overlay.font.sizePx),
+    );
+    const base = getDefaultSingleLayer();
+    config.layers = [
+      ...config.layers,
+      {
+        mode: "single",
+        rows: base.rows,
+        cols: base.cols,
+        keys: fillKeys(base.keys, base.rows * base.cols),
+      },
+    ];
+    config.overlay.font.layerSizePx = [
+      ...config.overlay.font.layerSizePx,
+      fallbackFontSize,
+    ];
+    onConfigMutated();
+  }
+
+  function addComboLayer() {
+    const fallbackFontSize = Math.max(
+      1,
+      Math.round(config.overlay.font.sizePx),
+    );
+    const base = getDefaultComboLayer();
+    config.layers = [
+      ...config.layers,
+      {
+        mode: "combo",
+        stage0: {
+          ...base.stage0,
+          keys: fillKeys(base.stage0.keys, base.stage0.rows * base.stage0.cols),
+        },
+        stage1: {
+          ...base.stage1,
+          keys: fillKeys(base.stage1.keys, base.stage1.rows * base.stage1.cols),
+        },
+      },
+    ];
+    config.overlay.font.layerSizePx = [
+      ...config.overlay.font.layerSizePx,
+      fallbackFontSize,
+    ];
+    onConfigMutated();
+  }
+
+  function moveLayer(index: number, direction: -1 | 1) {
+    const nextIndex = index + direction;
+    if (nextIndex < 0 || nextIndex >= config.layers.length) {
+      return;
+    }
+    const nextLayers = [...config.layers];
+    const [moved] = nextLayers.splice(index, 1);
+    nextLayers.splice(nextIndex, 0, moved);
+    config.layers = nextLayers;
+
+    const nextLayerFontSizes = [...config.overlay.font.layerSizePx];
+    const [movedFontSize] = nextLayerFontSizes.splice(index, 1);
+    const fallbackFontSize = Math.max(
+      1,
+      Math.round(config.overlay.font.sizePx),
+    );
+    nextLayerFontSizes.splice(nextIndex, 0, movedFontSize ?? fallbackFontSize);
+    config.overlay.font.layerSizePx = nextLayerFontSizes;
+    onConfigMutated();
+  }
+
+  function removeLayer(index: number) {
+    if (config.layers.length <= 1) {
+      error = $t("errors.layersRequired");
+      return;
+    }
+    if (!confirm($t("errors.removeLayerConfirm", { index: index + 1 }))) {
+      return;
+    }
+    config.layers = config.layers.filter(
+      (_, layerIndex) => layerIndex !== index,
+    );
+    config.overlay.font.layerSizePx = config.overlay.font.layerSizePx.filter(
+      (_, layerIndex) => layerIndex !== index,
+    );
+    onConfigMutated();
+  }
+
+  function updateSingleLayerGrid(
+    index: number,
+    field: "rows" | "cols",
+    event: Event,
+  ) {
+    const layer = config.layers[index];
+    if (!layer || layer.mode !== "single") {
+      return;
+    }
+    const target = event.currentTarget as HTMLInputElement;
+    layer[field] = toPositiveInt(target.value, layer[field]);
+    onConfigMutated();
+  }
+
+  function updateSingleLayerKeys(index: number, event: Event) {
+    const layer = config.layers[index];
+    if (!layer || layer.mode !== "single") {
+      return;
+    }
+    const target = event.currentTarget as HTMLTextAreaElement;
+    layer.keys = parseKeys(target.value);
+    onConfigMutated();
+  }
+
+  function updateComboStageGrid(
+    index: number,
+    stage: 0 | 1,
+    field: "rows" | "cols",
+    event: Event,
+  ) {
+    const layer = config.layers[index];
+    if (!layer || layer.mode !== "combo") {
+      return;
+    }
+    const target = event.currentTarget as HTMLInputElement;
+    if (stage === 0) {
+      layer.stage0.rows = 1;
+      if (field === "cols") {
+        layer.stage0.cols = toPositiveInt(target.value, layer.stage0.cols);
+      }
+    } else {
+      layer.stage1.cols = 1;
+      if (field === "rows") {
+        layer.stage1.rows = toPositiveInt(target.value, layer.stage1.rows);
+      }
+    }
+    onConfigMutated();
+  }
+
+  function updateComboStageKeys(index: number, stage: 0 | 1, event: Event) {
+    const layer = config.layers[index];
+    if (!layer || layer.mode !== "combo") {
+      return;
+    }
+    const target = event.currentTarget as HTMLTextAreaElement;
+    const stageConfig = stage === 0 ? layer.stage0 : layer.stage1;
+    stageConfig.keys = parseKeys(target.value);
+    onConfigMutated();
+  }
+
+  function updateLayerFontSize(index: number, event: Event) {
+    const target = event.currentTarget as HTMLInputElement;
+    const next = [...config.overlay.font.layerSizePx];
+    const fallback = next[index] ?? config.overlay.font.sizePx;
+    next[index] = toPositiveInt(target.value, fallback);
+    config.overlay.font.layerSizePx = next;
+    onConfigMutated();
+  }
+
+  function onFallbackFontSizeInput(event: Event) {
+    const target = event.currentTarget as HTMLInputElement;
+    config.overlay.font.sizePx = toPositiveInt(
+      target.value,
+      config.overlay.font.sizePx,
+    );
+    config = ensureLayerFontSizesInConfig(config);
+    onConfigMutated();
+  }
+
+  function isSectionId(value: string): value is SectionId {
+    return (
+      value === "general" ||
+      value === "mouse" ||
+      value === "layers" ||
+      value === "hotkeys" ||
+      value === "overlay"
+    );
+  }
+
+  function selectSection(id: string) {
+    if (!isSectionId(id)) {
+      return;
+    }
+    activeSection = id;
+    if (typeof window !== "undefined") {
+      const nextHash = `#${id}`;
+      if (window.location.hash !== nextHash) {
+        window.history.replaceState(null, "", nextHash);
+      }
+    }
+  }
+
+  function syncSectionFromHash() {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const hash = window.location.hash.replace(/^#/, "");
+    if (isSectionId(hash)) {
+      activeSection = hash;
+    }
+  }
+
   onMount(() => {
     initLocale();
+    syncSectionFromHash();
+
+    const onHashChange = () => {
+      syncSectionFromHash();
+    };
+
+    window.addEventListener("hashchange", onHashChange);
+
     void (async () => {
       try {
         const loaded = await invoke<AppConfig>("get_config");
@@ -734,15 +912,22 @@
           setLocale(loaded.app.locale);
         }
       } catch (err) {
-        error = err instanceof Error ? err.message : String(err);
+        const message = err instanceof Error ? err.message : String(err);
+        error = message;
+        pushToast("error", message);
       } finally {
         isLoading = false;
       }
     })();
+
+    return () => {
+      clearAutoApplyTimer();
+      window.removeEventListener("hashchange", onHashChange);
+    };
   });
 </script>
 
-<main class="min-h-screen px-6 py-10">
+<main class="h-screen overflow-hidden px-4 py-4">
   <input
     bind:this={fileInput}
     type="file"
@@ -751,78 +936,9 @@
     onchange={onImportFileChange}
   />
 
-  <div class="mx-auto flex w-full max-w-5xl flex-col gap-8">
-    <header class="flex flex-wrap items-end justify-between gap-4">
-      <div>
-        <p class="text-xs uppercase tracking-[0.35em] text-zinc-500">
-          {$t("app.settings")}
-        </p>
-        <h1 class="text-3xl font-semibold tracking-tight text-zinc-900">
-          {$t("app.brand")}
-        </h1>
-      </div>
-      <div class="flex flex-wrap items-center gap-3">
-        <div class="flex items-center gap-2">
-          <label
-            class="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500"
-            for="locale-select"
-          >
-            {$t("language.label")}
-          </label>
-          <select
-            id="locale-select"
-            class={compactSelectClass}
-            value={$locale}
-            onchange={onLocaleChange}
-            disabled={isLoading}
-          >
-            <option value="zh-CN">{$t("language.zh")}</option>
-            <option value="en-US">{$t("language.en")}</option>
-          </select>
-        </div>
-
-        <button
-          type="button"
-          class="inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
-          onclick={openImportPicker}
-          disabled={isLoading || isImporting || isApplying || isResetting}
-        >
-          {isImporting ? $t("app.importing") : $t("app.import")}
-        </button>
-
-        <button
-          type="button"
-          class="inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
-          onclick={exportOverrideJson}
-          disabled={isLoading || isExporting || isApplying || isResetting}
-        >
-          {isExporting ? $t("app.exporting") : $t("app.export")}
-        </button>
-
-        <button
-          type="button"
-          class="inline-flex items-center justify-center rounded-lg bg-zinc-900 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-400"
-          onclick={applyConfig}
-          disabled={isApplying || isLoading}
-        >
-          {isLoading
-            ? $t("app.loading")
-            : isApplying
-              ? $t("app.applying")
-              : $t("app.apply")}
-        </button>
-
-        <button
-          type="button"
-          class="inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-white px-4 py-2 text-sm font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
-          onclick={resetConfig}
-          disabled={isResetting || isLoading}
-        >
-          {isResetting ? $t("app.resetting") : $t("app.reset")}
-        </button>
-      </div>
-    </header>
-
+  <div
+    class="mx-auto flex h-full w-full max-w-7xl flex-col gap-4 overflow-hidden"
+  >
     {#if status || error}
       <div class="flex flex-wrap items-center gap-3 text-sm">
         {#if status}
@@ -834,999 +950,66 @@
       </div>
     {/if}
 
-    <section
-      class="rounded-2xl border border-zinc-200 bg-white/90 p-6 shadow-sm backdrop-blur"
-    >
-      <div class="flex items-center justify-between gap-4">
-        <div>
-          <p class="text-xs uppercase tracking-[0.28em] text-zinc-500">
-            {$t("nudge.section")}
-          </p>
-          <h2 class="text-lg font-semibold text-zinc-900">
-            {$t("nudge.title")}
-          </h2>
+    <div class="min-h-0 flex-1">
+      <SettingsShell {sections} {activeSection} onSelectSection={selectSection}>
+        <div class="mt-6" class:hidden={activeSection !== "general"}>
+          <GeneralSection
+            localeValue={$locale}
+            {isLoading}
+            {compactSelectClass}
+            {isImporting}
+            {isExporting}
+            {isResetting}
+            {isApplying}
+            onImport={openImportPicker}
+            onExport={exportOverrideJson}
+            onReset={resetConfig}
+            {onLocaleChange}
+          />
         </div>
-        <p class="text-xs text-zinc-500">{$t("nudge.subtitle")}</p>
-      </div>
 
-      <div class="mt-6 grid gap-6 md:grid-cols-2">
-        <div>
-          <label class="text-sm font-medium text-zinc-700" for="nudge-step"
-            >{$t("nudge.step")}</label
-          >
-          <input
-            id="nudge-step"
-            type="number"
-            min="1"
-            class={fieldClass}
-            value={config.nudge.stepPx}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.nudge.stepPx = toPositiveInt(
-                target.value,
-                config.nudge.stepPx,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
+        <div class:hidden={activeSection !== "mouse"}>
+          <MouseSection {config} {isLoading} {fieldClass} {onConfigMutated} />
         </div>
-      </div>
-    </section>
 
-    <section
-      class="rounded-2xl border border-zinc-200 bg-white/90 p-6 shadow-sm backdrop-blur"
-    >
-      <div class="flex items-center justify-between gap-4">
-        <div>
-          <p class="text-xs uppercase tracking-[0.28em] text-zinc-500">
-            {$t("mouse.section")}
-          </p>
-          <h2 class="text-lg font-semibold text-zinc-900">
-            {$t("mouse.title")}
-          </h2>
+        <div class:hidden={activeSection !== "layers"}>
+          <LayersSection
+            {config}
+            {isLoading}
+            {fieldClass}
+            selectClass={compactSelectClass}
+            {textAreaClass}
+            onUpdateNudgeStep={updateNudgeStep}
+            onAddSingleLayer={addSingleLayer}
+            onAddComboLayer={addComboLayer}
+            onSwitchLayerMode={switchLayerMode}
+            onMoveLayer={moveLayer}
+            onRemoveLayer={removeLayer}
+            onUpdateSingleLayerGrid={updateSingleLayerGrid}
+            onUpdateSingleLayerKeys={updateSingleLayerKeys}
+            onUpdateComboStageGrid={updateComboStageGrid}
+            onUpdateComboStageKeys={updateComboStageKeys}
+            onUpdateLayerFontSize={updateLayerFontSize}
+            {formatKeys}
+          />
         </div>
-        <p class="text-xs text-zinc-500">{$t("mouse.subtitle")}</p>
-      </div>
 
-      <div class="mt-6 grid gap-6 md:grid-cols-2">
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="mouse-smooth-move">{$t("mouse.smoothMove")}</label
-          >
-          <input
-            id="mouse-smooth-move"
-            type="checkbox"
-            class="mt-3 h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900/30"
-            bind:checked={config.mouse.smoothMove}
-            onchange={clearFeedback}
-            disabled={isLoading}
-          />
+        <div class:hidden={activeSection !== "hotkeys"}>
+          <HotkeysSection {config} {isLoading} {onConfigMutated} />
         </div>
-        <div>
-          <label class="text-sm font-medium text-zinc-700" for="mouse-duration"
-            >{$t("mouse.moveDurationMs")}</label
-          >
-          <input
-            id="mouse-duration"
-            type="number"
-            min="1"
-            class={fieldClass}
-            value={config.mouse.moveDurationMs}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.mouse.moveDurationMs = toPositiveInt(
-                target.value,
-                config.mouse.moveDurationMs,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label class="text-sm font-medium text-zinc-700" for="mouse-step-ms"
-            >{$t("mouse.moveStepMs")}</label
-          >
-          <input
-            id="mouse-step-ms"
-            type="number"
-            min="1"
-            class={fieldClass}
-            value={config.mouse.moveStepMs}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.mouse.moveStepMs = toPositiveInt(
-                target.value,
-                config.mouse.moveStepMs,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label class="text-sm font-medium text-zinc-700" for="mouse-press-ms"
-            >{$t("mouse.pressDurationMs")}</label
-          >
-          <input
-            id="mouse-press-ms"
-            type="number"
-            min="0"
-            class={fieldClass}
-            value={config.mouse.pressDurationMs}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.mouse.pressDurationMs = toNonNegativeInt(
-                target.value,
-                config.mouse.pressDurationMs,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="mouse-landing-radius">{$t("mouse.landingRadiusPx")}</label
-          >
-          <input
-            id="mouse-landing-radius"
-            type="number"
-            min="0"
-            class={fieldClass}
-            value={config.mouse.landingRadiusPx}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.mouse.landingRadiusPx = toNonNegativeInt(
-                target.value,
-                config.mouse.landingRadiusPx,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="mouse-duration-randomness"
-            >{$t("mouse.durationRandomness")}</label
-          >
-          <input
-            id="mouse-duration-randomness"
-            type="number"
-            min="0"
-            max="0.95"
-            step="0.01"
-            class={fieldClass}
-            value={config.mouse.durationRandomness}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.mouse.durationRandomness = clampNumber(
-                target.value,
-                0,
-                0.95,
-                config.mouse.durationRandomness,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="mouse-step-randomness">{$t("mouse.stepRandomness")}</label
-          >
-          <input
-            id="mouse-step-randomness"
-            type="number"
-            min="0"
-            max="0.95"
-            step="0.01"
-            class={fieldClass}
-            value={config.mouse.stepRandomness}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.mouse.stepRandomness = clampNumber(
-                target.value,
-                0,
-                0.95,
-                config.mouse.stepRandomness,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="mouse-distance-boost-px">{$t("mouse.distanceBoostPx")}</label
-          >
-          <input
-            id="mouse-distance-boost-px"
-            type="number"
-            min="1"
-            step="1"
-            class={fieldClass}
-            value={config.mouse.distanceBoostPx}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.mouse.distanceBoostPx = clampNumber(
-                target.value,
-                1,
-                100000,
-                config.mouse.distanceBoostPx,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="mouse-duration-distance-boost"
-            >{$t("mouse.durationDistanceBoost")}</label
-          >
-          <input
-            id="mouse-duration-distance-boost"
-            type="number"
-            min="0"
-            max="0.95"
-            step="0.01"
-            class={fieldClass}
-            value={config.mouse.durationDistanceBoost}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.mouse.durationDistanceBoost = clampNumber(
-                target.value,
-                0,
-                0.95,
-                config.mouse.durationDistanceBoost,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="mouse-step-distance-boost"
-            >{$t("mouse.stepDistanceBoost")}</label
-          >
-          <input
-            id="mouse-step-distance-boost"
-            type="number"
-            min="0"
-            max="0.95"
-            step="0.01"
-            class={fieldClass}
-            value={config.mouse.stepDistanceBoost}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.mouse.stepDistanceBoost = clampNumber(
-                target.value,
-                0,
-                0.95,
-                config.mouse.stepDistanceBoost,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="mouse-curve-along">{$t("mouse.curveAlongRatio")}</label
-          >
-          <input
-            id="mouse-curve-along"
-            type="number"
-            min="0"
-            max="1"
-            step="0.01"
-            class={fieldClass}
-            value={config.mouse.curveAlongRatio}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.mouse.curveAlongRatio = clampNumber(
-                target.value,
-                0,
-                1,
-                config.mouse.curveAlongRatio,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="mouse-curve-spread">{$t("mouse.curveSpreadRatio")}</label
-          >
-          <input
-            id="mouse-curve-spread"
-            type="number"
-            min="0"
-            max="1"
-            step="0.01"
-            class={fieldClass}
-            value={config.mouse.curveSpreadRatio}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.mouse.curveSpreadRatio = clampNumber(
-                target.value,
-                0,
-                1,
-                config.mouse.curveSpreadRatio,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label class="text-sm font-medium text-zinc-700" for="mouse-jitter"
-            >{$t("mouse.jitterRatio")}</label
-          >
-          <input
-            id="mouse-jitter"
-            type="number"
-            min="0"
-            max="0.2"
-            step="0.001"
-            class={fieldClass}
-            value={config.mouse.jitterRatio}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.mouse.jitterRatio = clampNumber(
-                target.value,
-                0,
-                0.2,
-                config.mouse.jitterRatio,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="mouse-adaptive-stride-base"
-            >{$t("mouse.adaptiveStrideBasePx")}</label
-          >
-          <input
-            id="mouse-adaptive-stride-base"
-            type="number"
-            min="0.1"
-            step="0.1"
-            class={fieldClass}
-            value={config.mouse.adaptiveStrideBasePx}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.mouse.adaptiveStrideBasePx = clampNumber(
-                target.value,
-                0.1,
-                500,
-                config.mouse.adaptiveStrideBasePx,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="mouse-adaptive-stride-ratio"
-            >{$t("mouse.adaptiveStrideDistanceRatio")}</label
-          >
-          <input
-            id="mouse-adaptive-stride-ratio"
-            type="number"
-            min="0"
-            max="1"
-            step="0.001"
-            class={fieldClass}
-            value={config.mouse.adaptiveStrideDistanceRatio}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.mouse.adaptiveStrideDistanceRatio = clampNumber(
-                target.value,
-                0,
-                1,
-                config.mouse.adaptiveStrideDistanceRatio,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="mouse-adaptive-stride-max"
-            >{$t("mouse.adaptiveStrideMaxPx")}</label
-          >
-          <input
-            id="mouse-adaptive-stride-max"
-            type="number"
-            min={config.mouse.adaptiveStrideBasePx}
-            step="0.1"
-            class={fieldClass}
-            value={config.mouse.adaptiveStrideMaxPx}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.mouse.adaptiveStrideMaxPx = clampNumber(
-                target.value,
-                config.mouse.adaptiveStrideBasePx,
-                1000,
-                config.mouse.adaptiveStrideMaxPx,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="mouse-extra-steps">{$t("mouse.extraStepsMax")}</label
-          >
-          <input
-            id="mouse-extra-steps"
-            type="number"
-            min="0"
-            class={fieldClass}
-            value={config.mouse.extraStepsMax}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.mouse.extraStepsMax = toNonNegativeInt(
-                target.value,
-                config.mouse.extraStepsMax,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label class="text-sm font-medium text-zinc-700" for="mouse-max-steps"
-            >{$t("mouse.maxSteps")}</label
-          >
-          <input
-            id="mouse-max-steps"
-            type="number"
-            min="2"
-            class={fieldClass}
-            value={config.mouse.maxSteps}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.mouse.maxSteps = Math.max(
-                2,
-                toPositiveInt(target.value, config.mouse.maxSteps),
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="mouse-max-step-sleep">{$t("mouse.maxStepSleepMs")}</label
-          >
-          <input
-            id="mouse-max-step-sleep"
-            type="number"
-            min="1"
-            class={fieldClass}
-            value={config.mouse.maxStepSleepMs}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.mouse.maxStepSleepMs = toPositiveInt(
-                target.value,
-                config.mouse.maxStepSleepMs,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-      </div>
-    </section>
 
-    <section
-      class="rounded-2xl border border-zinc-200 bg-white/90 p-6 shadow-sm backdrop-blur"
-    >
-      <div class="flex items-center justify-between gap-4">
-        <div>
-          <p class="text-xs uppercase tracking-[0.28em] text-zinc-500">
-            {$t("layers.section")}
-          </p>
-          <h2 class="text-lg font-semibold text-zinc-900">
-            {$t("layers.title")}
-          </h2>
-        </div>
-        <div class="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            class="inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
-            onclick={addSingleLayer}
-            disabled={isLoading}>{$t("layers.addSingle")}</button
-          >
-          <button
-            type="button"
-            class="inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
-            onclick={addComboLayer}
-            disabled={isLoading}>{$t("layers.addCombo")}</button
-          >
-        </div>
-      </div>
-      <p class="mt-2 text-xs text-zinc-500">{$t("layers.subtitle")}</p>
-
-      <div class="mt-6 space-y-4">
-        {#each config.layers as layer, index (index)}
-          <div class="rounded-xl border border-zinc-200 p-4">
-            <div class="flex flex-wrap items-center justify-between gap-4">
-              <div>
-                <p class="text-xs uppercase tracking-[0.24em] text-zinc-500">
-                  {$t("layers.layerLabel", { index: index + 1 })}
-                </p>
-                <p class="text-sm font-semibold text-zinc-900">
-                  {layer.mode === "single"
-                    ? $t("layers.type.single")
-                    : $t("layers.type.combo")}
-                </p>
-              </div>
-              <div class="min-w-[140px]">
-                <label
-                  class="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500"
-                  for={`layer-${index}-mode`}>{$t("layers.mode")}</label
-                >
-                <select
-                  id={`layer-${index}-mode`}
-                  class={fieldClass}
-                  value={layer.mode}
-                  onchange={(event) =>
-                    switchLayerMode(
-                      index,
-                      (event.currentTarget as HTMLSelectElement).value as
-                        | "single"
-                        | "combo",
-                    )}
-                  disabled={isLoading}
-                >
-                  <option value="single">{$t("layers.type.single")}</option>
-                  <option value="combo">{$t("layers.type.combo")}</option>
-                </select>
-              </div>
-              <div class="min-w-[140px]">
-                <label
-                  class="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500"
-                  for={`layer-${index}-font-size`}
-                  >{$t("overlay.fontSize")}</label
-                >
-                <input
-                  id={`layer-${index}-font-size`}
-                  type="number"
-                  min="1"
-                  class={fieldClass}
-                  value={config.overlay.font.layerSizePx[index] ??
-                    config.overlay.font.sizePx}
-                  oninput={(event) => updateLayerFontSize(index, event)}
-                  disabled={isLoading}
-                />
-              </div>
-              <div class="flex flex-wrap items-center gap-2">
-                <button
-                  type="button"
-                  class="inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
-                  onclick={() => moveLayer(index, -1)}
-                  disabled={isLoading || index === 0}
-                  >{$t("layers.moveUp")}</button
-                >
-                <button
-                  type="button"
-                  class="inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
-                  onclick={() => moveLayer(index, 1)}
-                  disabled={isLoading || index === config.layers.length - 1}
-                  >{$t("layers.moveDown")}</button
-                >
-                <button
-                  type="button"
-                  class="inline-flex items-center justify-center rounded-lg border border-zinc-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-zinc-700 shadow-sm transition hover:border-zinc-400 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-60"
-                  onclick={() => removeLayer(index)}
-                  disabled={isLoading || config.layers.length <= 1}
-                  >{$t("layers.remove")}</button
-                >
-              </div>
-            </div>
-
-            {#if layer.mode === "single"}
-              <div class="mt-4 grid gap-4 md:grid-cols-2">
-                <div>
-                  <label
-                    class="text-sm font-medium text-zinc-700"
-                    for={`layer-${index}-rows`}>{$t("layers.rows")}</label
-                  >
-                  <input
-                    id={`layer-${index}-rows`}
-                    type="number"
-                    min="1"
-                    class={fieldClass}
-                    value={layer.rows}
-                    oninput={(event) =>
-                      updateSingleLayerGrid(index, "rows", event)}
-                    disabled={isLoading}
-                  />
-                </div>
-                <div>
-                  <label
-                    class="text-sm font-medium text-zinc-700"
-                    for={`layer-${index}-cols`}>{$t("layers.columns")}</label
-                  >
-                  <input
-                    id={`layer-${index}-cols`}
-                    type="number"
-                    min="1"
-                    class={fieldClass}
-                    value={layer.cols}
-                    oninput={(event) =>
-                      updateSingleLayerGrid(index, "cols", event)}
-                    disabled={isLoading}
-                  />
-                </div>
-              </div>
-              <label
-                class="mt-3 block text-sm font-medium text-zinc-700"
-                for={`layer-${index}-keys`}>{$t("layers.keysHint")}</label
-              >
-              <textarea
-                id={`layer-${index}-keys`}
-                class={textAreaClass}
-                value={formatKeys(layer.keys)}
-                oninput={(event) => updateSingleLayerKeys(index, event)}
-                disabled={isLoading}
-              ></textarea>
-            {:else}
-              <div class="mt-4 grid gap-4 md:grid-cols-2">
-                <div class="rounded-lg border border-zinc-200 p-4">
-                  <p class="text-xs uppercase tracking-[0.24em] text-zinc-500">
-                    {$t("layers.stage0")}
-                  </p>
-                  <div class="mt-3">
-                    <label
-                      class="text-sm font-medium text-zinc-700"
-                      for={`layer-${index}-stage0-cols`}
-                      >{$t("layers.columns")}</label
-                    >
-                    <input
-                      id={`layer-${index}-stage0-cols`}
-                      type="number"
-                      min="1"
-                      class={fieldClass}
-                      value={layer.stage0.cols}
-                      oninput={(event) =>
-                        updateComboStageGrid(index, 0, "cols", event)}
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <label
-                    class="mt-3 block text-sm font-medium text-zinc-700"
-                    for={`layer-${index}-stage0-keys`}
-                    >{$t("layers.keysHint")}</label
-                  >
-                  <textarea
-                    id={`layer-${index}-stage0-keys`}
-                    class={textAreaClass}
-                    value={formatKeys(layer.stage0.keys)}
-                    oninput={(event) => updateComboStageKeys(index, 0, event)}
-                    disabled={isLoading}
-                  ></textarea>
-                </div>
-
-                <div class="rounded-lg border border-zinc-200 p-4">
-                  <p class="text-xs uppercase tracking-[0.24em] text-zinc-500">
-                    {$t("layers.stage1")}
-                  </p>
-                  <div class="mt-3">
-                    <label
-                      class="text-sm font-medium text-zinc-700"
-                      for={`layer-${index}-stage1-rows`}
-                      >{$t("layers.rows")}</label
-                    >
-                    <input
-                      id={`layer-${index}-stage1-rows`}
-                      type="number"
-                      min="1"
-                      class={fieldClass}
-                      value={layer.stage1.rows}
-                      oninput={(event) =>
-                        updateComboStageGrid(index, 1, "rows", event)}
-                      disabled={isLoading}
-                    />
-                  </div>
-                  <label
-                    class="mt-3 block text-sm font-medium text-zinc-700"
-                    for={`layer-${index}-stage1-keys`}
-                    >{$t("layers.keysHint")}</label
-                  >
-                  <textarea
-                    id={`layer-${index}-stage1-keys`}
-                    class={textAreaClass}
-                    value={formatKeys(layer.stage1.keys)}
-                    oninput={(event) => updateComboStageKeys(index, 1, event)}
-                    disabled={isLoading}
-                  ></textarea>
-                </div>
-              </div>
-            {/if}
-          </div>
-        {/each}
-      </div>
-    </section>
-
-    <section
-      class="rounded-2xl border border-zinc-200 bg-white/90 p-6 shadow-sm backdrop-blur"
-    >
-      <div class="flex items-center justify-between gap-4">
-        <div>
-          <p class="text-xs uppercase tracking-[0.28em] text-zinc-500">
-            {$t("hotkeys.section")}
-          </p>
-          <h2 class="text-lg font-semibold text-zinc-900">
-            {$t("hotkeys.title")}
-          </h2>
-        </div>
-      </div>
-
-      <div class="mt-6 grid gap-6 md:grid-cols-2">
-        <div>
-          <label class="text-sm font-medium text-zinc-700" for="hotkey-trigger"
-            >{$t("hotkeys.trigger")}</label
-          >
-          <input
-            id="hotkey-trigger"
-            class={fieldClass}
-            bind:value={config.hotkeys.activation.trigger}
-            oninput={clearFeedback}
-            disabled={isLoading}
-          />
-          <label
-            class="mt-3 block text-sm font-medium text-zinc-700"
-            for="hotkey-switch-action">{$t("hotkeys.switchAction")}</label
-          >
-          <input
-            id="hotkey-switch-action"
-            class={fieldClass}
-            bind:value={config.hotkeys.controls.switchAction}
-            oninput={clearFeedback}
-            disabled={isLoading}
+        <div class:hidden={activeSection !== "overlay"}>
+          <OverlaySection
+            {config}
+            {isLoading}
+            {fieldClass}
+            {onConfigMutated}
+            {onFallbackFontSizeInput}
           />
         </div>
-        <div>
-          <label class="text-sm font-medium text-zinc-700" for="hotkey-cancel"
-            >{$t("hotkeys.cancel")}</label
-          >
-          <input
-            id="hotkey-cancel"
-            class={fieldClass}
-            bind:value={config.hotkeys.controls.cancel}
-            oninput={clearFeedback}
-            disabled={isLoading}
-          />
-          <label
-            class="mt-3 block text-sm font-medium text-zinc-700"
-            for="hotkey-undo">{$t("hotkeys.undo")}</label
-          >
-          <input
-            id="hotkey-undo"
-            class={fieldClass}
-            bind:value={config.hotkeys.controls.undo}
-            oninput={clearFeedback}
-            disabled={isLoading}
-          />
-          <label
-            class="mt-3 block text-sm font-medium text-zinc-700"
-            for="hotkey-direct">{$t("hotkeys.directClick")}</label
-          >
-          <input
-            id="hotkey-direct"
-            class={fieldClass}
-            bind:value={config.hotkeys.controls.directClick}
-            oninput={clearFeedback}
-            disabled={isLoading}
-          />
-          <label
-            class="mt-3 block text-sm font-medium text-zinc-700"
-            for="hotkey-next-monitor">{$t("hotkeys.nextMonitor")}</label
-          >
-          <input
-            id="hotkey-next-monitor"
-            class={fieldClass}
-            bind:value={config.hotkeys.controls.nextMonitor}
-            oninput={clearFeedback}
-            disabled={isLoading}
-          />
-        </div>
-      </div>
-    </section>
-
-    <section
-      class="rounded-2xl border border-zinc-200 bg-white/90 p-6 shadow-sm backdrop-blur"
-    >
-      <div class="flex items-center justify-between gap-4">
-        <div>
-          <p class="text-xs uppercase tracking-[0.28em] text-zinc-500">
-            {$t("overlay.section")}
-          </p>
-          <h2 class="text-lg font-semibold text-zinc-900">
-            {$t("overlay.title")}
-          </h2>
-        </div>
-      </div>
-
-      <div class="mt-6 grid gap-6 md:grid-cols-2">
-        <div>
-          <label class="text-sm font-medium text-zinc-700" for="overlay-alpha"
-            >{$t("overlay.alpha")}</label
-          >
-          <input
-            id="overlay-alpha"
-            type="number"
-            min="0"
-            max="255"
-            class={fieldClass}
-            value={config.overlay.alpha}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.overlay.alpha = clampInt(
-                target.value,
-                0,
-                255,
-                config.overlay.alpha,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label class="text-sm font-medium text-zinc-700" for="overlay-line"
-            >{$t("overlay.lineWidth")}</label
-          >
-          <input
-            id="overlay-line"
-            type="number"
-            min="1"
-            class={fieldClass}
-            value={config.overlay.lineWidthPx}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.overlay.lineWidthPx = toPositiveInt(
-                target.value,
-                config.overlay.lineWidthPx,
-              );
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label class="text-sm font-medium text-zinc-700" for="overlay-font"
-            >{$t("overlay.fontSizeFallback")}</label
-          >
-          <input
-            id="overlay-font"
-            type="number"
-            min="1"
-            class={fieldClass}
-            value={config.overlay.font.sizePx}
-            oninput={(event) => {
-              const target = event.currentTarget as HTMLInputElement;
-              config.overlay.font.sizePx = toPositiveInt(
-                target.value,
-                config.overlay.font.sizePx,
-              );
-              config = ensureLayerFontSizesInConfig(config);
-              clearFeedback();
-            }}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="overlay-show-grid">{$t("overlay.showGrid")}</label
-          >
-          <input
-            id="overlay-show-grid"
-            type="checkbox"
-            class="mt-3 h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900/30"
-            bind:checked={config.overlay.showGrid}
-            onchange={clearFeedback}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="overlay-show-diagonals">{$t("overlay.showDiagonals")}</label
-          >
-          <input
-            id="overlay-show-diagonals"
-            type="checkbox"
-            class="mt-3 h-4 w-4 rounded border-zinc-300 text-zinc-900 focus:ring-zinc-900/30"
-            bind:checked={config.overlay.showDiagonals}
-            onchange={clearFeedback}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="overlay-mask-color">{$t("overlay.maskColor")}</label
-          >
-          <input
-            id="overlay-mask-color"
-            class={fieldClass}
-            bind:value={config.overlay.maskColor}
-            oninput={clearFeedback}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="overlay-line-color">{$t("overlay.lineColor")}</label
-          >
-          <input
-            id="overlay-line-color"
-            class={fieldClass}
-            bind:value={config.overlay.lineColor}
-            oninput={clearFeedback}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="overlay-text-color">{$t("overlay.textColor")}</label
-          >
-          <input
-            id="overlay-text-color"
-            class={fieldClass}
-            bind:value={config.overlay.textColor}
-            oninput={clearFeedback}
-            disabled={isLoading}
-          />
-        </div>
-        <div>
-          <label
-            class="text-sm font-medium text-zinc-700"
-            for="overlay-font-family">{$t("overlay.fontFamily")}</label
-          >
-          <input
-            id="overlay-font-family"
-            class={fieldClass}
-            bind:value={config.overlay.font.family}
-            oninput={clearFeedback}
-            disabled={isLoading}
-          />
-        </div>
-      </div>
-    </section>
-
-    <p class="text-xs text-zinc-500">{$t("footer.note")}</p>
+      </SettingsShell>
+    </div>
   </div>
+
+  <ToastStack {toasts} onDismiss={dismissToast} />
 </main>

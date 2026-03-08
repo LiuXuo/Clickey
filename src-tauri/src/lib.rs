@@ -405,7 +405,7 @@ fn validate_keys(keys: &[String], expected_len: usize, label: &str) -> Result<()
 
 fn validate_hotkey(value: &str, label: &str) -> Result<(), String> {
     if value.trim().is_empty() {
-        return Err(format!("{} hotkey is empty", label));
+        return Ok(());
     }
     parse_shortcut(value)
         .map(|_| ())
@@ -418,22 +418,11 @@ fn validate_config(config: &AppConfig) -> Result<(), String> {
     }
 
     validate_hotkey(&config.hotkeys.activation.trigger, "trigger")?;
-
-    if config.hotkeys.controls.cancel.trim().is_empty() {
-        return Err("cancel hotkey is empty".to_string());
-    }
-    if config.hotkeys.controls.undo.trim().is_empty() {
-        return Err("undo hotkey is empty".to_string());
-    }
-    if config.hotkeys.controls.direct_click.trim().is_empty() {
-        return Err("directClick hotkey is empty".to_string());
-    }
-    if config.hotkeys.controls.switch_action.trim().is_empty() {
-        return Err("switchAction hotkey is empty".to_string());
-    }
-    if config.hotkeys.controls.next_monitor.trim().is_empty() {
-        return Err("nextMonitor hotkey is empty".to_string());
-    }
+    validate_hotkey(&config.hotkeys.controls.cancel, "cancel")?;
+    validate_hotkey(&config.hotkeys.controls.undo, "undo")?;
+    validate_hotkey(&config.hotkeys.controls.direct_click, "directClick")?;
+    validate_hotkey(&config.hotkeys.controls.switch_action, "switchAction")?;
+    validate_hotkey(&config.hotkeys.controls.next_monitor, "nextMonitor")?;
 
     if config.nudge.step_px == 0 {
         return Err("nudge stepPx must be > 0".to_string());
@@ -1528,16 +1517,24 @@ fn register_activation_hotkeys(
     state: &AppState,
     config: &AppConfig,
 ) -> Result<(), String> {
-    let shortcut = parse_shortcut(&config.hotkeys.activation.trigger)
-        .ok_or_else(|| "activation trigger is invalid".to_string())?;
-    let shortcuts = vec![shortcut];
-
     let shortcut_manager = app.global_shortcut();
     if let Ok(previous) = state.activation_shortcuts.lock().map(|guard| guard.clone()) {
         if !previous.is_empty() {
             let _ = shortcut_manager.unregister_multiple(previous);
         }
     }
+
+    if config.hotkeys.activation.trigger.trim().is_empty() {
+        if let Ok(mut guard) = state.activation_shortcuts.lock() {
+            guard.clear();
+        }
+        println!("[hotkeys] activation disabled");
+        return Ok(());
+    }
+
+    let shortcut = parse_shortcut(&config.hotkeys.activation.trigger)
+        .ok_or_else(|| "activation trigger is invalid".to_string())?;
+    let shortcuts = vec![shortcut];
 
     shortcut_manager
         .register_multiple(shortcuts.clone())

@@ -58,7 +58,9 @@ Clickey 的目标是提供一种高效、精确、可肌肉记忆的鼠标定位
 - 鼠标行为：平滑移动、按压时长、落点随机、曲线/抖动、远距离提速与步进策略
 - Overlay 样式：alpha/line width/per-layer font size + color picker
 - 键位输入规则：仅空格分隔；`,` 是合法键位本体，不作为分隔符
+- 热键录制器：`trigger` / `switchAction` 支持“点击录制”，并在冲突时阻止自动生效
 - 配置导入/导出：override JSON（仅包含与默认配置不同的字段）
+- 自动生效：配置改动在前端校验通过后自动应用并持久化（去抖执行）
 - i18n：`zh-CN` / `en-US`，切换后设置页即时生效
 - 托盘联动：
   - 左键单击托盘图标直接打开设置页
@@ -67,7 +69,7 @@ Clickey 的目标是提供一种高效、精确、可肌肉记忆的鼠标定位
 
 按钮：
 
-- `Apply`：应用并保存配置
+- 无 `Apply` 按钮：配置改动校验通过后会自动应用
 - `Reset to default`：恢复默认配置
 - `Import / Export`：导入/导出 override JSON
 

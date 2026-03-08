@@ -4,6 +4,9 @@
 
 :root {
   color-scheme: light;
+  --settings-scrollbar-thumb: #a1a1aa;
+  --settings-scrollbar-thumb-hover: #71717a;
+  --settings-scrollbar-thumb-active: #52525b;
 }
 
 html,
@@ -13,4 +16,36 @@ body {
 
 body {
   @apply bg-gradient-to-b from-white to-zinc-100 text-zinc-900 font-sans antialiased;
+}
+
+.settings-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--settings-scrollbar-thumb) transparent;
+}
+
+.settings-scrollbar::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+.settings-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.settings-scrollbar::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    var(--settings-scrollbar-thumb),
+    var(--settings-scrollbar-thumb-hover)
+  );
+  border: 2px solid rgba(255, 255, 255, 0.82);
+  border-radius: 999px;
+}
+
+.settings-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: var(--settings-scrollbar-thumb-hover);
+}
+
+.settings-scrollbar::-webkit-scrollbar-thumb:active {
+  background: var(--settings-scrollbar-thumb-active);
 }

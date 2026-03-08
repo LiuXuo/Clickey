@@ -79,10 +79,11 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - Layer 编辑：增删 / 排序 / mode 切换（single/combo）/ rows/cols/keys 修改 / auto-fit  
   combo 约束：阶段 1（列）固定 `1xN`，阶段 2（行）固定 `Nx1`
 - 热键编辑：activation + controls
+- 热键录制：`trigger` / `switchAction` 支持点击录制（Esc 取消、Backspace 清空）
 - 鼠标行为配置：平滑移动、按压时长、落点随机、速度随机、曲率/抖动、远距离提速与步进策略
 - Overlay 样式：alpha/line width/per-layer font size + color picker
 - 导入/导出：override JSON（仅包含与默认配置不同字段）
-- Apply/Reset：应用并持久化 / 恢复默认配置（写入 AppConfig/settings.override.json）
+- 自动生效/Reset：配置改动在校验通过后自动应用并持久化；Reset 恢复默认配置（写入 AppConfig/settings.override.json）
 
 > 遮罩窗口（Overlay）与设置页（Settings）必须是两套不同的窗口策略：Overlay 必须 click-through/不抢焦点；Settings 必须可交互/可聚焦。
 
@@ -428,7 +429,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 
 - **配置是单一事实来源**（UI 只是配置编辑器）。
 - Core Engine 只依赖配置与输入事件，不读取 OS。
-- **“设置页/托盘”也是配置入口的一部分**：Settings 只负责编辑配置与触发应用；不直接参与 Overlay 的事件循环。
+- **“设置页/托盘”也是配置入口的一部分**：Settings 只负责编辑配置并触发自动应用；不直接参与 Overlay 的事件循环。
 - 托盘菜单属于运行时 UI：文案必须与 `app.locale` 同步，交互与设置页行为保持一致。
 - **层（`layers`）是定制化的单位**：Settings 直接编辑 `layers[]`；Overlay 只消费“当前运行时配置”。
 - **combo 层固定为轴向两段式**：`stage0=1xN`（阶段 1，列），`stage1=Nx1`（阶段 2，行）；不支持 `2x15/15x2` 这类双轴 stage。
@@ -477,6 +478,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - AHK 历史原型归档可用（版本化；冻结于 v3.1）
 - 仓库文档收敛为 `README.md` + `AGENTS.md`
 - Settings UI 原型完成（层/热键/overlay 表单化 + 配置持久化）
+- Settings UI 结构化重构完成（SettingsShell + 5 sections + keepalive 导航 + 自动生效）
 - 托盘交互优化完成（左键打开设置；右键菜单“设置/暂停或启动/退出”；菜单文案随 i18n 实时更新）
 - 鼠标行为配置化完成（`mouse.*` 全量参数接入 Settings，Native 轨迹/落点/随机策略改为配置驱动）
 
@@ -515,3 +517,6 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-08：`overlay.font` 新增 `layerSizePx`（按层字号数组）；默认值更新为首层 16、第二层 12，`sizePx` 继续作为回退字号；Settings/Overlay/Rust 校验同步接入。
 - 2026-03-08：组合层约束收敛为固定轴向：`stage0=1xN`（阶段 1，列）+ `stage1=Nx1`（阶段 2，行）；Settings 文案同步改为“阶段 1/阶段 2”。
 - 2026-03-08：键位输入解析改为空白分隔；`,` 不再作为分隔符，恢复为可配置键位本体（用于行键集合）。
+- 2026-03-08：Settings 页面完成结构化拆分（SettingsShell + General/Mouse/Layers/Hotkeys/Overlay sections），并改为 keepalive 分区切换。
+- 2026-03-08：移除 `Apply` 按钮，配置改动改为“前端校验通过后自动生效”（去抖触发）；新增冲突检测（hotkeys 重复时阻止应用）。
+- 2026-03-08：新增 hotkey recorder（`trigger` / `switchAction`）与颜色字段 `ColorField`，并补充 toast 反馈与 i18n 目录化拆分（`index + locales`）。
