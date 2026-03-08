@@ -91,6 +91,7 @@ export interface AppConfig {
     font: {
       family: string;
       sizePx: number;
+      layerSizePx: number[];
     };
   };
 }

@@ -55,7 +55,7 @@ Clickey 的目标是提供一种高效、精确、可肌肉记忆的鼠标定位
 - Layer 编辑：增删 / 排序 / mode 切换（single/combo）/ rows/cols/keys 修改 / auto-fit
 - 热键编辑：activation + controls
 - 鼠标行为：平滑移动、按压时长、落点随机、曲线/抖动、远距离提速与步进策略
-- Overlay 样式：alpha/line width/font size + color picker
+- Overlay 样式：alpha/line width/per-layer font size + color picker
 - 配置导入/导出：override JSON（仅包含与默认配置不同的字段）
 - i18n：`zh-CN` / `en-US`，切换后设置页即时生效
 - 托盘联动：
@@ -219,7 +219,7 @@ AHK 脚本保留价值仅限于：
 - **分层与网格（`layers`）**：基于单一默认配置直接编辑层；每层可定义行列数（`rows x cols`）与模式（`single` / `combo`）。
 - **按键映射**：每个（子）步骤都有自己的 `keys` 列表，决定 `keyIndex → row/col` 的映射。
 - **鼠标策略（`mouse`）**：平滑移动、落点随机、曲率/抖动、时长与步进随机、远距离提速、自适应步长与步数上限。
-- **遮罩外观**：透明度、线条颜色/粗细、文字颜色/字号等。
+- **遮罩外观**：透明度、线条颜色/粗细、文字颜色/字号（支持按层设置）等。
 
 字段名约定（与 `AGENTS.md` 的配置模型一致）：
 

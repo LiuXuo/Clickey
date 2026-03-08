@@ -66,7 +66,7 @@ function makeConfig(): AppConfig {
       lineWidthPx: 1,
       showGrid: true,
       showDiagonals: true,
-      font: { family: "Segoe UI", sizePx: 12 },
+      font: { family: "Segoe UI", sizePx: 12, layerSizePx: [16, 12] },
     },
   };
 }

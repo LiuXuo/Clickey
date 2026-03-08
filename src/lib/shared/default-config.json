@@ -123,7 +123,8 @@
     "showDiagonals": true,
     "font": {
       "family": "Segoe UI",
-      "sizePx": 12
+      "sizePx": 12,
+      "layerSizePx": [16, 12]
     }
   }
 }

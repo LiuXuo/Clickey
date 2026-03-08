@@ -79,7 +79,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - Layer 编辑：增删 / 排序 / mode 切换（single/combo）/ rows/cols/keys 修改 / auto-fit
 - 热键编辑：activation + controls
 - 鼠标行为配置：平滑移动、按压时长、落点随机、速度随机、曲率/抖动、远距离提速与步进策略
-- Overlay 样式：alpha/line width/font size + color picker
+- Overlay 样式：alpha/line width/per-layer font size + color picker
 - 导入/导出：override JSON（仅包含与默认配置不同字段）
 - Apply/Reset：应用并持久化 / 恢复默认配置（写入 AppConfig/settings.override.json）
 
@@ -415,7 +415,8 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
     "showDiagonals": true,
     "font": {
       "family": "Segoe UI",
-      "sizePx": 12
+      "sizePx": 12,
+      "layerSizePx": [16, 12]
     }
   }
 }
@@ -507,3 +508,4 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-06：新增 `mouse` 配置分组（含落点随机、速度随机、曲率/抖动、远距离提速、自适应步进等参数），默认配置、前端类型、Rust 结构体与校验规则同步更新。
 - 2026-03-06：Settings 页面新增“鼠标行为”分组；Native 点击日志补充 `requested_x/y` 与 `landing + offset_x/y`，用于验证随机落点与执行路径。
 - 2026-03-06：项目主线与 AHK demo 脚本正式解耦；AHK 冻结于 `demo/clickey_v3.1.ahk`，后续不再迭代，当前行为以仓库内实现与默认配置为准。
+- 2026-03-08：`overlay.font` 新增 `layerSizePx`（按层字号数组）；默认值更新为首层 16、第二层 12，`sizePx` 继续作为回退字号；Settings/Overlay/Rust 校验同步接入。

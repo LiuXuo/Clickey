@@ -489,7 +489,9 @@ fn validate_config(config: &AppConfig) -> Result<(), String> {
     {
         return Err("mouse jitterRatio must be in [0, 0.2]".to_string());
     }
-    if !config.mouse.adaptive_stride_base_px.is_finite() || config.mouse.adaptive_stride_base_px <= 0.0 {
+    if !config.mouse.adaptive_stride_base_px.is_finite()
+        || config.mouse.adaptive_stride_base_px <= 0.0
+    {
         return Err("mouse adaptiveStrideBasePx must be > 0".to_string());
     }
     if !config.mouse.adaptive_stride_distance_ratio.is_finite()
@@ -514,6 +516,15 @@ fn validate_config(config: &AppConfig) -> Result<(), String> {
     }
     if config.overlay.font.size_px == 0 {
         return Err("overlay font sizePx must be > 0".to_string());
+    }
+    if config
+        .overlay
+        .font
+        .layer_size_px
+        .iter()
+        .any(|value| *value == 0)
+    {
+        return Err("overlay font layerSizePx must be > 0".to_string());
     }
 
     for (layer_index, layer) in config.layers.iter().enumerate() {
@@ -1164,8 +1175,7 @@ fn perform_click(app: &AppHandle, payload: &NativeClickPayload) -> Result<(), St
     let mut enigo = Enigo::new();
     let base_x = payload.x.round() as i32;
     let base_y = payload.y.round() as i32;
-    let (target_x, target_y) =
-        resolve_landing_point(base_x, base_y, &payload.button, &mouse_cfg);
+    let (target_x, target_y) = resolve_landing_point(base_x, base_y, &payload.button, &mouse_cfg);
     println!(
         "[native] landing action={:?} x={} y={} offset_x={} offset_y={}",
         payload.button,
@@ -1254,7 +1264,8 @@ fn move_mouse_to_target(enigo: &mut Enigo, target_x: i32, target_y: i32, cfg: &M
         + distance * cfg.adaptive_stride_distance_ratio.max(0.0))
     .clamp(
         cfg.adaptive_stride_base_px.max(0.5),
-        cfg.adaptive_stride_max_px.max(cfg.adaptive_stride_base_px.max(0.5)),
+        cfg.adaptive_stride_max_px
+            .max(cfg.adaptive_stride_base_px.max(0.5)),
     );
     let distance_steps = (distance / adaptive_stride_px).ceil() as u64;
     let extra_steps = rng.range_u64_inclusive(0, cfg.extra_steps_max as u64);
@@ -1283,10 +1294,8 @@ fn move_mouse_to_target(enigo: &mut Enigo, target_x: i32, target_y: i32, cfg: &M
     } else {
         lateral_span_raw.clamp(1.5, 22.0)
     };
-    let ctrl_x =
-        mid_x + (dir_x * along_shift) + (perp_x * lateral_span * rng.range_f64(-1.0, 1.0));
-    let ctrl_y =
-        mid_y + (dir_y * along_shift) + (perp_y * lateral_span * rng.range_f64(-1.0, 1.0));
+    let ctrl_x = mid_x + (dir_x * along_shift) + (perp_x * lateral_span * rng.range_f64(-1.0, 1.0));
+    let ctrl_y = mid_y + (dir_y * along_shift) + (perp_y * lateral_span * rng.range_f64(-1.0, 1.0));
     let jitter_ratio = cfg.jitter_ratio.clamp(0.0, 0.2);
     let jitter_base = if jitter_ratio <= 0.0 {
         0.0
@@ -1373,7 +1382,11 @@ struct FastRng {
 
 impl FastRng {
     fn new(seed: u64) -> Self {
-        let state = if seed == 0 { 0xa076_1d64_78bd_642f } else { seed };
+        let state = if seed == 0 {
+            0xa076_1d64_78bd_642f
+        } else {
+            seed
+        };
         Self { state }
     }
 

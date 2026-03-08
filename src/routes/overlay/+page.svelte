@@ -67,6 +67,19 @@
     return { rows: rowKeys.length, cols: colKeys.length, keys: labels };
   }
 
+  function resolveLayerFontSize(config: AppConfig, runtime: RuntimeState): number {
+    const fallback = Math.max(1, Math.round(config.overlay.font.sizePx));
+    const perLayer = config.overlay.font.layerSizePx;
+    if (!Array.isArray(perLayer)) {
+      return fallback;
+    }
+    const candidate = perLayer[runtime.layerIndex];
+    if (!Number.isFinite(candidate) || candidate <= 0) {
+      return fallback;
+    }
+    return Math.round(candidate);
+  }
+
   function draw() {
     if (!canvas) {
       return;
@@ -151,7 +164,8 @@
     }
 
     ctx.fillStyle = config.overlay.textColor;
-    ctx.font = `600 ${config.overlay.font.sizePx}px ${config.overlay.font.family}`;
+    const fontSizePx = resolveLayerFontSize(config, runtime);
+    ctx.font = `600 ${fontSizePx}px ${config.overlay.font.family}`;
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
     ctx.shadowColor = "rgba(0, 0, 0, 0.55)";

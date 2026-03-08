@@ -265,6 +265,8 @@ pub struct OverlayConfig {
 pub struct OverlayFont {
     pub family: String,
     pub size_px: u32,
+    #[serde(default = "default_overlay_font_layer_size_px")]
+    pub layer_size_px: Vec<u32>,
 }
 
 fn default_overlay_show_grid() -> bool {
@@ -273,6 +275,10 @@ fn default_overlay_show_grid() -> bool {
 
 fn default_overlay_show_diagonals() -> bool {
     true
+}
+
+fn default_overlay_font_layer_size_px() -> Vec<u32> {
+    vec![16, 12]
 }
 
 fn default_locale() -> String {

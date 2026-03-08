@@ -5,7 +5,9 @@
   import defaultConfig from "$lib/shared/default-config.json";
   import type { AppConfig } from "$lib/core";
 
-  const initialConfig = JSON.parse(JSON.stringify(defaultConfig)) as AppConfig;
+  const initialConfig = ensureLayerFontSizesInConfig(
+    JSON.parse(JSON.stringify(defaultConfig)) as AppConfig,
+  );
 
   const fieldClass =
     "mt-2 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 disabled:cursor-not-allowed disabled:bg-zinc-100";
@@ -60,6 +62,27 @@
   function clearFeedback() {
     status = "";
     error = "";
+  }
+
+  function ensureLayerFontSizesInConfig(candidate: AppConfig): AppConfig {
+    const fallbackRaw = Number.isFinite(candidate.overlay.font.sizePx)
+      ? candidate.overlay.font.sizePx
+      : 12;
+    const fallback = Math.max(1, Math.round(fallbackRaw));
+    const existing = Array.isArray(candidate.overlay.font.layerSizePx)
+      ? candidate.overlay.font.layerSizePx
+      : [];
+    const normalized: number[] = [];
+    for (let index = 0; index < candidate.layers.length; index += 1) {
+      const value = existing[index];
+      if (Number.isFinite(value) && value > 0) {
+        normalized.push(Math.round(value));
+      } else {
+        normalized.push(fallback);
+      }
+    }
+    candidate.overlay.font.layerSizePx = normalized;
+    return candidate;
   }
 
   function toPositiveInt(value: string, fallback: number): number {
@@ -206,6 +229,7 @@
   }
 
   function addSingleLayer() {
+    const fallbackFontSize = Math.max(1, Math.round(config.overlay.font.sizePx));
     const base = getDefaultSingleLayer();
     config.layers = [
       ...config.layers,
@@ -216,10 +240,15 @@
         keys: fillKeys(base.keys, base.rows * base.cols),
       },
     ];
+    config.overlay.font.layerSizePx = [
+      ...config.overlay.font.layerSizePx,
+      fallbackFontSize,
+    ];
     clearFeedback();
   }
 
   function addComboLayer() {
+    const fallbackFontSize = Math.max(1, Math.round(config.overlay.font.sizePx));
     const base = getDefaultComboLayer();
     config.layers = [
       ...config.layers,
@@ -235,6 +264,10 @@
         },
       },
     ];
+    config.overlay.font.layerSizePx = [
+      ...config.overlay.font.layerSizePx,
+      fallbackFontSize,
+    ];
     clearFeedback();
   }
   function moveLayer(index: number, direction: -1 | 1) {
@@ -246,6 +279,15 @@
     const [moved] = nextLayers.splice(index, 1);
     nextLayers.splice(nextIndex, 0, moved);
     config.layers = nextLayers;
+    const nextLayerFontSizes = [...config.overlay.font.layerSizePx];
+    const [movedFontSize] = nextLayerFontSizes.splice(index, 1);
+    const fallbackFontSize = Math.max(1, Math.round(config.overlay.font.sizePx));
+    nextLayerFontSizes.splice(
+      nextIndex,
+      0,
+      movedFontSize ?? fallbackFontSize,
+    );
+    config.overlay.font.layerSizePx = nextLayerFontSizes;
     clearFeedback();
   }
 
@@ -258,6 +300,9 @@
       return;
     }
     config.layers = config.layers.filter(
+      (_, layerIndex) => layerIndex !== index,
+    );
+    config.overlay.font.layerSizePx = config.overlay.font.layerSizePx.filter(
       (_, layerIndex) => layerIndex !== index,
     );
     clearFeedback();
@@ -311,6 +356,15 @@
     const target = event.currentTarget as HTMLTextAreaElement;
     const stageConfig = stage === 0 ? layer.stage0 : layer.stage1;
     stageConfig.keys = parseKeys(target.value);
+    clearFeedback();
+  }
+
+  function updateLayerFontSize(index: number, event: Event) {
+    const target = event.currentTarget as HTMLInputElement;
+    const next = [...config.overlay.font.layerSizePx];
+    const fallback = next[index] ?? config.overlay.font.sizePx;
+    next[index] = toPositiveInt(target.value, fallback);
+    config.overlay.font.layerSizePx = next;
     clearFeedback();
   }
 
@@ -510,6 +564,12 @@
     if (candidate.overlay.font.sizePx <= 0) {
       issues.push($t("errors.overlayFontSize"));
     }
+    for (const sizePx of candidate.overlay.font.layerSizePx) {
+      if (!Number.isFinite(sizePx) || sizePx <= 0) {
+        issues.push($t("errors.overlayFontSize"));
+        break;
+      }
+    }
 
     return issues;
   }
@@ -517,6 +577,7 @@
   async function applyConfig() {
     error = "";
     status = "";
+    config = ensureLayerFontSizesInConfig(config);
     const issues = validateConfig(config);
     if (issues.length) {
       error = issues[0];
@@ -539,7 +600,7 @@
     isResetting = true;
     try {
       const reset = await invoke<AppConfig>("reset_config");
-      config = reset;
+      config = ensureLayerFontSizesInConfig(reset);
       if (reset.app.locale === "zh-CN" || reset.app.locale === "en-US") {
         setLocale(reset.app.locale);
       }
@@ -594,7 +655,7 @@
       const imported = await invoke<AppConfig>("import_override_json", {
         json,
       });
-      config = imported;
+      config = ensureLayerFontSizesInConfig(imported);
       if (imported.app.locale === "zh-CN" || imported.app.locale === "en-US") {
         setLocale(imported.app.locale);
       }
@@ -611,7 +672,7 @@
     void (async () => {
       try {
         const loaded = await invoke<AppConfig>("get_config");
-        config = loaded;
+        config = ensureLayerFontSizesInConfig(loaded);
         if (loaded.app.locale === "zh-CN" || loaded.app.locale === "en-US") {
           setLocale(loaded.app.locale);
         }
@@ -1292,6 +1353,22 @@
                   <option value="combo">{$t("layers.type.combo")}</option>
                 </select>
               </div>
+              <div class="min-w-[140px]">
+                <label
+                  class="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500"
+                  for={`layer-${index}-font-size`}>{$t("overlay.fontSize")}</label
+                >
+                <input
+                  id={`layer-${index}-font-size`}
+                  type="number"
+                  min="1"
+                  class={fieldClass}
+                  value={config.overlay.font.layerSizePx[index] ??
+                    config.overlay.font.sizePx}
+                  oninput={(event) => updateLayerFontSize(index, event)}
+                  disabled={isLoading}
+                />
+              </div>
               <div class="flex flex-wrap items-center gap-2">
                 <button
                   type="button"
@@ -1627,7 +1704,7 @@
         </div>
         <div>
           <label class="text-sm font-medium text-zinc-700" for="overlay-font"
-            >{$t("overlay.fontSize")}</label
+            >{$t("overlay.fontSizeFallback")}</label
           >
           <input
             id="overlay-font"
@@ -1641,6 +1718,7 @@
                 target.value,
                 config.overlay.font.sizePx,
               );
+              config = ensureLayerFontSizesInConfig(config);
               clearFeedback();
             }}
             disabled={isLoading}
