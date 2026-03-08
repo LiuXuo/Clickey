@@ -76,7 +76,8 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 
 当前实现（原型）已具备最小可用的表单化设置能力：
 
-- Layer 编辑：增删 / 排序 / mode 切换（single/combo）/ rows/cols/keys 修改 / auto-fit
+- Layer 编辑：增删 / 排序 / mode 切换（single/combo）/ rows/cols/keys 修改 / auto-fit  
+  combo 约束：阶段 1（列）固定 `1xN`，阶段 2（行）固定 `Nx1`
 - 热键编辑：activation + controls
 - 鼠标行为配置：平滑移动、按压时长、落点随机、速度随机、曲率/抖动、远距离提速与步进策略
 - Overlay 样式：alpha/line width/per-layer font size + color picker
@@ -137,8 +138,9 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
   - `single`：一次按键对应一个 `rows x cols` 网格裁剪
   - `combo`：两段式（先选一维，再选另一维），本质仍是两次裁剪
 - **Stage（仅 combo）**
-  - Stage 0：选择“块”（第一步）
-  - Stage 1：选择“块内格”（第二步）
+  - 内部状态：Stage 0 / Stage 1（对应配置字段 `stage0` / `stage1`）
+  - 设置页显示：阶段 1（列）/ 阶段 2（行）
+  - 几何约束：`stage0 = 1xN`（只配列键），`stage1 = Nx1`（只配行键）
 
 ---
 
@@ -193,8 +195,8 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 
 步骤（共 3 次按键）：
 
-1. combo stage 0：用“列键”选列（裁剪一次）
-2. combo stage 1：用“行键”选行（裁剪一次）
+1. combo 阶段 1（内部 stage 0）：用“列键”选列（裁剪一次）
+2. combo 阶段 2（内部 stage 1）：用“行键”选行（裁剪一次）
 3. single：用单键层 3x5（裁剪一次）
 
 补充：
@@ -429,6 +431,8 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - **“设置页/托盘”也是配置入口的一部分**：Settings 只负责编辑配置与触发应用；不直接参与 Overlay 的事件循环。
 - 托盘菜单属于运行时 UI：文案必须与 `app.locale` 同步，交互与设置页行为保持一致。
 - **层（`layers`）是定制化的单位**：Settings 直接编辑 `layers[]`；Overlay 只消费“当前运行时配置”。
+- **combo 层固定为轴向两段式**：`stage0=1xN`（阶段 1，列），`stage1=Nx1`（阶段 2，行）；不支持 `2x15/15x2` 这类双轴 stage。
+- **键位输入仅按空白分隔**：`,` 是合法键位本体，不作为分隔符。
 - **鼠标策略（`mouse.*`）也是运行时配置的一部分**：不得在 Rust 中硬编码轨迹参数；行为必须由配置驱动并可通过 Settings 调整。
 - **持久化采用 override JSON**：仅写入与默认配置不同字段（`AppConfig/settings.override.json`），支持导入/导出同结构 JSON。
 
@@ -509,3 +513,5 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-06：Settings 页面新增“鼠标行为”分组；Native 点击日志补充 `requested_x/y` 与 `landing + offset_x/y`，用于验证随机落点与执行路径。
 - 2026-03-06：项目主线与 AHK demo 脚本正式解耦；AHK 冻结于 `demo/clickey_v3.1.ahk`，后续不再迭代，当前行为以仓库内实现与默认配置为准。
 - 2026-03-08：`overlay.font` 新增 `layerSizePx`（按层字号数组）；默认值更新为首层 16、第二层 12，`sizePx` 继续作为回退字号；Settings/Overlay/Rust 校验同步接入。
+- 2026-03-08：组合层约束收敛为固定轴向：`stage0=1xN`（阶段 1，列）+ `stage1=Nx1`（阶段 2，行）；Settings 文案同步改为“阶段 1/阶段 2”。
+- 2026-03-08：键位输入解析改为空白分隔；`,` 不再作为分隔符，恢复为可配置键位本体（用于行键集合）。

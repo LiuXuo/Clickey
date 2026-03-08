@@ -55,11 +55,11 @@ const zh = {
   "layers.rows": "行",
   "layers.columns": "列",
   "layers.keys": "键位",
-  "layers.keysHint": "键位（空格或逗号分隔）",
+  "layers.keysHint": "键位（空格分隔）",
   "layers.autoFit": "自动补齐",
   "layers.currentExpected": "当前：{current} / 期望：{expected}",
-  "layers.stage0": "阶段 0",
-  "layers.stage1": "阶段 1",
+  "layers.stage0": "阶段 1",
+  "layers.stage1": "阶段 2",
   "hotkeys.section": "热键",
   "hotkeys.title": "按键绑定",
   "hotkeys.subtitle": "全局快捷键格式",
@@ -133,12 +133,14 @@ const zh = {
   "errors.layerGridInvalid": "预设 {id} 的第 {index} 层网格无效。",
   "errors.layerExpectedKeys":
     "预设 {id} 的第 {index} 层需要 {expected} 个键位。",
-  "errors.stage0GridInvalid": "预设 {id} 的第 {index} 层阶段 0 网格无效。",
-  "errors.stage1GridInvalid": "预设 {id} 的第 {index} 层阶段 1 网格无效。",
+  "errors.stage0GridInvalid": "预设 {id} 的第 {index} 层阶段 1 网格无效。",
+  "errors.stage1GridInvalid": "预设 {id} 的第 {index} 层阶段 2 网格无效。",
   "errors.stage0ExpectedKeys":
-    "预设 {id} 的第 {index} 层阶段 0 需要 {expected} 个键位。",
-  "errors.stage1ExpectedKeys":
     "预设 {id} 的第 {index} 层阶段 1 需要 {expected} 个键位。",
+  "errors.stage1ExpectedKeys":
+    "预设 {id} 的第 {index} 层阶段 2 需要 {expected} 个键位。",
+  "errors.comboAxisConstraintSimple":
+    "第 {index} 层组合必须是阶段 1 = 1xN，阶段 2 = Nx1。",
   "errors.activePresetMissing": "当前预设不存在。",
   "errors.leftHotkeyEmpty": "左键激活热键为空。",
   "errors.rightHotkeyEmpty": "右键激活热键为空。",
@@ -162,13 +164,10 @@ const zh = {
     "鼠标 durationDistanceBoost 必须在 [0, 1) 范围。",
   "errors.mouseStepDistanceBoost":
     "鼠标 stepDistanceBoost 必须在 [0, 1) 范围。",
-  "errors.mouseCurveAlongRatio":
-    "鼠标 curveAlongRatio 必须在 [0, 1] 范围。",
-  "errors.mouseCurveSpreadRatio":
-    "鼠标 curveSpreadRatio 必须在 [0, 1] 范围。",
+  "errors.mouseCurveAlongRatio": "鼠标 curveAlongRatio 必须在 [0, 1] 范围。",
+  "errors.mouseCurveSpreadRatio": "鼠标 curveSpreadRatio 必须在 [0, 1] 范围。",
   "errors.mouseJitterRatio": "鼠标 jitterRatio 必须在 [0, 0.2] 范围。",
-  "errors.mouseAdaptiveStrideBase":
-    "鼠标 adaptiveStrideBasePx 必须大于 0。",
+  "errors.mouseAdaptiveStrideBase": "鼠标 adaptiveStrideBasePx 必须大于 0。",
   "errors.mouseAdaptiveStrideDistanceRatio":
     "鼠标 adaptiveStrideDistanceRatio 必须大于等于 0。",
   "errors.mouseAdaptiveStrideMax":
@@ -180,12 +179,12 @@ const zh = {
   "errors.overlayFontSize": "遮罩字体大小必须大于 0。",
   "errors.layerGridInvalidSimple": "第 {index} 层网格无效。",
   "errors.layerExpectedKeysSimple": "第 {index} 层需要 {expected} 个键位。",
-  "errors.stage0GridInvalidSimple": "第 {index} 层阶段 0 网格无效。",
-  "errors.stage1GridInvalidSimple": "第 {index} 层阶段 1 网格无效。",
+  "errors.stage0GridInvalidSimple": "第 {index} 层阶段 1 网格无效。",
+  "errors.stage1GridInvalidSimple": "第 {index} 层阶段 2 网格无效。",
   "errors.stage0ExpectedKeysSimple":
-    "第 {index} 层阶段 0 需要 {expected} 个键位。",
-  "errors.stage1ExpectedKeysSimple":
     "第 {index} 层阶段 1 需要 {expected} 个键位。",
+  "errors.stage1ExpectedKeysSimple":
+    "第 {index} 层阶段 2 需要 {expected} 个键位。",
 } as const;
 
 type TranslationKey = keyof typeof zh;
@@ -240,11 +239,11 @@ const en: Record<TranslationKey, string> = {
   "layers.rows": "Rows",
   "layers.columns": "Columns",
   "layers.keys": "Keys",
-  "layers.keysHint": "Keys (space or comma separated)",
+  "layers.keysHint": "Keys (space-separated)",
   "layers.autoFit": "Auto-fit",
   "layers.currentExpected": "Current: {current} / Expected: {expected}",
-  "layers.stage0": "Stage 0",
-  "layers.stage1": "Stage 1",
+  "layers.stage0": "Stage 1",
+  "layers.stage1": "Stage 2",
   "hotkeys.section": "Hotkeys",
   "hotkeys.title": "Key Bindings",
   "hotkeys.subtitle": "Global shortcut syntax",
@@ -319,12 +318,14 @@ const en: Record<TranslationKey, string> = {
   "errors.layerGridInvalid": "Preset {id} layer {index} grid is invalid.",
   "errors.layerExpectedKeys":
     "Preset {id} layer {index} expects {expected} keys.",
-  "errors.stage0GridInvalid": "Preset {id} layer {index} stage0 grid invalid.",
-  "errors.stage1GridInvalid": "Preset {id} layer {index} stage1 grid invalid.",
+  "errors.stage0GridInvalid": "Preset {id} layer {index} stage 1 grid invalid.",
+  "errors.stage1GridInvalid": "Preset {id} layer {index} stage 2 grid invalid.",
   "errors.stage0ExpectedKeys":
-    "Preset {id} layer {index} stage0 expects {expected} keys.",
+    "Preset {id} layer {index} stage 1 expects {expected} keys.",
   "errors.stage1ExpectedKeys":
-    "Preset {id} layer {index} stage1 expects {expected} keys.",
+    "Preset {id} layer {index} stage 2 expects {expected} keys.",
+  "errors.comboAxisConstraintSimple":
+    "Layer {index} combo must be stage 1 = 1xN, stage 2 = Nx1.",
   "errors.activePresetMissing": "Active preset is missing.",
   "errors.leftHotkeyEmpty": "Left activation hotkey is empty.",
   "errors.rightHotkeyEmpty": "Right activation hotkey is empty.",
@@ -346,14 +347,11 @@ const en: Record<TranslationKey, string> = {
   "errors.mouseDistanceBoostPx": "Mouse distanceBoostPx must be > 0.",
   "errors.mouseDurationDistanceBoost":
     "Mouse durationDistanceBoost must be in [0, 1).",
-  "errors.mouseStepDistanceBoost":
-    "Mouse stepDistanceBoost must be in [0, 1).",
+  "errors.mouseStepDistanceBoost": "Mouse stepDistanceBoost must be in [0, 1).",
   "errors.mouseCurveAlongRatio": "Mouse curveAlongRatio must be in [0, 1].",
-  "errors.mouseCurveSpreadRatio":
-    "Mouse curveSpreadRatio must be in [0, 1].",
+  "errors.mouseCurveSpreadRatio": "Mouse curveSpreadRatio must be in [0, 1].",
   "errors.mouseJitterRatio": "Mouse jitterRatio must be in [0, 0.2].",
-  "errors.mouseAdaptiveStrideBase":
-    "Mouse adaptiveStrideBasePx must be > 0.",
+  "errors.mouseAdaptiveStrideBase": "Mouse adaptiveStrideBasePx must be > 0.",
   "errors.mouseAdaptiveStrideDistanceRatio":
     "Mouse adaptiveStrideDistanceRatio must be >= 0.",
   "errors.mouseAdaptiveStrideMax":
@@ -365,12 +363,12 @@ const en: Record<TranslationKey, string> = {
   "errors.overlayFontSize": "Overlay font sizePx must be > 0.",
   "errors.layerGridInvalidSimple": "Layer {index} grid is invalid.",
   "errors.layerExpectedKeysSimple": "Layer {index} expects {expected} keys.",
-  "errors.stage0GridInvalidSimple": "Layer {index} stage0 grid is invalid.",
-  "errors.stage1GridInvalidSimple": "Layer {index} stage1 grid is invalid.",
+  "errors.stage0GridInvalidSimple": "Layer {index} stage 1 grid is invalid.",
+  "errors.stage1GridInvalidSimple": "Layer {index} stage 2 grid is invalid.",
   "errors.stage0ExpectedKeysSimple":
-    "Layer {index} stage0 expects {expected} keys.",
+    "Layer {index} stage 1 expects {expected} keys.",
   "errors.stage1ExpectedKeysSimple":
-    "Layer {index} stage1 expects {expected} keys.",
+    "Layer {index} stage 2 expects {expected} keys.",
 };
 
 const translations: Record<Locale, Record<TranslationKey, string>> = {

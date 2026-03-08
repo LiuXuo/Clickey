@@ -58,13 +58,47 @@
   let isImporting = $state(false);
   let isExporting = $state(false);
   let fileInput: HTMLInputElement | null = null;
+  type ComboLayerConfig = Extract<
+    AppConfig["layers"][number],
+    { mode: "combo" }
+  >;
+  type ComboStageConfig = ComboLayerConfig["stage0"];
 
   function clearFeedback() {
     status = "";
     error = "";
   }
 
+  function normalizePositiveInt(value: number, fallback: number): number {
+    if (!Number.isFinite(value)) {
+      return fallback;
+    }
+    const rounded = Math.round(value);
+    return rounded > 0 ? rounded : fallback;
+  }
+
+  function normalizeComboAxes(
+    stage0: ComboStageConfig,
+    stage1: ComboStageConfig,
+  ) {
+    stage0.rows = 1;
+    stage0.cols = normalizePositiveInt(stage0.cols, 1);
+    stage1.rows = normalizePositiveInt(stage1.rows, 1);
+    stage1.cols = 1;
+  }
+
+  function normalizeComboLayersInConfig(candidate: AppConfig): AppConfig {
+    candidate.layers.forEach((layer) => {
+      if (layer.mode !== "combo") {
+        return;
+      }
+      normalizeComboAxes(layer.stage0, layer.stage1);
+    });
+    return candidate;
+  }
+
   function ensureLayerFontSizesInConfig(candidate: AppConfig): AppConfig {
+    normalizeComboLayersInConfig(candidate);
     const fallbackRaw = Number.isFinite(candidate.overlay.font.sizePx)
       ? candidate.overlay.font.sizePx
       : 12;
@@ -117,7 +151,7 @@
   }
 
   function parseKeys(value: string): string[] {
-    return value.split(/[\s,]+/).filter(Boolean);
+    return value.split(/\s+/).filter(Boolean);
   }
 
   function formatKeys(keys: string[]): string {
@@ -153,17 +187,20 @@
       (layer) => layer.mode === "combo",
     );
     if (candidate && candidate.mode === "combo") {
+      const stage0 = {
+        rows: candidate.stage0.rows,
+        cols: candidate.stage0.cols,
+        keys: [...candidate.stage0.keys],
+      };
+      const stage1 = {
+        rows: candidate.stage1.rows,
+        cols: candidate.stage1.cols,
+        keys: [...candidate.stage1.keys],
+      };
+      normalizeComboAxes(stage0, stage1);
       return {
-        stage0: {
-          rows: candidate.stage0.rows,
-          cols: candidate.stage0.cols,
-          keys: [...candidate.stage0.keys],
-        },
-        stage1: {
-          rows: candidate.stage1.rows,
-          cols: candidate.stage1.cols,
-          keys: [...candidate.stage1.keys],
-        },
+        stage0,
+        stage1,
       };
     }
     return {
@@ -229,7 +266,10 @@
   }
 
   function addSingleLayer() {
-    const fallbackFontSize = Math.max(1, Math.round(config.overlay.font.sizePx));
+    const fallbackFontSize = Math.max(
+      1,
+      Math.round(config.overlay.font.sizePx),
+    );
     const base = getDefaultSingleLayer();
     config.layers = [
       ...config.layers,
@@ -248,7 +288,10 @@
   }
 
   function addComboLayer() {
-    const fallbackFontSize = Math.max(1, Math.round(config.overlay.font.sizePx));
+    const fallbackFontSize = Math.max(
+      1,
+      Math.round(config.overlay.font.sizePx),
+    );
     const base = getDefaultComboLayer();
     config.layers = [
       ...config.layers,
@@ -281,12 +324,11 @@
     config.layers = nextLayers;
     const nextLayerFontSizes = [...config.overlay.font.layerSizePx];
     const [movedFontSize] = nextLayerFontSizes.splice(index, 1);
-    const fallbackFontSize = Math.max(1, Math.round(config.overlay.font.sizePx));
-    nextLayerFontSizes.splice(
-      nextIndex,
-      0,
-      movedFontSize ?? fallbackFontSize,
+    const fallbackFontSize = Math.max(
+      1,
+      Math.round(config.overlay.font.sizePx),
     );
+    nextLayerFontSizes.splice(nextIndex, 0, movedFontSize ?? fallbackFontSize);
     config.overlay.font.layerSizePx = nextLayerFontSizes;
     clearFeedback();
   }
@@ -343,8 +385,17 @@
       return;
     }
     const target = event.currentTarget as HTMLInputElement;
-    const stageConfig = stage === 0 ? layer.stage0 : layer.stage1;
-    stageConfig[field] = toPositiveInt(target.value, stageConfig[field]);
+    if (stage === 0) {
+      layer.stage0.rows = 1;
+      if (field === "cols") {
+        layer.stage0.cols = toPositiveInt(target.value, layer.stage0.cols);
+      }
+    } else {
+      layer.stage1.cols = 1;
+      if (field === "rows") {
+        layer.stage1.rows = toPositiveInt(target.value, layer.stage1.rows);
+      }
+    }
     clearFeedback();
   }
 
@@ -393,16 +444,22 @@
           );
         }
       } else {
+        normalizeComboAxes(layer.stage0, layer.stage1);
         const expected0 = layer.stage0.rows * layer.stage0.cols;
         const expected1 = layer.stage1.rows * layer.stage1.cols;
-        if (!layer.stage0.rows || !layer.stage0.cols) {
+        if (!layer.stage0.cols) {
           issues.push(
             $t("errors.stage0GridInvalidSimple", { index: index + 1 }),
           );
         }
-        if (!layer.stage1.rows || !layer.stage1.cols) {
+        if (!layer.stage1.rows) {
           issues.push(
             $t("errors.stage1GridInvalidSimple", { index: index + 1 }),
+          );
+        }
+        if (layer.stage0.rows !== 1 || layer.stage1.cols !== 1) {
+          issues.push(
+            $t("errors.comboAxisConstraintSimple", { index: index + 1 }),
           );
         }
         if (layer.stage0.keys.length !== expected0) {
@@ -935,7 +992,8 @@
         <div>
           <label
             class="text-sm font-medium text-zinc-700"
-            for="mouse-duration-randomness">{$t("mouse.durationRandomness")}</label
+            for="mouse-duration-randomness"
+            >{$t("mouse.durationRandomness")}</label
           >
           <input
             id="mouse-duration-randomness"
@@ -1012,9 +1070,8 @@
         <div>
           <label
             class="text-sm font-medium text-zinc-700"
-            for="mouse-duration-distance-boost">{$t(
-              "mouse.durationDistanceBoost",
-            )}</label
+            for="mouse-duration-distance-boost"
+            >{$t("mouse.durationDistanceBoost")}</label
           >
           <input
             id="mouse-duration-distance-boost"
@@ -1040,7 +1097,8 @@
         <div>
           <label
             class="text-sm font-medium text-zinc-700"
-            for="mouse-step-distance-boost">{$t("mouse.stepDistanceBoost")}</label
+            for="mouse-step-distance-boost"
+            >{$t("mouse.stepDistanceBoost")}</label
           >
           <input
             id="mouse-step-distance-boost"
@@ -1143,9 +1201,8 @@
         <div>
           <label
             class="text-sm font-medium text-zinc-700"
-            for="mouse-adaptive-stride-base">{$t(
-              "mouse.adaptiveStrideBasePx",
-            )}</label
+            for="mouse-adaptive-stride-base"
+            >{$t("mouse.adaptiveStrideBasePx")}</label
           >
           <input
             id="mouse-adaptive-stride-base"
@@ -1170,9 +1227,8 @@
         <div>
           <label
             class="text-sm font-medium text-zinc-700"
-            for="mouse-adaptive-stride-ratio">{$t(
-              "mouse.adaptiveStrideDistanceRatio",
-            )}</label
+            for="mouse-adaptive-stride-ratio"
+            >{$t("mouse.adaptiveStrideDistanceRatio")}</label
           >
           <input
             id="mouse-adaptive-stride-ratio"
@@ -1198,7 +1254,8 @@
         <div>
           <label
             class="text-sm font-medium text-zinc-700"
-            for="mouse-adaptive-stride-max">{$t("mouse.adaptiveStrideMaxPx")}</label
+            for="mouse-adaptive-stride-max"
+            >{$t("mouse.adaptiveStrideMaxPx")}</label
           >
           <input
             id="mouse-adaptive-stride-max"
@@ -1356,7 +1413,8 @@
               <div class="min-w-[140px]">
                 <label
                   class="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500"
-                  for={`layer-${index}-font-size`}>{$t("overlay.fontSize")}</label
+                  for={`layer-${index}-font-size`}
+                  >{$t("overlay.fontSize")}</label
                 >
                 <input
                   id={`layer-${index}-font-size`}
@@ -1446,46 +1504,27 @@
                   <p class="text-xs uppercase tracking-[0.24em] text-zinc-500">
                     {$t("layers.stage0")}
                   </p>
-                  <div class="mt-3 grid gap-3 md:grid-cols-2">
-                    <div>
-                      <label
-                        class="text-sm font-medium text-zinc-700"
-                        for={`layer-${index}-stage0-rows`}
-                        >{$t("layers.rows")}</label
-                      >
-                      <input
-                        id={`layer-${index}-stage0-rows`}
-                        type="number"
-                        min="1"
-                        class={fieldClass}
-                        value={layer.stage0.rows}
-                        oninput={(event) =>
-                          updateComboStageGrid(index, 0, "rows", event)}
-                        disabled={isLoading}
-                      />
-                    </div>
-                    <div>
-                      <label
-                        class="text-sm font-medium text-zinc-700"
-                        for={`layer-${index}-stage0-cols`}
-                        >{$t("layers.columns")}</label
-                      >
-                      <input
-                        id={`layer-${index}-stage0-cols`}
-                        type="number"
-                        min="1"
-                        class={fieldClass}
-                        value={layer.stage0.cols}
-                        oninput={(event) =>
-                          updateComboStageGrid(index, 0, "cols", event)}
-                        disabled={isLoading}
-                      />
-                    </div>
+                  <div class="mt-3">
+                    <label
+                      class="text-sm font-medium text-zinc-700"
+                      for={`layer-${index}-stage0-cols`}
+                      >{$t("layers.columns")}</label
+                    >
+                    <input
+                      id={`layer-${index}-stage0-cols`}
+                      type="number"
+                      min="1"
+                      class={fieldClass}
+                      value={layer.stage0.cols}
+                      oninput={(event) =>
+                        updateComboStageGrid(index, 0, "cols", event)}
+                      disabled={isLoading}
+                    />
                   </div>
                   <label
                     class="mt-3 block text-sm font-medium text-zinc-700"
                     for={`layer-${index}-stage0-keys`}
-                    >{$t("layers.keys")}</label
+                    >{$t("layers.keysHint")}</label
                   >
                   <textarea
                     id={`layer-${index}-stage0-keys`}
@@ -1500,46 +1539,27 @@
                   <p class="text-xs uppercase tracking-[0.24em] text-zinc-500">
                     {$t("layers.stage1")}
                   </p>
-                  <div class="mt-3 grid gap-3 md:grid-cols-2">
-                    <div>
-                      <label
-                        class="text-sm font-medium text-zinc-700"
-                        for={`layer-${index}-stage1-rows`}
-                        >{$t("layers.rows")}</label
-                      >
-                      <input
-                        id={`layer-${index}-stage1-rows`}
-                        type="number"
-                        min="1"
-                        class={fieldClass}
-                        value={layer.stage1.rows}
-                        oninput={(event) =>
-                          updateComboStageGrid(index, 1, "rows", event)}
-                        disabled={isLoading}
-                      />
-                    </div>
-                    <div>
-                      <label
-                        class="text-sm font-medium text-zinc-700"
-                        for={`layer-${index}-stage1-cols`}
-                        >{$t("layers.columns")}</label
-                      >
-                      <input
-                        id={`layer-${index}-stage1-cols`}
-                        type="number"
-                        min="1"
-                        class={fieldClass}
-                        value={layer.stage1.cols}
-                        oninput={(event) =>
-                          updateComboStageGrid(index, 1, "cols", event)}
-                        disabled={isLoading}
-                      />
-                    </div>
+                  <div class="mt-3">
+                    <label
+                      class="text-sm font-medium text-zinc-700"
+                      for={`layer-${index}-stage1-rows`}
+                      >{$t("layers.rows")}</label
+                    >
+                    <input
+                      id={`layer-${index}-stage1-rows`}
+                      type="number"
+                      min="1"
+                      class={fieldClass}
+                      value={layer.stage1.rows}
+                      oninput={(event) =>
+                        updateComboStageGrid(index, 1, "rows", event)}
+                      disabled={isLoading}
+                    />
                   </div>
                   <label
                     class="mt-3 block text-sm font-medium text-zinc-700"
                     for={`layer-${index}-stage1-keys`}
-                    >{$t("layers.keys")}</label
+                    >{$t("layers.keysHint")}</label
                   >
                   <textarea
                     id={`layer-${index}-stage1-keys`}

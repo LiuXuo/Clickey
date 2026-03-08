@@ -549,6 +549,18 @@ fn validate_config(config: &AppConfig) -> Result<(), String> {
                         layer_index
                     ));
                 }
+                if stage0.rows != 1 {
+                    return Err(format!(
+                        "layer {} stage0 must be 1xN (columns), got {}x{}",
+                        layer_index, stage0.rows, stage0.cols
+                    ));
+                }
+                if stage1.cols != 1 {
+                    return Err(format!(
+                        "layer {} stage1 must be Nx1 (rows), got {}x{}",
+                        layer_index, stage1.rows, stage1.cols
+                    ));
+                }
                 let expected0 = (stage0.rows as usize) * (stage0.cols as usize);
                 validate_keys(
                     &stage0.keys,

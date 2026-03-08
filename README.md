@@ -52,10 +52,12 @@ Clickey 的目标是提供一种高效、精确、可肌肉记忆的鼠标定位
 
 可用能力：
 
-- Layer 编辑：增删 / 排序 / mode 切换（single/combo）/ rows/cols/keys 修改 / auto-fit
+- Layer 编辑：增删 / 排序 / mode 切换（single/combo）/ rows/cols/keys 修改 / auto-fit  
+  combo 固定约束：阶段 1（列）=`1xN`，阶段 2（行）=`Nx1`
 - 热键编辑：activation + controls
 - 鼠标行为：平滑移动、按压时长、落点随机、曲线/抖动、远距离提速与步进策略
 - Overlay 样式：alpha/line width/per-layer font size + color picker
+- 键位输入规则：仅空格分隔；`,` 是合法键位本体，不作为分隔符
 - 配置导入/导出：override JSON（仅包含与默认配置不同的字段）
 - i18n：`zh-CN` / `en-US`，切换后设置页即时生效
 - 托盘联动：
