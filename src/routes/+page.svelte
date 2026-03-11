@@ -2,7 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
   import { initLocale, locale, setLocale, t, type Locale } from "$lib/i18n";
-  import defaultConfig from "$lib/shared/default-config.json";
+  import { getDefaultConfig } from "$lib/shared/default-config";
   import type { AppConfig } from "$lib/core";
   import SettingsShell, {
     type SettingsSectionItem,
@@ -18,9 +18,7 @@
   } from "$lib/features/settings/ui/ToastStack.svelte";
   import { canonicalizeHotkey } from "$lib/features/settings/hotkey-utils";
 
-  const initialConfig = ensureLayerFontSizesInConfig(
-    JSON.parse(JSON.stringify(defaultConfig)) as AppConfig,
-  );
+  const initialConfig = ensureLayerFontSizesInConfig(getDefaultConfig());
 
   const fieldClass =
     "mt-2 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 disabled:cursor-not-allowed disabled:bg-zinc-100";

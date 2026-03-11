@@ -290,5 +290,13 @@ pub fn default_config() -> AppConfig {
     let json = DEFAULT_CONFIG_JSON
         .strip_prefix('\u{FEFF}')
         .unwrap_or(DEFAULT_CONFIG_JSON);
-    serde_json::from_str(json).expect("default-config.json should be valid AppConfig")
+    let mut config: AppConfig =
+        serde_json::from_str(json).expect("default-config.json should be valid AppConfig");
+
+    #[cfg(target_os = "macos")]
+    {
+        config.hotkeys.activation.trigger = "Cmd+;".to_string();
+    }
+
+    config
 }

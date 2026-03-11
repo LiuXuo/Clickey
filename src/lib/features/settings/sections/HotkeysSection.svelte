@@ -1,7 +1,7 @@
 ﻿<script lang="ts">
   import { t } from "$lib/i18n";
   import type { AppConfig } from "$lib/core";
-  import defaultConfig from "$lib/shared/default-config.json";
+  import { getDefaultConfig } from "$lib/shared/default-config";
   import SettingsCard from "$lib/features/settings/ui/SettingsCard.svelte";
   import SectionHeader from "$lib/features/settings/ui/SectionHeader.svelte";
   import HotkeyRecorder from "$lib/features/settings/ui/HotkeyRecorder.svelte";
@@ -55,6 +55,8 @@
   }
 
   function getDefaultHotkey(key: RecorderKey): string {
+    const defaultConfig = getDefaultConfig();
+
     if (key === "trigger") {
       return defaultConfig.hotkeys.activation.trigger;
     }

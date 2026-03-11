@@ -31,7 +31,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 
 ### 1.1 通用交互（以当前默认配置为准）
 
-- 激活：`hotkeys.activation.trigger`（默认 `Ctrl+;`，进入 Overlay 时默认左键动作）
+- 激活：`hotkeys.activation.trigger`（macOS 默认 `Cmd+;`，其他平台默认 `Ctrl+;`，进入 Overlay 时默认左键动作）
 - 切换动作：`hotkeys.controls.switchAction`（默认 `Enter`，循环：左键 -> 右键 -> 中键）
 - 取消：`Esc`（直接退出，不点击）
 - 回退：`Backspace`（撤销最近一次按键，恢复上一次 Region）
@@ -290,7 +290,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 
 ## 6. 配置模型（当前实现基线）
 
-> 以下结构与当前实现对齐（以 `src/lib/shared/default-config.json` 为准）。新增字段时必须同步更新默认配置、前端类型、Rust 结构体与 README/AGENT 文档。
+> 以下结构与当前实现对齐（以 `src/lib/shared/default-config.json` 为基线）。macOS 运行时会把 `hotkeys.activation.trigger` 的默认值覆写为 `Cmd+;`；其他平台保持 `Ctrl+;`。新增字段时必须同步更新默认配置、前端类型、Rust 结构体与 README/AGENT 文档。
 
 ```json
 {
@@ -510,7 +510,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-03：托盘交互改为“左键直开设置 + 右键菜单控制”；支持运行时暂停/启动热键并保持退出入口。
 - 2026-03-03：新增 `app.locale` 并打通 Settings 与 Rust 托盘联动，菜单文案随 i18n 实时刷新；设置窗口关闭后可由托盘自动重建打开。
 - 2026-03-04：移除预设模型（`activePresetId` / `presets[]`），统一为根级 `layers[]`；持久化改为 `AppConfig/settings.override.json`（仅记录与默认配置差异）；新增 override JSON 导入/导出链路。
-- 2026-03-04：热键模型收敛为单一激活键 `hotkeys.activation.trigger`（默认 `Ctrl+;`）；Overlay 动作切换改为 `hotkeys.controls.switchAction`（默认 `Enter`，循环左/右/中）；切屏改为 `hotkeys.controls.nextMonitor`（默认 `Tab`），两者均支持在 Settings 中自定义。
+- 2026-03-04：热键模型收敛为单一激活键 `hotkeys.activation.trigger`（非 macOS 默认 `Ctrl+;`，macOS 默认 `Cmd+;`）；Overlay 动作切换改为 `hotkeys.controls.switchAction`（默认 `Enter`，循环左/右/中）；切屏改为 `hotkeys.controls.nextMonitor`（默认 `Tab`），两者均支持在 Settings 中自定义。
 - 2026-03-06：新增 `mouse` 配置分组（含落点随机、速度随机、曲率/抖动、远距离提速、自适应步进等参数），默认配置、前端类型、Rust 结构体与校验规则同步更新。
 - 2026-03-06：Settings 页面新增“鼠标行为”分组；Native 点击日志补充 `requested_x/y` 与 `landing + offset_x/y`，用于验证随机落点与执行路径。
 - 2026-03-06：项目主线与 AHK demo 脚本正式解耦；AHK 冻结于 `demo/clickey_v3.1.ahk`，后续不再迭代，当前行为以仓库内实现与默认配置为准。
@@ -519,4 +519,5 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-08：键位输入解析改为空白分隔；`,` 不再作为分隔符，恢复为可配置键位本体（用于行键集合）。
 - 2026-03-08：Settings 页面完成结构化拆分（SettingsShell + General/Mouse/Layers/Hotkeys/Overlay sections），并改为 keepalive 分区切换。
 - 2026-03-08：移除 `Apply` 按钮，配置改动改为“前端校验通过后自动生效”（去抖触发）；新增冲突检测（hotkeys 重复时阻止应用）。
+- 2026-03-11：默认激活热键改为按平台区分：macOS 使用 `Cmd+;`，其他平台保持 `Ctrl+;`；前后端热键显示与解析同步兼容 `Meta` / `Cmd` / `Super`。
 - 2026-03-08：新增 hotkey recorder（`trigger` / `switchAction`）与颜色字段 `ColorField`，并补充 toast 反馈与 i18n 目录化拆分（`index + locales`）。

@@ -1,4 +1,6 @@
-﻿const modifierOrder = ["ctrl", "alt", "shift", "meta"] as const;
+﻿import { isMacPlatform } from "$lib/shared/platform";
+
+const modifierOrder = ["ctrl", "alt", "shift", "meta"] as const;
 
 type ModifierToken = (typeof modifierOrder)[number];
 
@@ -103,7 +105,7 @@ function displayModifier(token: ModifierToken): string {
   if (token === "shift") {
     return "Shift";
   }
-  return "Meta";
+  return isMacPlatform() ? "Cmd" : "Super";
 }
 
 function isModifierKey(key: string): boolean {
@@ -150,7 +152,7 @@ export function formatHotkeyFromKeyboardEvent(
     parts.push("Shift");
   }
   if (event.metaKey) {
-    parts.push("Meta");
+    parts.push(isMacPlatform() ? "Cmd" : "Super");
   }
 
   const mainKey = normalizeEventKey(event.key);

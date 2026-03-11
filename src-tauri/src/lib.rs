@@ -1806,12 +1806,33 @@ fn parse_hotkey_id(value: &str) -> Option<u32> {
 }
 
 fn parse_shortcut(value: &str) -> Option<Shortcut> {
-    value.parse::<Shortcut>().ok()
+    normalize_shortcut(value).parse::<Shortcut>().ok()
+}
+
+fn normalize_shortcut(value: &str) -> String {
+    value
+        .split('+')
+        .map(|token| {
+            let trimmed = token.trim();
+            if trimmed.eq_ignore_ascii_case("meta") {
+                if cfg!(target_os = "macos") {
+                    "Cmd".to_string()
+                } else {
+                    "Super".to_string()
+                }
+            } else {
+                trimmed.to_string()
+            }
+        })
+        .collect::<Vec<_>>()
+        .join("+")
 }
 
 fn parse_shortcut_or_panic(label: &str, value: &str) -> Shortcut {
     // 启动期热键校验，失败直接中断
-    value.parse::<Shortcut>().unwrap_or_else(|_| {
-        panic!("invalid hotkey for {label}: {value}");
-    })
+    normalize_shortcut(value)
+        .parse::<Shortcut>()
+        .unwrap_or_else(|_| {
+            panic!("invalid hotkey for {label}: {value}");
+        })
 }
