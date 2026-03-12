@@ -57,11 +57,16 @@
   "layers.rows": "行",
   "layers.columns": "列",
   "layers.keys": "键位",
-  "layers.keysHint": "键位（空格分隔）",
+  "layers.keysHint": "键位",
   "layers.autoFit": "自动补齐",
   "layers.currentExpected": "当前：{current} / 期望：{expected}",
+  "layers.slotInputHint": "输入后自动跳到下一个；Backspace 可回退。",
+  "layers.duplicateHint": "存在重复键位：{keys}",
   "layers.stage0": "阶段 1",
   "layers.stage1": "阶段 2",
+  "layers.previewTitle": "组合预览",
+  "layers.previewShow": "展开预览",
+  "layers.previewHide": "收起预览",
   "hotkeys.section": "热键",
   "hotkeys.title": "按键绑定",
   "hotkeys.subtitle": "录制快捷键",
@@ -187,12 +192,20 @@
   "errors.overlayFontSize": "遮罩字体大小必须大于 0。",
   "errors.layerGridInvalidSimple": "第 {index} 层网格无效。",
   "errors.layerExpectedKeysSimple": "第 {index} 层需要 {expected} 个键位。",
+  "errors.layerEmptyKeysSimple": "第 {index} 层存在空键位。",
+  "errors.layerDuplicateKeysSimple": "第 {index} 层存在重复键位：{keys}。",
   "errors.stage0GridInvalidSimple": "第 {index} 层阶段 1 网格无效。",
   "errors.stage1GridInvalidSimple": "第 {index} 层阶段 2 网格无效。",
   "errors.stage0ExpectedKeysSimple":
     "第 {index} 层阶段 1 需要 {expected} 个键位。",
   "errors.stage1ExpectedKeysSimple":
     "第 {index} 层阶段 2 需要 {expected} 个键位。",
+  "errors.stage0EmptyKeysSimple": "第 {index} 层阶段 1 存在空键位。",
+  "errors.stage1EmptyKeysSimple": "第 {index} 层阶段 2 存在空键位。",
+  "errors.stage0DuplicateKeysSimple":
+    "第 {index} 层阶段 1 存在重复键位：{keys}。",
+  "errors.stage1DuplicateKeysSimple":
+    "第 {index} 层阶段 2 存在重复键位：{keys}。",
 } as const;
 
 export default zh;

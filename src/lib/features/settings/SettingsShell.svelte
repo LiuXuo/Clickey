@@ -17,7 +17,7 @@
   }>();
 </script>
 
-<div class="flex h-full min-h-0 gap-4">
+<div class="flex gap-4">
   <aside class="w-52 shrink-0 border-r border-zinc-200 pr-3">
     <nav class="sticky top-0 space-y-1 py-1">
       {#each sections as section (section.id)}
@@ -43,8 +43,8 @@
     </nav>
   </aside>
 
-  <div class="settings-scrollbar min-h-0 flex-1 overflow-y-auto pr-1">
-    <div class="space-y-6 pb-4">
+  <div class="min-w-0 flex-1">
+    <div class="space-y-6 pb-4 pr-1">
       {@render children?.()}
     </div>
   </div>

@@ -1,8 +1,10 @@
-﻿<script lang="ts">
+<script lang="ts">
   import { t } from "$lib/i18n";
   import type { AppConfig } from "$lib/core";
   import SettingsCard from "$lib/features/settings/ui/SettingsCard.svelte";
   import SectionHeader from "$lib/features/settings/ui/SectionHeader.svelte";
+  import GridKeyTableEditor from "$lib/features/settings/ui/GridKeyTableEditor.svelte";
+  import ComboKeyTableEditor from "$lib/features/settings/ui/ComboKeyTableEditor.svelte";
 
   type LayerMode = "single" | "combo";
 
@@ -11,7 +13,6 @@
     isLoading,
     fieldClass,
     selectClass,
-    textAreaClass,
     onUpdateNudgeStep,
     onAddSingleLayer,
     onAddComboLayer,
@@ -23,13 +24,11 @@
     onUpdateComboStageGrid,
     onUpdateComboStageKeys,
     onUpdateLayerFontSize,
-    formatKeys,
   } = $props<{
     config: AppConfig;
     isLoading: boolean;
     fieldClass: string;
     selectClass: string;
-    textAreaClass: string;
     onUpdateNudgeStep: (event: Event) => void;
     onAddSingleLayer: () => void;
     onAddComboLayer: () => void;
@@ -41,17 +40,39 @@
       field: "rows" | "cols",
       event: Event,
     ) => void;
-    onUpdateSingleLayerKeys: (index: number, event: Event) => void;
+    onUpdateSingleLayerKeys: (index: number, keys: string[]) => void;
     onUpdateComboStageGrid: (
       index: number,
       stage: 0 | 1,
       field: "rows" | "cols",
       event: Event,
     ) => void;
-    onUpdateComboStageKeys: (index: number, stage: 0 | 1, event: Event) => void;
+    onUpdateComboStageKeys: (
+      index: number,
+      stage: 0 | 1,
+      keys: string[],
+    ) => void;
     onUpdateLayerFontSize: (index: number, event: Event) => void;
-    formatKeys: (keys: string[]) => string;
   }>();
+
+  function normalizeSlotToken(raw: string): string {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return "";
+    }
+    const [first] = Array.from(trimmed);
+    return (first ?? "").toLowerCase();
+  }
+
+  function normalizeSlotKeys(keys: string[], count: number): string[] {
+    const normalized: string[] = [];
+    for (let index = 0; index < count; index += 1) {
+      normalized.push(normalizeSlotToken(keys[index] ?? ""));
+    }
+    return normalized;
+  }
+
+  const inlineNumberFieldClass = $derived(fieldClass.replace("mt-2 ", ""));
 </script>
 
 <SettingsCard id="layers">
@@ -81,18 +102,12 @@
             <p class="text-xs uppercase tracking-[0.24em] text-zinc-500">
               {$t("layers.layerLabel", { index: index + 1 })}
             </p>
-            <p class="text-sm font-semibold text-zinc-900">
-              {layer.mode === "single"
-                ? $t("layers.type.single")
-                : $t("layers.type.combo")}
-            </p>
           </div>
           <div class="min-w-[140px]">
-            <label
-              class="text-[11px] font-semibold uppercase tracking-[0.2em] text-zinc-500"
-              for={`layer-${index}-mode`}>{$t("layers.mode")}</label
+            <label class="sr-only" for={`layer-${index}-mode`}
+              >{$t("layers.mode")}</label
             >
-            <div class="relative mt-2">
+            <div class="relative">
               <select
                 id={`layer-${index}-mode`}
                 class={selectClass}
@@ -167,121 +182,113 @@
         </div>
 
         {#if layer.mode === "single"}
+          {@const expected = layer.rows * layer.cols}
           <div class="mt-4 grid gap-4 md:grid-cols-2">
             <div>
-              <label
-                class="text-sm font-medium text-zinc-700"
-                for={`layer-${index}-rows`}>{$t("layers.rows")}</label
+              <label class="sr-only" for={`layer-${index}-rows`}
+                >{$t("layers.rows")}</label
               >
-              <input
-                id={`layer-${index}-rows`}
-                type="number"
-                min="1"
-                class={fieldClass}
-                value={layer.rows}
-                oninput={(event) =>
-                  onUpdateSingleLayerGrid(index, "rows", event)}
-                disabled={isLoading}
-              />
-            </div>
-            <div>
-              <label
-                class="text-sm font-medium text-zinc-700"
-                for={`layer-${index}-cols`}>{$t("layers.columns")}</label
-              >
-              <input
-                id={`layer-${index}-cols`}
-                type="number"
-                min="1"
-                class={fieldClass}
-                value={layer.cols}
-                oninput={(event) =>
-                  onUpdateSingleLayerGrid(index, "cols", event)}
-                disabled={isLoading}
-              />
-            </div>
-          </div>
-          <label
-            class="mt-3 block text-sm font-medium text-zinc-700"
-            for={`layer-${index}-keys`}>{$t("layers.keysHint")}</label
-          >
-          <textarea
-            id={`layer-${index}-keys`}
-            class={textAreaClass}
-            value={formatKeys(layer.keys)}
-            oninput={(event) => onUpdateSingleLayerKeys(index, event)}
-            disabled={isLoading}
-          ></textarea>
-        {:else}
-          <div class="mt-4 grid gap-4 md:grid-cols-2">
-            <div>
-              <p class="text-xs uppercase tracking-[0.24em] text-zinc-500">
-                {$t("layers.stage0")}
-              </p>
-              <div class="mt-3">
-                <label
-                  class="text-sm font-medium text-zinc-700"
-                  for={`layer-${index}-stage0-cols`}
-                  >{$t("layers.columns")}</label
-                >
+              <div class="flex items-center gap-2">
                 <input
-                  id={`layer-${index}-stage0-cols`}
+                  id={`layer-${index}-rows`}
                   type="number"
                   min="1"
-                  class={fieldClass}
-                  value={layer.stage0.cols}
+                  class={inlineNumberFieldClass}
+                  value={layer.rows}
                   oninput={(event) =>
-                    onUpdateComboStageGrid(index, 0, "cols", event)}
+                    onUpdateSingleLayerGrid(index, "rows", event)}
                   disabled={isLoading}
                 />
-              </div>
-              <label
-                class="mt-3 block text-sm font-medium text-zinc-700"
-                for={`layer-${index}-stage0-keys`}
-                >{$t("layers.keysHint")}</label
-              >
-              <textarea
-                id={`layer-${index}-stage0-keys`}
-                class={textAreaClass}
-                value={formatKeys(layer.stage0.keys)}
-                oninput={(event) => onUpdateComboStageKeys(index, 0, event)}
-                disabled={isLoading}
-              ></textarea>
-            </div>
-
-            <div>
-              <p class="text-xs uppercase tracking-[0.24em] text-zinc-500">
-                {$t("layers.stage1")}
-              </p>
-              <div class="mt-3">
-                <label
-                  class="text-sm font-medium text-zinc-700"
-                  for={`layer-${index}-stage1-rows`}>{$t("layers.rows")}</label
+                <span class="whitespace-nowrap text-sm font-medium text-zinc-700"
+                  >{$t("layers.rows")}</span
                 >
+              </div>
+            </div>
+            <div>
+              <label class="sr-only" for={`layer-${index}-cols`}
+                >{$t("layers.columns")}</label
+              >
+              <div class="flex items-center gap-2">
+                <input
+                  id={`layer-${index}-cols`}
+                  type="number"
+                  min="1"
+                  class={inlineNumberFieldClass}
+                  value={layer.cols}
+                  oninput={(event) =>
+                    onUpdateSingleLayerGrid(index, "cols", event)}
+                  disabled={isLoading}
+                />
+                <span class="whitespace-nowrap text-sm font-medium text-zinc-700"
+                  >{$t("layers.columns")}</span
+                >
+              </div>
+            </div>
+          </div>
+          <div class="mt-3">
+            <GridKeyTableEditor
+              idPrefix={`layer-${index}-keys`}
+              rows={layer.rows}
+              cols={layer.cols}
+              keys={normalizeSlotKeys(layer.keys, expected)}
+              disabled={isLoading}
+              onChange={(keys) => onUpdateSingleLayerKeys(index, keys)}
+            />
+          </div>
+        {:else}
+          {@const stage0Expected = layer.stage0.rows * layer.stage0.cols}
+          {@const stage1Expected = layer.stage1.rows * layer.stage1.cols}
+          <div class="mt-4 grid gap-4 md:grid-cols-2">
+            <div>
+              <label class="sr-only" for={`layer-${index}-stage1-rows`}
+                >{$t("layers.rows")}</label
+              >
+              <div class="flex items-center gap-2">
                 <input
                   id={`layer-${index}-stage1-rows`}
                   type="number"
                   min="1"
-                  class={fieldClass}
+                  class={inlineNumberFieldClass}
                   value={layer.stage1.rows}
                   oninput={(event) =>
                     onUpdateComboStageGrid(index, 1, "rows", event)}
                   disabled={isLoading}
                 />
+                <span class="whitespace-nowrap text-sm font-medium text-zinc-700"
+                  >{$t("layers.rows")}</span
+                >
               </div>
-              <label
-                class="mt-3 block text-sm font-medium text-zinc-700"
-                for={`layer-${index}-stage1-keys`}
-                >{$t("layers.keysHint")}</label
-              >
-              <textarea
-                id={`layer-${index}-stage1-keys`}
-                class={textAreaClass}
-                value={formatKeys(layer.stage1.keys)}
-                oninput={(event) => onUpdateComboStageKeys(index, 1, event)}
-                disabled={isLoading}
-              ></textarea>
             </div>
+            <div>
+              <label class="sr-only" for={`layer-${index}-stage0-cols`}
+                >{$t("layers.columns")}</label
+              >
+              <div class="flex items-center gap-2">
+                <input
+                  id={`layer-${index}-stage0-cols`}
+                  type="number"
+                  min="1"
+                  class={inlineNumberFieldClass}
+                  value={layer.stage0.cols}
+                  oninput={(event) =>
+                    onUpdateComboStageGrid(index, 0, "cols", event)}
+                  disabled={isLoading}
+                />
+                <span class="whitespace-nowrap text-sm font-medium text-zinc-700"
+                  >{$t("layers.columns")}</span
+                >
+              </div>
+            </div>
+          </div>
+          <div class="mt-3">
+            <ComboKeyTableEditor
+              idPrefix={`layer-${index}-combo`}
+              columnKeys={normalizeSlotKeys(layer.stage0.keys, stage0Expected)}
+              rowKeys={normalizeSlotKeys(layer.stage1.keys, stage1Expected)}
+              disabled={isLoading}
+              onColumnKeysChange={(keys) => onUpdateComboStageKeys(index, 0, keys)}
+              onRowKeysChange={(keys) => onUpdateComboStageKeys(index, 1, keys)}
+            />
           </div>
         {/if}
       </div>

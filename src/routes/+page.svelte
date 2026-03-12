@@ -22,8 +22,6 @@
 
   const fieldClass =
     "mt-2 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 disabled:cursor-not-allowed disabled:bg-zinc-100";
-  const textAreaClass =
-    "mt-2 w-full min-h-[100px] rounded-lg border border-zinc-300 bg-white px-3 py-2 text-xs leading-relaxed text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 disabled:cursor-not-allowed disabled:bg-zinc-100";
   const compactSelectClass =
     "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm transition focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 disabled:cursor-not-allowed disabled:bg-zinc-100 appearance-none pr-10";
 
@@ -200,22 +198,55 @@
     onConfigMutated();
   }
 
-  function parseKeys(value: string): string[] {
-    return value.split(/\s+/).filter(Boolean);
+  function normalizeLayerKey(raw: string): string {
+    const trimmed = raw.trim();
+    if (!trimmed) {
+      return "";
+    }
+    const [first] = Array.from(trimmed);
+    return (first ?? "").toLowerCase();
   }
 
-  function formatKeys(keys: string[]): string {
-    return keys.join(" ");
+  function normalizeLayerKeys(keys: string[]): string[] {
+    return keys.map((key) => normalizeLayerKey(key));
+  }
+
+  function collectDuplicateLayerKeys(keys: string[]): string[] {
+    const counts: Record<string, number> = {};
+    const duplicates: string[] = [];
+
+    for (const key of normalizeLayerKeys(keys)) {
+      if (!key) {
+        continue;
+      }
+      const nextCount = (counts[key] ?? 0) + 1;
+      counts[key] = nextCount;
+      if (nextCount === 2) {
+        duplicates.push(key);
+      }
+    }
+
+    return duplicates;
+  }
+
+  function hasEmptyLayerKey(keys: string[]): boolean {
+    return normalizeLayerKeys(keys).some((key) => key.length === 0);
   }
 
   function fillKeys(existing: string[], count: number): string[] {
-    const result = existing
-      .filter((key) => key.trim().length > 0)
-      .slice(0, count);
+    const result = normalizeLayerKeys(existing).filter(Boolean).slice(0, count);
     for (let index = result.length; index < count; index += 1) {
       result.push(keyPool[index % keyPool.length]);
     }
     return result;
+  }
+
+  function resizeKeys(existing: string[], count: number): string[] {
+    const resized = normalizeLayerKeys(existing).slice(0, count);
+    while (resized.length < count) {
+      resized.push("");
+    }
+    return resized;
   }
 
   function getDefaultSingleLayer() {
@@ -329,6 +360,22 @@
             }),
           );
         }
+        if (hasEmptyLayerKey(layer.keys)) {
+          issues.push(
+            $t("errors.layerEmptyKeysSimple", {
+              index: index + 1,
+            }),
+          );
+        }
+        const duplicateKeys = collectDuplicateLayerKeys(layer.keys);
+        if (duplicateKeys.length > 0) {
+          issues.push(
+            $t("errors.layerDuplicateKeysSimple", {
+              index: index + 1,
+              keys: duplicateKeys.join(" "),
+            }),
+          );
+        }
       } else {
         normalizeComboAxes(layer.stage0, layer.stage1);
         const expected0 = layer.stage0.rows * layer.stage0.cols;
@@ -361,6 +408,38 @@
             $t("errors.stage1ExpectedKeysSimple", {
               index: index + 1,
               expected: expected1,
+            }),
+          );
+        }
+        if (hasEmptyLayerKey(layer.stage0.keys)) {
+          issues.push(
+            $t("errors.stage0EmptyKeysSimple", {
+              index: index + 1,
+            }),
+          );
+        }
+        if (hasEmptyLayerKey(layer.stage1.keys)) {
+          issues.push(
+            $t("errors.stage1EmptyKeysSimple", {
+              index: index + 1,
+            }),
+          );
+        }
+        const stage0DuplicateKeys = collectDuplicateLayerKeys(layer.stage0.keys);
+        if (stage0DuplicateKeys.length > 0) {
+          issues.push(
+            $t("errors.stage0DuplicateKeysSimple", {
+              index: index + 1,
+              keys: stage0DuplicateKeys.join(" "),
+            }),
+          );
+        }
+        const stage1DuplicateKeys = collectDuplicateLayerKeys(layer.stage1.keys);
+        if (stage1DuplicateKeys.length > 0) {
+          issues.push(
+            $t("errors.stage1DuplicateKeysSimple", {
+              index: index + 1,
+              keys: stage1DuplicateKeys.join(" "),
             }),
           );
         }
@@ -791,16 +870,21 @@
     }
     const target = event.currentTarget as HTMLInputElement;
     layer[field] = toPositiveInt(target.value, layer[field]);
+    const expected = layer.rows * layer.cols;
+    layer.keys = resizeKeys(layer.keys, expected);
     onConfigMutated();
   }
 
-  function updateSingleLayerKeys(index: number, event: Event) {
+  function updateSingleLayerKeys(index: number, keys: string[]) {
     const layer = config.layers[index];
     if (!layer || layer.mode !== "single") {
       return;
     }
-    const target = event.currentTarget as HTMLTextAreaElement;
-    layer.keys = parseKeys(target.value);
+    const expected = layer.rows * layer.cols;
+    layer.keys = normalizeLayerKeys(keys).slice(0, expected);
+    while (layer.keys.length < expected) {
+      layer.keys.push("");
+    }
     onConfigMutated();
   }
 
@@ -820,23 +904,30 @@
       if (field === "cols") {
         layer.stage0.cols = toPositiveInt(target.value, layer.stage0.cols);
       }
+      const expected = layer.stage0.rows * layer.stage0.cols;
+      layer.stage0.keys = resizeKeys(layer.stage0.keys, expected);
     } else {
       layer.stage1.cols = 1;
       if (field === "rows") {
         layer.stage1.rows = toPositiveInt(target.value, layer.stage1.rows);
       }
+      const expected = layer.stage1.rows * layer.stage1.cols;
+      layer.stage1.keys = resizeKeys(layer.stage1.keys, expected);
     }
     onConfigMutated();
   }
 
-  function updateComboStageKeys(index: number, stage: 0 | 1, event: Event) {
+  function updateComboStageKeys(index: number, stage: 0 | 1, keys: string[]) {
     const layer = config.layers[index];
     if (!layer || layer.mode !== "combo") {
       return;
     }
-    const target = event.currentTarget as HTMLTextAreaElement;
     const stageConfig = stage === 0 ? layer.stage0 : layer.stage1;
-    stageConfig.keys = parseKeys(target.value);
+    const expected = stageConfig.rows * stageConfig.cols;
+    stageConfig.keys = normalizeLayerKeys(keys).slice(0, expected);
+    while (stageConfig.keys.length < expected) {
+      stageConfig.keys.push("");
+    }
     onConfigMutated();
   }
 
@@ -925,7 +1016,7 @@
   });
 </script>
 
-<main class="h-screen overflow-hidden px-4 py-4">
+<main class="settings-scrollbar h-full overflow-y-auto px-4 py-4">
   <input
     bind:this={fileInput}
     type="file"
@@ -934,9 +1025,7 @@
     onchange={onImportFileChange}
   />
 
-  <div
-    class="mx-auto flex h-full w-full max-w-7xl flex-col gap-4 overflow-hidden"
-  >
+  <div class="mx-auto flex min-h-full w-full max-w-7xl flex-col gap-4">
     {#if status || error}
       <div class="flex flex-wrap items-center gap-3 text-sm">
         {#if status}
@@ -948,7 +1037,7 @@
       </div>
     {/if}
 
-    <div class="min-h-0 flex-1">
+    <div class="flex-1">
       <SettingsShell {sections} {activeSection} onSelectSection={selectSection}>
         <div class="mt-6" class:hidden={activeSection !== "general"}>
           <GeneralSection
@@ -976,7 +1065,6 @@
             {isLoading}
             {fieldClass}
             selectClass={compactSelectClass}
-            {textAreaClass}
             onUpdateNudgeStep={updateNudgeStep}
             onAddSingleLayer={addSingleLayer}
             onAddComboLayer={addComboLayer}
@@ -988,7 +1076,6 @@
             onUpdateComboStageGrid={updateComboStageGrid}
             onUpdateComboStageKeys={updateComboStageKeys}
             onUpdateLayerFontSize={updateLayerFontSize}
-            {formatKeys}
           />
         </div>
 

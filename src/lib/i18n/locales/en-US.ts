@@ -61,11 +61,16 @@ const en: Record<TranslationKey, string> = {
   "layers.rows": "Rows",
   "layers.columns": "Columns",
   "layers.keys": "Keys",
-  "layers.keysHint": "Keys (space-separated)",
+  "layers.keysHint": "Keys",
   "layers.autoFit": "Auto-fit",
   "layers.currentExpected": "Current: {current} / Expected: {expected}",
+  "layers.slotInputHint": "Type to auto-advance; use Backspace to move back.",
+  "layers.duplicateHint": "Duplicate keys found: {keys}",
   "layers.stage0": "Stage 1",
   "layers.stage1": "Stage 2",
+  "layers.previewTitle": "Combo Preview",
+  "layers.previewShow": "Show Preview",
+  "layers.previewHide": "Hide Preview",
   "hotkeys.section": "Hotkeys",
   "hotkeys.title": "Key Bindings",
   "hotkeys.subtitle": "Record shortcuts",
@@ -192,12 +197,21 @@ const en: Record<TranslationKey, string> = {
   "errors.overlayFontSize": "Overlay font sizePx must be > 0.",
   "errors.layerGridInvalidSimple": "Layer {index} grid is invalid.",
   "errors.layerExpectedKeysSimple": "Layer {index} expects {expected} keys.",
+  "errors.layerEmptyKeysSimple": "Layer {index} has empty key slots.",
+  "errors.layerDuplicateKeysSimple":
+    "Layer {index} has duplicate keys: {keys}.",
   "errors.stage0GridInvalidSimple": "Layer {index} stage 1 grid is invalid.",
   "errors.stage1GridInvalidSimple": "Layer {index} stage 2 grid is invalid.",
   "errors.stage0ExpectedKeysSimple":
     "Layer {index} stage 1 expects {expected} keys.",
   "errors.stage1ExpectedKeysSimple":
     "Layer {index} stage 2 expects {expected} keys.",
+  "errors.stage0EmptyKeysSimple": "Layer {index} stage 1 has empty key slots.",
+  "errors.stage1EmptyKeysSimple": "Layer {index} stage 2 has empty key slots.",
+  "errors.stage0DuplicateKeysSimple":
+    "Layer {index} stage 1 has duplicate keys: {keys}.",
+  "errors.stage1DuplicateKeysSimple":
+    "Layer {index} stage 2 has duplicate keys: {keys}.",
 };
 
 export default en;
