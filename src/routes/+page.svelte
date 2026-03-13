@@ -18,6 +18,7 @@
     type ToastTone,
   } from "$lib/features/settings/ui/ToastStack.svelte";
   import { canonicalizeHotkey } from "$lib/features/settings/hotkey-utils";
+  import { toLocalizedErrorMessage } from "$lib/features/settings/error-message";
 
   const initialConfig = ensureLayerFontSizesInConfig(getDefaultConfig());
 
@@ -60,12 +61,11 @@
   ];
 
   const AUTO_APPLY_DELAY_MS = 320;
+  const TOAST_AUTO_DISMISS_MS = 5000;
 
   type SectionId = "general" | "mouse" | "layers" | "hotkeys" | "overlay";
 
   let config = $state<AppConfig>(initialConfig);
-  let status = $state("");
-  let error = $state("");
   let isLoading = $state(true);
   let isApplying = $state(false);
   let isResetting = $state(false);
@@ -80,6 +80,7 @@
 
   let autoApplyTimer: ReturnType<typeof setTimeout> | null = null;
   let reapplyAfterCurrent = false;
+  let lastValidationIssue = "";
 
   type ComboLayerConfig = Extract<
     AppConfig["layers"][number],
@@ -115,11 +116,6 @@
     },
   ]);
 
-  function clearFeedback() {
-    status = "";
-    error = "";
-  }
-
   function clearAutoApplyTimer() {
     if (!autoApplyTimer) {
       return;
@@ -133,11 +129,15 @@
     toasts = [...toasts, { id, tone, message }];
     setTimeout(() => {
       dismissToast(id);
-    }, 2600);
+    }, TOAST_AUTO_DISMISS_MS);
   }
 
   function dismissToast(id: number) {
     toasts = toasts.filter((toast) => toast.id !== id);
+  }
+
+  function resolveErrorMessage(error: unknown): string {
+    return toLocalizedErrorMessage(error, $t);
   }
 
   function normalizePositiveInt(value: number, fallback: number): number {
@@ -306,7 +306,6 @@
   }
 
   function onConfigMutated() {
-    clearFeedback();
     scheduleAutoApply();
   }
 
@@ -635,20 +634,22 @@
     config = ensureLayerFontSizesInConfig(config);
     const issues = validateConfig(config);
     if (issues.length) {
-      status = "";
-      error = issues[0];
+      const firstIssue = issues[0];
+      if (firstIssue !== lastValidationIssue) {
+        lastValidationIssue = firstIssue;
+        pushToast("error", firstIssue);
+      }
       return;
     }
+    lastValidationIssue = "";
 
     isApplying = true;
-    error = "";
 
     try {
       await invoke("apply_config", { config });
       await refreshResetAvailability();
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      error = message;
+      const message = resolveErrorMessage(err);
       pushToast("error", message);
     } finally {
       isApplying = false;
@@ -665,20 +666,18 @@
     }
 
     clearAutoApplyTimer();
-    clearFeedback();
     isResetting = true;
     try {
       const reset = await invoke<AppConfig>("reset_config");
       config = ensureLayerFontSizesInConfig(reset);
+      lastValidationIssue = "";
       await refreshResetAvailability();
       if (reset.app.locale === "zh-CN" || reset.app.locale === "en-US") {
         setLocale(reset.app.locale);
       }
-      status = $t("status.reset");
       pushToast("success", $t("status.reset"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      error = message;
+      const message = resolveErrorMessage(err);
       pushToast("error", message);
     } finally {
       isResetting = false;
@@ -686,7 +685,6 @@
   }
 
   async function exportOverrideJson() {
-    clearFeedback();
     isExporting = true;
     try {
       const json = await invoke<string>("export_override_json");
@@ -699,11 +697,9 @@
       anchor.click();
       anchor.remove();
       URL.revokeObjectURL(url);
-      status = $t("status.exported");
       pushToast("success", $t("status.exported"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      error = message;
+      const message = resolveErrorMessage(err);
       pushToast("error", message);
     } finally {
       isExporting = false;
@@ -711,16 +707,13 @@
   }
 
   async function openConfigDirectory() {
-    clearFeedback();
     isOpeningConfigDir = true;
     try {
       const directory = await invoke<string>("get_config_dir");
       await revealItemInDir(directory);
-      status = $t("status.openedConfigDir");
       pushToast("success", $t("status.openedConfigDir"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      error = message;
+      const message = resolveErrorMessage(err);
       pushToast("error", message);
     } finally {
       isOpeningConfigDir = false;
@@ -740,7 +733,6 @@
     }
 
     clearAutoApplyTimer();
-    clearFeedback();
     isImporting = true;
 
     try {
@@ -749,15 +741,14 @@
         json,
       });
       config = ensureLayerFontSizesInConfig(imported);
+      lastValidationIssue = "";
       await refreshResetAvailability();
       if (imported.app.locale === "zh-CN" || imported.app.locale === "en-US") {
         setLocale(imported.app.locale);
       }
-      status = $t("status.imported");
       pushToast("success", $t("status.imported"));
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      error = message;
+      const message = resolveErrorMessage(err);
       pushToast("error", message);
     } finally {
       isImporting = false;
@@ -767,11 +758,9 @@
   function onLocaleChange(next: Locale) {
     setLocale(next);
     config.app.locale = next;
-    clearFeedback();
     void invoke("set_locale", { locale: next })
       .catch((err) => {
-        const message = err instanceof Error ? err.message : String(err);
-        error = message;
+        const message = resolveErrorMessage(err);
         pushToast("error", message);
       })
       .then(() => {
@@ -897,7 +886,7 @@
 
   function removeLayer(index: number) {
     if (config.layers.length <= 1) {
-      error = $t("errors.layersRequired");
+      pushToast("error", $t("errors.layersRequired"));
       return;
     }
     if (!confirm($t("errors.removeLayerConfirm", { index: index + 1 }))) {
@@ -1050,13 +1039,13 @@
       try {
         const loaded = await invoke<AppConfig>("get_config");
         config = ensureLayerFontSizesInConfig(loaded);
+        lastValidationIssue = "";
         await refreshResetAvailability();
         if (loaded.app.locale === "zh-CN" || loaded.app.locale === "en-US") {
           setLocale(loaded.app.locale);
         }
       } catch (err) {
-        const message = err instanceof Error ? err.message : String(err);
-        error = message;
+        const message = resolveErrorMessage(err);
         pushToast("error", message);
       } finally {
         isLoading = false;
@@ -1080,17 +1069,6 @@
   />
 
   <div class="mx-auto flex min-h-full w-full max-w-7xl flex-col gap-4">
-    {#if status || error}
-      <div class="flex flex-wrap items-center gap-3 text-sm">
-        {#if status}
-          <span class="font-semibold text-zinc-800">{status}</span>
-        {/if}
-        {#if error}
-          <span class="font-semibold text-zinc-500">{error}</span>
-        {/if}
-      </div>
-    {/if}
-
     <div class="flex-1">
       <SettingsShell {sections} {activeSection} onSelectSection={selectSection}>
         <div class="mt-6" class:hidden={activeSection !== "general"}>

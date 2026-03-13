@@ -145,11 +145,70 @@ const TRAY_MENU_SETTINGS_ID: &str = "tray-settings";
 const TRAY_MENU_TOGGLE_ID: &str = "tray-toggle-runtime";
 const TRAY_MENU_QUIT_ID: &str = "tray-quit";
 
+const ERR_CONFIG_DIR_UNAVAILABLE: &str = "ERR_CONFIG_DIR_UNAVAILABLE";
+const ERR_CONFIG_SERIALIZE_FAILED: &str = "ERR_CONFIG_SERIALIZE_FAILED";
+const ERR_CONFIG_PERSIST_FAILED: &str = "ERR_CONFIG_PERSIST_FAILED";
+const ERR_BACKEND_STATE_UNAVAILABLE: &str = "ERR_BACKEND_STATE_UNAVAILABLE";
+const ERR_HOTKEY_REGISTER_FAILED: &str = "ERR_HOTKEY_REGISTER_FAILED";
+const ERR_HOTKEY_INVALID_TRIGGER: &str = "ERR_HOTKEY_INVALID_TRIGGER";
+const ERR_HOTKEY_INVALID_CANCEL: &str = "ERR_HOTKEY_INVALID_CANCEL";
+const ERR_HOTKEY_INVALID_UNDO: &str = "ERR_HOTKEY_INVALID_UNDO";
+const ERR_HOTKEY_INVALID_DIRECT_CLICK: &str = "ERR_HOTKEY_INVALID_DIRECT_CLICK";
+const ERR_HOTKEY_INVALID_SWITCH_ACTION: &str = "ERR_HOTKEY_INVALID_SWITCH_ACTION";
+const ERR_HOTKEY_INVALID_NEXT_MONITOR: &str = "ERR_HOTKEY_INVALID_NEXT_MONITOR";
+const ERR_LAYERS_EMPTY: &str = "ERR_LAYERS_EMPTY";
+const ERR_NUDGE_STEP_INVALID: &str = "ERR_NUDGE_STEP_INVALID";
+const ERR_MOUSE_MOVE_DURATION_INVALID: &str = "ERR_MOUSE_MOVE_DURATION_INVALID";
+const ERR_MOUSE_MOVE_STEP_INVALID: &str = "ERR_MOUSE_MOVE_STEP_INVALID";
+const ERR_MOUSE_DURATION_RANDOMNESS_INVALID: &str = "ERR_MOUSE_DURATION_RANDOMNESS_INVALID";
+const ERR_MOUSE_STEP_RANDOMNESS_INVALID: &str = "ERR_MOUSE_STEP_RANDOMNESS_INVALID";
+const ERR_MOUSE_DISTANCE_BOOST_INVALID: &str = "ERR_MOUSE_DISTANCE_BOOST_INVALID";
+const ERR_MOUSE_DURATION_DISTANCE_BOOST_INVALID: &str = "ERR_MOUSE_DURATION_DISTANCE_BOOST_INVALID";
+const ERR_MOUSE_STEP_DISTANCE_BOOST_INVALID: &str = "ERR_MOUSE_STEP_DISTANCE_BOOST_INVALID";
+const ERR_MOUSE_CURVE_ALONG_RATIO_INVALID: &str = "ERR_MOUSE_CURVE_ALONG_RATIO_INVALID";
+const ERR_MOUSE_CURVE_SPREAD_RATIO_INVALID: &str = "ERR_MOUSE_CURVE_SPREAD_RATIO_INVALID";
+const ERR_MOUSE_JITTER_RATIO_INVALID: &str = "ERR_MOUSE_JITTER_RATIO_INVALID";
+const ERR_MOUSE_ADAPTIVE_STRIDE_BASE_INVALID: &str = "ERR_MOUSE_ADAPTIVE_STRIDE_BASE_INVALID";
+const ERR_MOUSE_ADAPTIVE_STRIDE_DISTANCE_RATIO_INVALID: &str =
+    "ERR_MOUSE_ADAPTIVE_STRIDE_DISTANCE_RATIO_INVALID";
+const ERR_MOUSE_ADAPTIVE_STRIDE_MAX_INVALID: &str = "ERR_MOUSE_ADAPTIVE_STRIDE_MAX_INVALID";
+const ERR_MOUSE_MAX_STEPS_INVALID: &str = "ERR_MOUSE_MAX_STEPS_INVALID";
+const ERR_MOUSE_MAX_STEP_SLEEP_INVALID: &str = "ERR_MOUSE_MAX_STEP_SLEEP_INVALID";
+const ERR_OVERLAY_LINE_WIDTH_INVALID: &str = "ERR_OVERLAY_LINE_WIDTH_INVALID";
+const ERR_OVERLAY_FONT_SIZE_INVALID: &str = "ERR_OVERLAY_FONT_SIZE_INVALID";
+const ERR_OVERLAY_LAYER_FONT_SIZE_INVALID: &str = "ERR_OVERLAY_LAYER_FONT_SIZE_INVALID";
+const ERR_LAYER_GRID_INVALID: &str = "ERR_LAYER_GRID_INVALID";
+const ERR_LAYER_STAGE0_GRID_INVALID: &str = "ERR_LAYER_STAGE0_GRID_INVALID";
+const ERR_LAYER_STAGE1_GRID_INVALID: &str = "ERR_LAYER_STAGE1_GRID_INVALID";
+const ERR_LAYER_KEYS_EXPECTED: &str = "ERR_LAYER_KEYS_EXPECTED";
+const ERR_LAYER_STAGE0_KEYS_EXPECTED: &str = "ERR_LAYER_STAGE0_KEYS_EXPECTED";
+const ERR_LAYER_STAGE1_KEYS_EXPECTED: &str = "ERR_LAYER_STAGE1_KEYS_EXPECTED";
+const ERR_LAYER_KEYS_EMPTY: &str = "ERR_LAYER_KEYS_EMPTY";
+const ERR_LAYER_STAGE0_KEYS_EMPTY: &str = "ERR_LAYER_STAGE0_KEYS_EMPTY";
+const ERR_LAYER_STAGE1_KEYS_EMPTY: &str = "ERR_LAYER_STAGE1_KEYS_EMPTY";
+const ERR_COMBO_AXIS_CONSTRAINT: &str = "ERR_COMBO_AXIS_CONSTRAINT";
+const ERR_OVERRIDE_JSON_PARSE_FAILED: &str = "ERR_OVERRIDE_JSON_PARSE_FAILED";
+const ERR_OVERRIDE_JSON_NOT_OBJECT: &str = "ERR_OVERRIDE_JSON_NOT_OBJECT";
+const ERR_OVERRIDE_SCHEMA_INVALID: &str = "ERR_OVERRIDE_SCHEMA_INVALID";
+const ERR_CLICK_ACTION_UNSUPPORTED: &str = "ERR_CLICK_ACTION_UNSUPPORTED";
+
+fn error_code(code: &str) -> String {
+    code.to_string()
+}
+
+fn error_with_layer(code: &str, layer_index: usize) -> String {
+    format!("{code}:{layer_index}")
+}
+
+fn error_with_layer_expected(code: &str, layer_index: usize, expected: usize) -> String {
+    format!("{code}:{layer_index}:{expected}")
+}
+
 fn config_path(app: &AppHandle) -> Result<PathBuf, String> {
     app.path()
         .app_config_dir()
         .map(|dir| dir.join(OVERRIDE_FILE_NAME))
-        .map_err(|_| "unable to resolve app config directory".to_string())
+        .map_err(|_| error_code(ERR_CONFIG_DIR_UNAVAILABLE))
 }
 
 fn diff_value(default: &Value, current: &Value) -> Option<Value> {
@@ -198,15 +257,19 @@ fn merge_value(default: &Value, overrides: &Value) -> Value {
 }
 
 fn build_overrides(config: &AppConfig) -> Result<Value, String> {
-    let default_value = serde_json::to_value(default_config()).map_err(|e| e.to_string())?;
-    let current_value = serde_json::to_value(config).map_err(|e| e.to_string())?;
+    let default_value =
+        serde_json::to_value(default_config()).map_err(|_| error_code(ERR_CONFIG_SERIALIZE_FAILED))?;
+    let current_value =
+        serde_json::to_value(config).map_err(|_| error_code(ERR_CONFIG_SERIALIZE_FAILED))?;
     Ok(diff_value(&default_value, &current_value).unwrap_or_else(|| Value::Object(Map::new())))
 }
 
 fn resolve_config_from_overrides(overrides: &Value) -> Result<AppConfig, String> {
-    let default_value = serde_json::to_value(default_config()).map_err(|e| e.to_string())?;
+    let default_value =
+        serde_json::to_value(default_config()).map_err(|_| error_code(ERR_CONFIG_SERIALIZE_FAILED))?;
     let resolved = merge_value(&default_value, overrides);
-    let config: AppConfig = serde_json::from_value(resolved).map_err(|e| e.to_string())?;
+    let config: AppConfig =
+        serde_json::from_value(resolved).map_err(|_| error_code(ERR_OVERRIDE_SCHEMA_INVALID))?;
     validate_config(&config)?;
     Ok(config)
 }
@@ -254,23 +317,27 @@ fn load_config(app: &AppHandle) -> (AppConfig, bool) {
 fn persist_config(app: &AppHandle, config: &AppConfig) -> Result<(), String> {
     let path = config_path(app)?;
     if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent).map_err(|e| e.to_string())?;
+        fs::create_dir_all(parent).map_err(|_| error_code(ERR_CONFIG_PERSIST_FAILED))?;
     }
     let overrides = build_overrides(config)?;
-    let payload = serde_json::to_string_pretty(&overrides).map_err(|e| e.to_string())?;
-    fs::write(&path, payload).map_err(|e| e.to_string())
+    let payload =
+        serde_json::to_string_pretty(&overrides).map_err(|_| error_code(ERR_CONFIG_SERIALIZE_FAILED))?;
+    fs::write(&path, payload).map_err(|_| error_code(ERR_CONFIG_PERSIST_FAILED))
 }
 
 fn set_state_config(state: &AppState, config: AppConfig) -> Result<(), String> {
     {
-        let mut config_guard = state.config.lock().map_err(|_| "config lock poisoned")?;
+        let mut config_guard = state
+            .config
+            .lock()
+            .map_err(|_| error_code(ERR_BACKEND_STATE_UNAVAILABLE))?;
         *config_guard = config.clone();
     }
     {
         let mut ids_guard = state
             .activation_ids
             .lock()
-            .map_err(|_| "activation ids lock poisoned")?;
+            .map_err(|_| error_code(ERR_BACKEND_STATE_UNAVAILABLE))?;
         *ids_guard = ActivationHotkeyIds::from_config(&config);
     }
     Ok(())
@@ -281,7 +348,7 @@ fn get_state_config(state: &AppState) -> Result<AppConfig, String> {
         .config
         .lock()
         .map(|guard| guard.clone())
-        .map_err(|_| "config lock poisoned".to_string())
+        .map_err(|_| error_code(ERR_BACKEND_STATE_UNAVAILABLE))
 }
 
 fn parse_locale(value: &str) -> Option<LocaleCode> {
@@ -358,7 +425,7 @@ fn set_paused(app: &AppHandle, state: &AppState, paused: bool) -> Result<(), Str
         .paused
         .lock()
         .map(|guard| *guard)
-        .map_err(|_| "paused lock poisoned".to_string())?;
+        .map_err(|_| error_code(ERR_BACKEND_STATE_UNAVAILABLE))?;
     if current == paused {
         return Ok(());
     }
@@ -377,7 +444,7 @@ fn set_paused(app: &AppHandle, state: &AppState, paused: bool) -> Result<(), Str
         .map(|mut guard| {
             *guard = paused;
         })
-        .map_err(|_| "paused lock poisoned".to_string())?;
+        .map_err(|_| error_code(ERR_BACKEND_STATE_UNAVAILABLE))?;
 
     refresh_tray(app, state);
     Ok(())
@@ -388,123 +455,140 @@ fn toggle_paused(app: &AppHandle, state: &AppState) -> Result<(), String> {
     set_paused(app, state, next)
 }
 
-fn validate_keys(keys: &[String], expected_len: usize, label: &str) -> Result<(), String> {
+fn validate_keys(
+    keys: &[String],
+    expected_len: usize,
+    layer_index: usize,
+    stage: Option<u8>,
+) -> Result<(), String> {
     if keys.len() != expected_len {
-        return Err(format!(
-            "{} expects {} keys but got {}",
-            label,
-            expected_len,
-            keys.len()
-        ));
+        return Err(match stage {
+            Some(0) => error_with_layer_expected(ERR_LAYER_STAGE0_KEYS_EXPECTED, layer_index, expected_len),
+            Some(1) => error_with_layer_expected(ERR_LAYER_STAGE1_KEYS_EXPECTED, layer_index, expected_len),
+            _ => error_with_layer_expected(ERR_LAYER_KEYS_EXPECTED, layer_index, expected_len),
+        });
     }
     if keys.iter().any(|key| key.trim().is_empty()) {
-        return Err(format!("{} contains empty key labels", label));
+        return Err(match stage {
+            Some(0) => error_with_layer(ERR_LAYER_STAGE0_KEYS_EMPTY, layer_index),
+            Some(1) => error_with_layer(ERR_LAYER_STAGE1_KEYS_EMPTY, layer_index),
+            _ => error_with_layer(ERR_LAYER_KEYS_EMPTY, layer_index),
+        });
     }
     Ok(())
 }
 
-fn validate_hotkey(value: &str, label: &str) -> Result<(), String> {
+fn validate_hotkey(value: &str, code: &str) -> Result<(), String> {
     if value.trim().is_empty() {
         return Ok(());
     }
     parse_shortcut(value)
         .map(|_| ())
-        .ok_or_else(|| format!("{} hotkey is invalid: {}", label, value))
+        .ok_or_else(|| error_code(code))
 }
 
 fn validate_config(config: &AppConfig) -> Result<(), String> {
     if config.layers.is_empty() {
-        return Err("layers must not be empty".to_string());
+        return Err(error_code(ERR_LAYERS_EMPTY));
     }
 
-    validate_hotkey(&config.hotkeys.activation.trigger, "trigger")?;
-    validate_hotkey(&config.hotkeys.controls.cancel, "cancel")?;
-    validate_hotkey(&config.hotkeys.controls.undo, "undo")?;
-    validate_hotkey(&config.hotkeys.controls.direct_click, "directClick")?;
-    validate_hotkey(&config.hotkeys.controls.switch_action, "switchAction")?;
-    validate_hotkey(&config.hotkeys.controls.next_monitor, "nextMonitor")?;
+    validate_hotkey(&config.hotkeys.activation.trigger, ERR_HOTKEY_INVALID_TRIGGER)?;
+    validate_hotkey(&config.hotkeys.controls.cancel, ERR_HOTKEY_INVALID_CANCEL)?;
+    validate_hotkey(&config.hotkeys.controls.undo, ERR_HOTKEY_INVALID_UNDO)?;
+    validate_hotkey(
+        &config.hotkeys.controls.direct_click,
+        ERR_HOTKEY_INVALID_DIRECT_CLICK,
+    )?;
+    validate_hotkey(
+        &config.hotkeys.controls.switch_action,
+        ERR_HOTKEY_INVALID_SWITCH_ACTION,
+    )?;
+    validate_hotkey(
+        &config.hotkeys.controls.next_monitor,
+        ERR_HOTKEY_INVALID_NEXT_MONITOR,
+    )?;
 
     if config.nudge.step_px == 0 {
-        return Err("nudge stepPx must be > 0".to_string());
+        return Err(error_code(ERR_NUDGE_STEP_INVALID));
     }
     if config.mouse.move_duration_ms == 0 {
-        return Err("mouse moveDurationMs must be > 0".to_string());
+        return Err(error_code(ERR_MOUSE_MOVE_DURATION_INVALID));
     }
     if config.mouse.move_step_ms == 0 {
-        return Err("mouse moveStepMs must be > 0".to_string());
+        return Err(error_code(ERR_MOUSE_MOVE_STEP_INVALID));
     }
     if !config.mouse.duration_randomness.is_finite()
         || config.mouse.duration_randomness < 0.0
         || config.mouse.duration_randomness >= 1.0
     {
-        return Err("mouse durationRandomness must be in [0, 1)".to_string());
+        return Err(error_code(ERR_MOUSE_DURATION_RANDOMNESS_INVALID));
     }
     if !config.mouse.step_randomness.is_finite()
         || config.mouse.step_randomness < 0.0
         || config.mouse.step_randomness >= 1.0
     {
-        return Err("mouse stepRandomness must be in [0, 1)".to_string());
+        return Err(error_code(ERR_MOUSE_STEP_RANDOMNESS_INVALID));
     }
     if !config.mouse.distance_boost_px.is_finite() || config.mouse.distance_boost_px <= 0.0 {
-        return Err("mouse distanceBoostPx must be > 0".to_string());
+        return Err(error_code(ERR_MOUSE_DISTANCE_BOOST_INVALID));
     }
     if !config.mouse.duration_distance_boost.is_finite()
         || config.mouse.duration_distance_boost < 0.0
         || config.mouse.duration_distance_boost >= 1.0
     {
-        return Err("mouse durationDistanceBoost must be in [0, 1)".to_string());
+        return Err(error_code(ERR_MOUSE_DURATION_DISTANCE_BOOST_INVALID));
     }
     if !config.mouse.step_distance_boost.is_finite()
         || config.mouse.step_distance_boost < 0.0
         || config.mouse.step_distance_boost >= 1.0
     {
-        return Err("mouse stepDistanceBoost must be in [0, 1)".to_string());
+        return Err(error_code(ERR_MOUSE_STEP_DISTANCE_BOOST_INVALID));
     }
     if !config.mouse.curve_along_ratio.is_finite()
         || config.mouse.curve_along_ratio < 0.0
         || config.mouse.curve_along_ratio > 1.0
     {
-        return Err("mouse curveAlongRatio must be in [0, 1]".to_string());
+        return Err(error_code(ERR_MOUSE_CURVE_ALONG_RATIO_INVALID));
     }
     if !config.mouse.curve_spread_ratio.is_finite()
         || config.mouse.curve_spread_ratio < 0.0
         || config.mouse.curve_spread_ratio > 1.0
     {
-        return Err("mouse curveSpreadRatio must be in [0, 1]".to_string());
+        return Err(error_code(ERR_MOUSE_CURVE_SPREAD_RATIO_INVALID));
     }
     if !config.mouse.jitter_ratio.is_finite()
         || config.mouse.jitter_ratio < 0.0
         || config.mouse.jitter_ratio > 0.2
     {
-        return Err("mouse jitterRatio must be in [0, 0.2]".to_string());
+        return Err(error_code(ERR_MOUSE_JITTER_RATIO_INVALID));
     }
     if !config.mouse.adaptive_stride_base_px.is_finite()
         || config.mouse.adaptive_stride_base_px <= 0.0
     {
-        return Err("mouse adaptiveStrideBasePx must be > 0".to_string());
+        return Err(error_code(ERR_MOUSE_ADAPTIVE_STRIDE_BASE_INVALID));
     }
     if !config.mouse.adaptive_stride_distance_ratio.is_finite()
         || config.mouse.adaptive_stride_distance_ratio < 0.0
     {
-        return Err("mouse adaptiveStrideDistanceRatio must be >= 0".to_string());
+        return Err(error_code(ERR_MOUSE_ADAPTIVE_STRIDE_DISTANCE_RATIO_INVALID));
     }
     if !config.mouse.adaptive_stride_max_px.is_finite()
         || config.mouse.adaptive_stride_max_px < config.mouse.adaptive_stride_base_px
     {
-        return Err("mouse adaptiveStrideMaxPx must be >= adaptiveStrideBasePx".to_string());
+        return Err(error_code(ERR_MOUSE_ADAPTIVE_STRIDE_MAX_INVALID));
     }
     if config.mouse.max_steps < 2 {
-        return Err("mouse maxSteps must be >= 2".to_string());
+        return Err(error_code(ERR_MOUSE_MAX_STEPS_INVALID));
     }
     if config.mouse.max_step_sleep_ms == 0 {
-        return Err("mouse maxStepSleepMs must be > 0".to_string());
+        return Err(error_code(ERR_MOUSE_MAX_STEP_SLEEP_INVALID));
     }
 
     if config.overlay.line_width_px == 0 {
-        return Err("overlay lineWidthPx must be > 0".to_string());
+        return Err(error_code(ERR_OVERLAY_LINE_WIDTH_INVALID));
     }
     if config.overlay.font.size_px == 0 {
-        return Err("overlay font sizePx must be > 0".to_string());
+        return Err(error_code(ERR_OVERLAY_FONT_SIZE_INVALID));
     }
     if config
         .overlay
@@ -513,55 +597,35 @@ fn validate_config(config: &AppConfig) -> Result<(), String> {
         .iter()
         .any(|value| *value == 0)
     {
-        return Err("overlay font layerSizePx must be > 0".to_string());
+        return Err(error_code(ERR_OVERLAY_LAYER_FONT_SIZE_INVALID));
     }
 
     for (layer_index, layer) in config.layers.iter().enumerate() {
         match layer {
             Layer::Single { rows, cols, keys } => {
                 if *rows == 0 || *cols == 0 {
-                    return Err(format!("layer {} has invalid grid size", layer_index));
+                    return Err(error_with_layer(ERR_LAYER_GRID_INVALID, layer_index));
                 }
                 let expected_len = (*rows as usize) * (*cols as usize);
-                validate_keys(keys, expected_len, &format!("layer {}", layer_index))?;
+                validate_keys(keys, expected_len, layer_index, None)?;
             }
             Layer::Combo { stage0, stage1 } => {
                 if stage0.rows == 0 || stage0.cols == 0 {
-                    return Err(format!(
-                        "layer {} stage0 has invalid grid size",
-                        layer_index
-                    ));
+                    return Err(error_with_layer(ERR_LAYER_STAGE0_GRID_INVALID, layer_index));
                 }
                 if stage1.rows == 0 || stage1.cols == 0 {
-                    return Err(format!(
-                        "layer {} stage1 has invalid grid size",
-                        layer_index
-                    ));
+                    return Err(error_with_layer(ERR_LAYER_STAGE1_GRID_INVALID, layer_index));
                 }
                 if stage0.rows != 1 {
-                    return Err(format!(
-                        "layer {} stage0 must be 1xN (columns), got {}x{}",
-                        layer_index, stage0.rows, stage0.cols
-                    ));
+                    return Err(error_with_layer(ERR_COMBO_AXIS_CONSTRAINT, layer_index));
                 }
                 if stage1.cols != 1 {
-                    return Err(format!(
-                        "layer {} stage1 must be Nx1 (rows), got {}x{}",
-                        layer_index, stage1.rows, stage1.cols
-                    ));
+                    return Err(error_with_layer(ERR_COMBO_AXIS_CONSTRAINT, layer_index));
                 }
                 let expected0 = (stage0.rows as usize) * (stage0.cols as usize);
-                validate_keys(
-                    &stage0.keys,
-                    expected0,
-                    &format!("layer {} stage0", layer_index),
-                )?;
+                validate_keys(&stage0.keys, expected0, layer_index, Some(0))?;
                 let expected1 = (stage1.rows as usize) * (stage1.cols as usize);
-                validate_keys(
-                    &stage1.keys,
-                    expected1,
-                    &format!("layer {} stage1", layer_index),
-                )?;
+                validate_keys(&stage1.keys, expected1, layer_index, Some(1))?;
             }
         }
     }
@@ -634,8 +698,8 @@ fn get_config_dir(app: AppHandle) -> Result<String, String> {
     let path = config_path(&app)?;
     let dir = path
         .parent()
-        .ok_or_else(|| "unable to resolve app config directory".to_string())?;
-    fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+        .ok_or_else(|| error_code(ERR_CONFIG_DIR_UNAVAILABLE))?;
+    fs::create_dir_all(dir).map_err(|_| error_code(ERR_CONFIG_PERSIST_FAILED))?;
     Ok(dir.to_string_lossy().into_owned())
 }
 
@@ -643,7 +707,7 @@ fn get_config_dir(app: AppHandle) -> Result<String, String> {
 fn export_override_json(state: State<'_, AppState>) -> Result<String, String> {
     let config = get_state_config(state.inner())?;
     let overrides = build_overrides(&config)?;
-    serde_json::to_string_pretty(&overrides).map_err(|e| e.to_string())
+    serde_json::to_string_pretty(&overrides).map_err(|_| error_code(ERR_CONFIG_SERIALIZE_FAILED))
 }
 
 #[tauri::command]
@@ -652,9 +716,10 @@ fn import_override_json(
     state: State<'_, AppState>,
     json: String,
 ) -> Result<AppConfig, String> {
-    let overrides: Value = serde_json::from_str(&json).map_err(|e| e.to_string())?;
+    let overrides: Value =
+        serde_json::from_str(&json).map_err(|_| error_code(ERR_OVERRIDE_JSON_PARSE_FAILED))?;
     if !overrides.is_object() {
-        return Err("override JSON must be an object".to_string());
+        return Err(error_code(ERR_OVERRIDE_JSON_NOT_OBJECT));
     }
     let config = resolve_config_from_overrides(&overrides)?;
     apply_runtime_config(&app, state.inner(), config)
@@ -1212,7 +1277,7 @@ fn perform_click(app: &AppHandle, payload: &NativeClickPayload) -> Result<(), St
             Ok(())
         }
         ClickAction::MoveOnly => Ok(()),
-        ClickAction::Drag => Err("drag action is reserved and not implemented yet".to_string()),
+        ClickAction::Drag => Err(error_code(ERR_CLICK_ACTION_UNSUPPORTED)),
     }
 }
 
@@ -1544,12 +1609,12 @@ fn register_activation_hotkeys(
     }
 
     let shortcut = parse_shortcut(&config.hotkeys.activation.trigger)
-        .ok_or_else(|| "activation trigger is invalid".to_string())?;
+        .ok_or_else(|| error_code(ERR_HOTKEY_INVALID_TRIGGER))?;
     let shortcuts = vec![shortcut];
 
     shortcut_manager
         .register_multiple(shortcuts.clone())
-        .map_err(|e| e.to_string())?;
+        .map_err(|_| error_code(ERR_HOTKEY_REGISTER_FAILED))?;
 
     if let Ok(mut guard) = state.activation_shortcuts.lock() {
         *guard = shortcuts;
@@ -1616,7 +1681,7 @@ fn register_overlay_hotkeys(
 
     shortcut_manager
         .register_multiple(shortcuts.clone())
-        .map_err(|e| e.to_string())?;
+        .map_err(|_| error_code(ERR_HOTKEY_REGISTER_FAILED))?;
 
     if let Ok(mut guard) = state.overlay_shortcuts.lock() {
         *guard = shortcuts;

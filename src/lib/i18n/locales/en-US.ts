@@ -199,6 +199,24 @@ const en: Record<TranslationKey, string> = {
   "errors.mouseMaxStepSleepMs": "Mouse maxStepSleepMs must be > 0.",
   "errors.overlayLineWidth": "Overlay lineWidthPx must be > 0.",
   "errors.overlayFontSize": "Overlay font sizePx must be > 0.",
+  "errors.overrideJsonObject": "Imported content must be a JSON object.",
+  "errors.overrideJsonParse": "Imported content is not valid JSON.",
+  "errors.overrideJsonSchemaInvalid":
+    "Imported content does not match the config schema.",
+  "errors.activationHotkeyInvalid": "Activation hotkey format is invalid.",
+  "errors.backendHotkeyInvalid": 'Hotkey "{field}" format is invalid.',
+  "errors.backendHotkeyRegisterFailed":
+    "System hotkey registration failed. Check for conflicts with other apps.",
+  "errors.backendStateUnavailable":
+    "App state is temporarily unavailable. Please restart and try again.",
+  "errors.backendConfigDirUnavailable":
+    "Unable to locate the configuration directory.",
+  "errors.backendConfigPersistFailed":
+    "Failed to read/write config. Please check directory permissions.",
+  "errors.backendClickUnsupported":
+    "The current click action is not supported yet.",
+  "errors.backendUnknown": "Operation failed. Please try again.",
+  "errors.backendUnknownWithDetail": "Operation failed: {detail}",
   "errors.layerGridInvalidSimple": "Layer {index} grid is invalid.",
   "errors.layerExpectedKeysSimple": "Layer {index} expects {expected} keys.",
   "errors.layerEmptyKeysSimple": "Layer {index} has empty key slots.",
