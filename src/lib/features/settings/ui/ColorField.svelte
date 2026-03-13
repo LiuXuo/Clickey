@@ -1,4 +1,10 @@
 ﻿<script lang="ts">
+  import {
+    colorNativeInputClass,
+    controlButtonSmClass,
+    controlInputClass,
+  } from "$lib/features/settings/ui/control-classes";
+
   let { id, label, value, disabled, onChange } = $props<{
     id: string;
     label: string;
@@ -16,6 +22,7 @@
     }
     return "#000000";
   });
+  const colorTriggerClass = `${controlInputClass} flex items-center justify-between`;
 
   function togglePicker() {
     if (disabled) {
@@ -56,7 +63,7 @@
     <button
       {id}
       type="button"
-      class="flex w-full items-center justify-between rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm transition hover:border-zinc-400 disabled:cursor-not-allowed disabled:bg-zinc-100"
+      class={`${colorTriggerClass} hover:border-zinc-400`}
       onclick={togglePicker}
       {disabled}
     >
@@ -78,7 +85,7 @@
           <div class="flex-1">
             <input
               type="color"
-              class="h-10 w-full cursor-pointer rounded border border-zinc-300"
+              class={colorNativeInputClass}
               value={safeHex}
               oninput={onColorInput}
               {disabled}
@@ -86,7 +93,7 @@
           </div>
           <div class="flex-1">
             <input
-              class="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 disabled:cursor-not-allowed disabled:bg-zinc-100"
+              class={controlInputClass}
               {value}
               oninput={onHexInput}
               {disabled}
@@ -96,7 +103,7 @@
         <div class="mt-3 flex justify-end">
           <button
             type="button"
-            class="rounded-md border border-zinc-300 px-2.5 py-1 text-xs font-semibold text-zinc-700 hover:border-zinc-400"
+            class={controlButtonSmClass}
             onclick={closePicker}
           >
             OK

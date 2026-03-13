@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { keyCellInputClass } from "$lib/features/settings/ui/control-classes";
+
   let {
     idPrefix,
     rows,
@@ -207,7 +209,7 @@
   }
 </script>
 
-<div class="w-full overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
+<div class="w-full rounded-lg border border-zinc-200 bg-zinc-50">
   <table class="w-full table-fixed border-collapse text-[11px] text-zinc-700">
     <tbody>
       {#each Array.from({ length: safeRows }, (_unused, row) => row) as rowIndex (`row-${rowIndex}`)}
@@ -224,7 +226,7 @@
                 autocapitalize="off"
                 spellcheck="false"
                 maxlength="1"
-                class="min-w-0 w-full rounded-md border border-zinc-300 bg-white px-0 py-1.5 text-center font-mono text-sm text-zinc-900 shadow-sm transition focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 disabled:cursor-not-allowed disabled:bg-zinc-100"
+                class={keyCellInputClass}
                 value={slotValues[index]}
                 onkeydown={(event) => handleKeydown(index, event)}
                 oninput={(event) => handleInput(index, event)}

@@ -1,4 +1,6 @@
 <script lang="ts">
+  import { keyCellInputClass } from "$lib/features/settings/ui/control-classes";
+
   let {
     idPrefix,
     columnKeys,
@@ -300,11 +302,11 @@
   }
 </script>
 
-<div class="w-full overflow-hidden rounded-lg border border-zinc-200 bg-zinc-50">
+<div class="w-full rounded-lg border border-zinc-200 bg-zinc-50">
   <table class="w-full table-fixed border-collapse text-[11px] text-zinc-700">
     <thead>
       <tr class="bg-zinc-100 text-zinc-500">
-        <th class="w-10 border border-zinc-200 bg-zinc-100 px-1 py-1.5">
+        <th class="border border-zinc-200 bg-zinc-100 px-1 py-1.5">
           #
         </th>
         {#each safeColumnKeys as key, colIndex (`col-${colIndex}`)}
@@ -318,7 +320,7 @@
               autocapitalize="off"
               spellcheck="false"
               maxlength="1"
-              class="min-w-0 w-full rounded-md border border-zinc-300 bg-white px-0 py-1.5 text-center font-mono text-sm text-zinc-900 shadow-sm transition focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 disabled:cursor-not-allowed disabled:bg-zinc-100"
+              class={keyCellInputClass}
               value={key}
               onkeydown={(event) => handleColumnKeydown(colIndex, event)}
               oninput={(event) => handleColumnInput(colIndex, event)}
@@ -335,7 +337,7 @@
     <tbody>
       {#each safeRowKeys as rowKey, rowIndex (`row-${rowIndex}`)}
         <tr class="odd:bg-white even:bg-zinc-50">
-          <th class="w-10 border border-zinc-200 bg-inherit p-1.5 text-zinc-500">
+          <th class="border border-zinc-200 bg-inherit p-1.5 text-zinc-500">
             <input
               bind:this={rowRefs[rowIndex]}
               id={`${idPrefix}-row-${rowIndex}`}
@@ -345,7 +347,7 @@
               autocapitalize="off"
               spellcheck="false"
               maxlength="1"
-              class="min-w-0 w-full rounded-md border border-zinc-300 bg-white px-0 py-1.5 text-center font-mono text-sm text-zinc-900 shadow-sm transition focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 disabled:cursor-not-allowed disabled:bg-zinc-100"
+              class={keyCellInputClass}
               value={rowKey}
               onkeydown={(event) => handleRowKeydown(rowIndex, event)}
               oninput={(event) => handleRowInput(rowIndex, event)}

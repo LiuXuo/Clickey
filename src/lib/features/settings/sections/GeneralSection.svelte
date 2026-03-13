@@ -3,6 +3,9 @@
   import SettingsCard from "$lib/features/settings/ui/SettingsCard.svelte";
   import SectionHeader from "$lib/features/settings/ui/SectionHeader.svelte";
   import ActionBar from "$lib/features/settings/ui/ActionBar.svelte";
+  import {
+    controlInputSpaceWrapClass,
+  } from "$lib/features/settings/ui/control-classes";
 
   let {
     localeValue,
@@ -51,34 +54,36 @@
       <label class="text-sm font-medium text-zinc-700" for="locale-select"
         >{$t("language.label")}</label
       >
-      <div class="relative mt-2 max-w-sm">
-        <select
-          id="locale-select"
-          class={compactSelectClass}
-          value={localeValue}
-          onchange={handleLocaleChange}
-          disabled={isLoading}
-        >
-          <option value="zh-CN">{$t("language.zh")}</option>
-          <option value="en-US">{$t("language.en")}</option>
-        </select>
-        <span
-          class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-zinc-500"
-        >
-          <svg
-            aria-hidden="true"
-            viewBox="0 0 12 12"
-            class="h-3.5 w-3.5"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="1.5"
-            stroke-linecap="round"
-            stroke-linejoin="round"
+      <div class={`mt-2 gap-2 ${controlInputSpaceWrapClass}`}>
+        <div class="relative">
+          <select
+            id="locale-select"
+            class={compactSelectClass}
+            value={localeValue}
+            onchange={handleLocaleChange}
+            disabled={isLoading}
           >
-            <path d="M3 4.5 6 1.8l3 2.7" />
-            <path d="M3 7.5 6 10.2l3-2.7" />
-          </svg>
-        </span>
+            <option value="zh-CN">{$t("language.zh")}</option>
+            <option value="en-US">{$t("language.en")}</option>
+          </select>
+          <span
+            class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-zinc-500"
+          >
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 12 12"
+              class="h-3.5 w-3.5"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+              stroke-linecap="round"
+              stroke-linejoin="round"
+            >
+              <path d="M3 4.5 6 1.8l3 2.7" />
+              <path d="M3 7.5 6 10.2l3-2.7" />
+            </svg>
+          </span>
+        </div>
       </div>
     </div>
 

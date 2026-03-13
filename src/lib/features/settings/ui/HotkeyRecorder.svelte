@@ -4,6 +4,10 @@
     formatHotkeyDisplay,
     formatHotkeyFromKeyboardEvent,
   } from "$lib/features/settings/hotkey-utils";
+  import {
+    controlButtonSmClass,
+    controlInputClass,
+  } from "$lib/features/settings/ui/control-classes";
 
   let {
     id,
@@ -30,6 +34,7 @@
   }>();
 
   const displayValue = $derived(formatHotkeyDisplay(value));
+  const recorderButtonClass = `${controlInputClass} text-left`;
 
   function beginRecording() {
     if (disabled) {
@@ -77,7 +82,7 @@
   <button
     {id}
     type="button"
-    class={`w-full rounded-lg border bg-white px-3 py-2 text-left text-sm shadow-sm transition disabled:cursor-not-allowed disabled:bg-zinc-100 ${
+    class={`${recorderButtonClass} ${
       isRecording
         ? "border-zinc-900 text-zinc-900"
         : "border-zinc-300 text-zinc-900 hover:border-zinc-400"
@@ -97,21 +102,21 @@
     <div class="flex items-center gap-2">
       <button
         type="button"
-        class="rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition hover:border-zinc-400 hover:text-zinc-900"
+        class={controlButtonSmClass}
         onclick={onStopRecording}
       >
         {$t("hotkeys.recorderCancel")}
       </button>
       <button
         type="button"
-        class="rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition hover:border-zinc-400 hover:text-zinc-900"
+        class={controlButtonSmClass}
         onclick={disableValue}
       >
         {$t("hotkeys.recorderClear")}
       </button>
       <button
         type="button"
-        class="rounded-md border border-zinc-300 px-2 py-1 text-xs text-zinc-600 transition hover:border-zinc-400 hover:text-zinc-900"
+        class={controlButtonSmClass}
         onclick={resetDefaultValue}
       >
         {$t("hotkeys.recorderDefault")}

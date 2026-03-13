@@ -4,6 +4,10 @@
   import SettingsCard from "$lib/features/settings/ui/SettingsCard.svelte";
   import SectionHeader from "$lib/features/settings/ui/SectionHeader.svelte";
   import ColorField from "$lib/features/settings/ui/ColorField.svelte";
+  import {
+    controlInputSpaceWrapClass,
+    switchTrackClass,
+  } from "$lib/features/settings/ui/control-classes";
 
   let {
     config,
@@ -62,7 +66,7 @@
           disabled={isLoading}
         />
         <span
-          class="relative h-6 w-11 rounded-full bg-zinc-300 transition peer-checked:bg-zinc-900 peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-zinc-900/30 peer-disabled:opacity-50 after:absolute after:left-[3px] after:top-1/2 after:h-4 after:w-4 after:-translate-y-1/2 after:rounded-full after:bg-white after:transition after:content-[''] peer-checked:after:translate-x-5"
+          class={switchTrackClass}
         ></span>
       </span>
     </label>
@@ -84,13 +88,13 @@
           disabled={isLoading}
         />
         <span
-          class="relative h-6 w-11 rounded-full bg-zinc-300 transition peer-checked:bg-zinc-900 peer-focus-visible:outline-none peer-focus-visible:ring-2 peer-focus-visible:ring-zinc-900/30 peer-disabled:opacity-50 after:absolute after:left-[3px] after:top-1/2 after:h-4 after:w-4 after:-translate-y-1/2 after:rounded-full after:bg-white after:transition after:content-[''] peer-checked:after:translate-x-5"
+          class={switchTrackClass}
         ></span>
       </span>
     </label>
   </div>
 
-  <div class="mt-6 grid gap-6 md:grid-cols-2">
+  <div class={`mt-6 gap-6 ${controlInputSpaceWrapClass}`}>
     <div>
       <label class="text-sm font-medium text-zinc-700" for="overlay-alpha"
         >{$t("overlay.alpha")}</label

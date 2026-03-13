@@ -5,6 +5,7 @@
   import SettingsCard from "$lib/features/settings/ui/SettingsCard.svelte";
   import SectionHeader from "$lib/features/settings/ui/SectionHeader.svelte";
   import HotkeyRecorder from "$lib/features/settings/ui/HotkeyRecorder.svelte";
+  import { controlInputSpaceWrapClass } from "$lib/features/settings/ui/control-classes";
   import { formatHotkeyDisplay } from "$lib/features/settings/hotkey-utils";
 
   type RecorderKey =
@@ -85,7 +86,7 @@
 <SettingsCard id="hotkeys">
   <SectionHeader title={$t("hotkeys.title")} icon="hotkeys" />
 
-  <div class="mt-6 grid gap-4 md:grid-cols-2">
+  <div class={`mt-6 gap-4 ${controlInputSpaceWrapClass}`}>
     <HotkeyRecorder
       id="hotkey-trigger"
       label={$t("hotkeys.trigger")}

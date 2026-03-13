@@ -17,15 +17,17 @@
     type ToastItem,
     type ToastTone,
   } from "$lib/features/settings/ui/ToastStack.svelte";
+  import {
+    controlInputWithMarginClass,
+    controlSelectClass,
+  } from "$lib/features/settings/ui/control-classes";
   import { canonicalizeHotkey } from "$lib/features/settings/hotkey-utils";
   import { toLocalizedErrorMessage } from "$lib/features/settings/error-message";
 
   const initialConfig = ensureLayerFontSizesInConfig(getDefaultConfig());
 
-  const fieldClass =
-    "mt-2 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 disabled:cursor-not-allowed disabled:bg-zinc-100";
-  const compactSelectClass =
-    "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm transition focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20 disabled:cursor-not-allowed disabled:bg-zinc-100 appearance-none pr-10";
+  const fieldClass = controlInputWithMarginClass;
+  const compactSelectClass = controlSelectClass;
 
   const keyPool = [
     "q",
