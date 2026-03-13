@@ -64,6 +64,10 @@ pub struct ControlHotkeys {
     pub direct_click: String,
     pub switch_action: String,
     pub next_monitor: String,
+    pub nudge_left: String,
+    pub nudge_right: String,
+    pub nudge_up: String,
+    pub nudge_down: String,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

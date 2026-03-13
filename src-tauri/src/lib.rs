@@ -1,6 +1,6 @@
 mod config;
 
-use config::{default_config, AppConfig, Layer, MouseConfig};
+use config::{default_config, AppConfig, ControlHotkeys, Layer, MouseConfig};
 use enigo::{Enigo, MouseButton, MouseControllable};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
@@ -138,8 +138,6 @@ struct TrayTexts {
 const OVERRIDE_FILE_NAME: &str = "settings.override.json";
 const NUDGE_REPEAT_DELAY_MS: u64 = 250;
 const NUDGE_REPEAT_INTERVAL_MS: u64 = 40;
-const DEFAULT_SWITCH_ACTION_KEY: &str = "Enter";
-const DEFAULT_NEXT_MONITOR_KEY: &str = "Tab";
 const TRAY_ICON_ID: &str = "main";
 const TRAY_MENU_SETTINGS_ID: &str = "tray-settings";
 const TRAY_MENU_TOGGLE_ID: &str = "tray-toggle-runtime";
@@ -156,6 +154,10 @@ const ERR_HOTKEY_INVALID_UNDO: &str = "ERR_HOTKEY_INVALID_UNDO";
 const ERR_HOTKEY_INVALID_DIRECT_CLICK: &str = "ERR_HOTKEY_INVALID_DIRECT_CLICK";
 const ERR_HOTKEY_INVALID_SWITCH_ACTION: &str = "ERR_HOTKEY_INVALID_SWITCH_ACTION";
 const ERR_HOTKEY_INVALID_NEXT_MONITOR: &str = "ERR_HOTKEY_INVALID_NEXT_MONITOR";
+const ERR_HOTKEY_INVALID_NUDGE_LEFT: &str = "ERR_HOTKEY_INVALID_NUDGE_LEFT";
+const ERR_HOTKEY_INVALID_NUDGE_RIGHT: &str = "ERR_HOTKEY_INVALID_NUDGE_RIGHT";
+const ERR_HOTKEY_INVALID_NUDGE_UP: &str = "ERR_HOTKEY_INVALID_NUDGE_UP";
+const ERR_HOTKEY_INVALID_NUDGE_DOWN: &str = "ERR_HOTKEY_INVALID_NUDGE_DOWN";
 const ERR_LAYERS_EMPTY: &str = "ERR_LAYERS_EMPTY";
 const ERR_NUDGE_STEP_INVALID: &str = "ERR_NUDGE_STEP_INVALID";
 const ERR_MOUSE_MOVE_DURATION_INVALID: &str = "ERR_MOUSE_MOVE_DURATION_INVALID";
@@ -507,6 +509,22 @@ fn validate_config(config: &AppConfig) -> Result<(), String> {
         &config.hotkeys.controls.next_monitor,
         ERR_HOTKEY_INVALID_NEXT_MONITOR,
     )?;
+    validate_hotkey(
+        &config.hotkeys.controls.nudge_left,
+        ERR_HOTKEY_INVALID_NUDGE_LEFT,
+    )?;
+    validate_hotkey(
+        &config.hotkeys.controls.nudge_right,
+        ERR_HOTKEY_INVALID_NUDGE_RIGHT,
+    )?;
+    validate_hotkey(
+        &config.hotkeys.controls.nudge_up,
+        ERR_HOTKEY_INVALID_NUDGE_UP,
+    )?;
+    validate_hotkey(
+        &config.hotkeys.controls.nudge_down,
+        ERR_HOTKEY_INVALID_NUDGE_DOWN,
+    )?;
 
     if config.nudge.step_px == 0 {
         return Err(error_code(ERR_NUDGE_STEP_INVALID));
@@ -749,6 +767,10 @@ pub fn run() {
     let _ = parse_shortcut_or_panic("trigger", &default_cfg.hotkeys.activation.trigger);
     let _ = parse_shortcut_or_panic("switchAction", &default_cfg.hotkeys.controls.switch_action);
     let _ = parse_shortcut_or_panic("nextMonitor", &default_cfg.hotkeys.controls.next_monitor);
+    let _ = parse_shortcut_or_panic("nudgeLeft", &default_cfg.hotkeys.controls.nudge_left);
+    let _ = parse_shortcut_or_panic("nudgeRight", &default_cfg.hotkeys.controls.nudge_right);
+    let _ = parse_shortcut_or_panic("nudgeUp", &default_cfg.hotkeys.controls.nudge_up);
+    let _ = parse_shortcut_or_panic("nudgeDown", &default_cfg.hotkeys.controls.nudge_down);
     let activation_ids = ActivationHotkeyIds::from_config(&default_cfg);
 
     let global_shortcut_plugin = tauri_plugin_global_shortcut::Builder::new()
@@ -772,7 +794,8 @@ pub fn run() {
                     .and_then(|map| map.get(&shortcut.id()).cloned());
 
                 if let Some(key) = overlay_key {
-                    if is_nudge_key(&key) {
+                    let controls = current_control_hotkeys(state.inner());
+                    if is_nudge_key(&key, &controls) {
                         stop_nudge_repeat(state.inner());
                     }
                 }
@@ -817,30 +840,16 @@ pub fn run() {
 
             if let Some(key) = overlay_key {
                 println!("[shortcut] overlay key={}", key);
-                let (switch_action_key, next_monitor_key) = state
-                    .config
-                    .lock()
-                    .map(|guard| {
-                        (
-                            guard.hotkeys.controls.switch_action.clone(),
-                            guard.hotkeys.controls.next_monitor.clone(),
-                        )
-                    })
-                    .unwrap_or_else(|_| {
-                        (
-                            DEFAULT_SWITCH_ACTION_KEY.to_string(),
-                            DEFAULT_NEXT_MONITOR_KEY.to_string(),
-                        )
-                    });
-                if is_switch_action_key(&key, &switch_action_key) {
+                let controls = current_control_hotkeys(state.inner());
+                if is_switch_action_key(&key, &controls.switch_action) {
                     cycle_overlay_click_action(app, state.inner());
                     return;
                 }
-                if is_next_monitor_key(&key, &next_monitor_key) {
+                if is_next_monitor_key(&key, &controls.next_monitor) {
                     switch_monitor(app);
                     return;
                 }
-                if is_nudge_key(&key) && is_nudge_repeat_active(state.inner(), &key) {
+                if is_nudge_key(&key, &controls) && is_nudge_repeat_active(state.inner(), &key) {
                     return;
                 }
                 let _ = app.emit_to(
@@ -848,7 +857,7 @@ pub fn run() {
                     "native:key",
                     NativeKeyPayload { key: key.clone() },
                 );
-                if is_nudge_key(&key) {
+                if is_nudge_key(&key, &controls) {
                     start_nudge_repeat(app.clone(), state.inner(), key);
                 }
             } else {
@@ -1575,11 +1584,10 @@ fn collect_overlay_keys(config: &AppConfig) -> Vec<String> {
     keys.push(config.hotkeys.controls.direct_click.clone());
     keys.push(config.hotkeys.controls.switch_action.clone());
     keys.push(config.hotkeys.controls.next_monitor.clone());
-    keys.extend(
-        ["ArrowLeft", "ArrowRight", "ArrowUp", "ArrowDown"]
-            .into_iter()
-            .map(String::from),
-    );
+    keys.push(config.hotkeys.controls.nudge_left.clone());
+    keys.push(config.hotkeys.controls.nudge_right.clone());
+    keys.push(config.hotkeys.controls.nudge_up.clone());
+    keys.push(config.hotkeys.controls.nudge_down.clone());
 
     keys.retain(|key| !key.trim().is_empty());
 
@@ -1719,6 +1727,18 @@ fn is_switch_action_key(value: &str, configured_key: &str) -> bool {
     value.eq_ignore_ascii_case(configured_key)
 }
 
+fn current_control_hotkeys(state: &AppState) -> ControlHotkeys {
+    state
+        .config
+        .lock()
+        .map(|guard| guard.hotkeys.controls.clone())
+        .unwrap_or_else(|_| default_config().hotkeys.controls)
+}
+
+fn hotkey_matches(value: &str, configured_key: &str) -> bool {
+    !configured_key.trim().is_empty() && value.eq_ignore_ascii_case(configured_key)
+}
+
 fn next_cycle_click_action(current: ClickAction) -> ClickAction {
     match current {
         ClickAction::Left => ClickAction::Right,
@@ -1751,11 +1771,11 @@ fn cycle_overlay_click_action(app: &AppHandle, state: &AppState) {
     );
 }
 
-fn is_nudge_key(value: &str) -> bool {
-    matches!(
-        value.to_ascii_lowercase().as_str(),
-        "left" | "arrowleft" | "right" | "arrowright" | "up" | "arrowup" | "down" | "arrowdown"
-    )
+fn is_nudge_key(value: &str, controls: &ControlHotkeys) -> bool {
+    hotkey_matches(value, &controls.nudge_left)
+        || hotkey_matches(value, &controls.nudge_right)
+        || hotkey_matches(value, &controls.nudge_up)
+        || hotkey_matches(value, &controls.nudge_down)
 }
 
 fn is_nudge_repeat_active(state: &AppState, key: &str) -> bool {

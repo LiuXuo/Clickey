@@ -17,7 +17,11 @@
       "undo": "Backspace",
       "directClick": "Space",
       "switchAction": "Enter",
-      "nextMonitor": "Tab"
+      "nextMonitor": "Tab",
+      "nudgeLeft": "ArrowLeft",
+      "nudgeRight": "ArrowRight",
+      "nudgeUp": "ArrowUp",
+      "nudgeDown": "ArrowDown"
     }
   },
   "nudge": {

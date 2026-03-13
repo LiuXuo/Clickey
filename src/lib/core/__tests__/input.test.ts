@@ -19,6 +19,10 @@ function makeConfig(): AppConfig {
         directClick: "Space",
         switchAction: "Enter",
         nextMonitor: "Tab",
+        nudgeLeft: "ArrowLeft",
+        nudgeRight: "ArrowRight",
+        nudgeUp: "ArrowUp",
+        nudgeDown: "ArrowDown",
       },
     },
     nudge: {
@@ -118,13 +122,43 @@ describe("engine inputs", () => {
     expect(undone.state.history).toHaveLength(0);
   });
 
-  it("nudges region only in single step", () => {
+  it("nudges region in combo stage 0, combo stage 1, and single", () => {
     const config = makeConfig();
     const initial = createInitialState(config, {
       x: 0,
       y: 0,
       width: 100,
       height: 100,
+    });
+
+    const comboStage0State: RuntimeState = {
+      ...initial,
+      layerIndex: 0,
+      stage: 0,
+      region: { x: 10, y: 10, width: 20, height: 20 },
+    };
+
+    const comboStage0Nudged = applyKey(config, comboStage0State, "Right");
+    expect(comboStage0Nudged.state.region).toEqual({
+      x: 15,
+      y: 10,
+      width: 20,
+      height: 20,
+    });
+
+    const comboStage1State: RuntimeState = {
+      ...initial,
+      layerIndex: 0,
+      stage: 1,
+      region: { x: 10, y: 10, width: 20, height: 20 },
+    };
+
+    const comboStage1Nudged = applyKey(config, comboStage1State, "Down");
+    expect(comboStage1Nudged.state.region).toEqual({
+      x: 10,
+      y: 15,
+      width: 20,
+      height: 20,
     });
 
     const singleState: RuntimeState = {
@@ -142,12 +176,12 @@ describe("engine inputs", () => {
       height: 20,
     });
 
-    const clamped = applyKey(
+    const movedOutsideBase = applyKey(
       config,
       { ...singleState, region: { x: 0, y: 0, width: 20, height: 20 } },
       "Left",
     );
-    expect(clamped.state.region.x).toBe(0);
+    expect(movedOutsideBase.state.region.x).toBe(-5);
   });
 
   it("uses configured nudge step size", () => {
@@ -174,5 +208,30 @@ describe("engine inputs", () => {
       width: 20,
       height: 20,
     });
+  });
+
+  it("uses configured nudge hotkeys", () => {
+    const config = makeConfig();
+    config.hotkeys.controls.nudgeRight = "l";
+    config.hotkeys.controls.nudgeLeft = "h";
+    const initial = createInitialState(config, {
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+    });
+
+    const state: RuntimeState = {
+      ...initial,
+      layerIndex: 0,
+      stage: 1,
+      region: { x: 10, y: 10, width: 20, height: 20 },
+    };
+
+    const nudgedRight = applyKey(config, state, "l");
+    expect(nudgedRight.state.region.x).toBe(15);
+
+    const nudgedLeft = applyKey(config, state, "h");
+    expect(nudgedLeft.state.region.x).toBe(5);
   });
 });

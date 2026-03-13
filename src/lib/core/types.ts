@@ -53,6 +53,10 @@ export interface AppConfig {
       directClick: string;
       switchAction: string;
       nextMonitor: string;
+      nudgeLeft: string;
+      nudgeRight: string;
+      nudgeUp: string;
+      nudgeDown: string;
     };
   };
   nudge: {

@@ -64,45 +64,46 @@ function normalizeControlKeys(config: AppConfig) {
   };
 }
 
+function normalizeNudgeKeys(config: AppConfig) {
+  return {
+    left: normalizeKey(config.hotkeys.controls.nudgeLeft),
+    right: normalizeKey(config.hotkeys.controls.nudgeRight),
+    up: normalizeKey(config.hotkeys.controls.nudgeUp),
+    down: normalizeKey(config.hotkeys.controls.nudgeDown),
+  };
+}
+
 function resolveNudgeStep(config: AppConfig): number {
   const raw = config.nudge?.stepPx ?? 5;
   const normalized = Number.isFinite(raw) ? Math.round(raw) : 5;
   return normalized > 0 ? normalized : 5;
 }
 
-function getNudgeDelta(normalizedKey: string, stepPx: number): Point | null {
-  switch (normalizedKey) {
-    case "left":
-      return { x: -stepPx, y: 0 };
-    case "right":
-      return { x: stepPx, y: 0 };
-    case "up":
-      return { x: 0, y: -stepPx };
-    case "down":
-      return { x: 0, y: stepPx };
-    default:
-      return null;
+function resolveNudgeDelta(
+  config: AppConfig,
+  normalizedKey: string,
+): Point | null {
+  const nudgeKeys = normalizeNudgeKeys(config);
+  const stepPx = resolveNudgeStep(config);
+
+  if (nudgeKeys.left && normalizedKey === nudgeKeys.left) {
+    return { x: -stepPx, y: 0 };
   }
+  if (nudgeKeys.right && normalizedKey === nudgeKeys.right) {
+    return { x: stepPx, y: 0 };
+  }
+  if (nudgeKeys.up && normalizedKey === nudgeKeys.up) {
+    return { x: 0, y: -stepPx };
+  }
+  if (nudgeKeys.down && normalizedKey === nudgeKeys.down) {
+    return { x: 0, y: stepPx };
+  }
+
+  return null;
 }
 
-function clamp(value: number, min: number, max: number): number {
-  const safeMax = Math.max(min, max);
-  return Math.min(Math.max(value, min), safeMax);
-}
-
-function nudgeRegion(region: Region, base: Region, delta: Point): Region {
-  const nextX = clamp(
-    region.x + delta.x,
-    base.x,
-    base.x + base.width - region.width,
-  );
-  const nextY = clamp(
-    region.y + delta.y,
-    base.y,
-    base.y + base.height - region.height,
-  );
-
-  return { ...region, x: nextX, y: nextY };
+function nudgeRegion(region: Region, delta: Point): Region {
+  return { ...region, x: region.x + delta.x, y: region.y + delta.y };
 }
 
 function regionsEqual(a: Region, b: Region): boolean {
@@ -178,14 +179,9 @@ export function applyKey(
     };
   }
 
-  const nudge = getNudgeDelta(normalizedKey, resolveNudgeStep(config));
+  const nudge = resolveNudgeDelta(config, normalizedKey);
   if (nudge) {
-    const step = getCurrentStep(config, state);
-    if (!step || step.mode !== "single") {
-      return { state, didAdvance: false };
-    }
-
-    const nextRegion = nudgeRegion(state.region, state.baseRegion, nudge);
+    const nextRegion = nudgeRegion(state.region, nudge);
     if (regionsEqual(nextRegion, state.region)) {
       return { state, didAdvance: false };
     }

@@ -8,7 +8,6 @@
   import {
     controlButtonMdClass,
     controlButtonSmClass,
-    controlInputSpaceItemClass,
   } from "$lib/features/settings/ui/control-classes";
 
   type LayerMode = "single" | "combo";
@@ -18,7 +17,6 @@
     isLoading,
     fieldClass,
     selectClass,
-    onUpdateNudgeStep,
     onAddSingleLayer,
     onAddComboLayer,
     onSwitchLayerMode,
@@ -34,7 +32,6 @@
     isLoading: boolean;
     fieldClass: string;
     selectClass: string;
-    onUpdateNudgeStep: (event: Event) => void;
     onAddSingleLayer: () => void;
     onAddComboLayer: () => void;
     onSwitchLayerMode: (index: number, mode: LayerMode) => void;
@@ -284,22 +281,5 @@
         {/if}
       </div>
     {/each}
-  </div>
-
-  <div class="mt-6 border-t border-zinc-200 pt-6">
-    <div class={controlInputSpaceItemClass}>
-      <label class="text-sm font-medium text-zinc-700" for="nudge-step"
-        >{$t("nudge.step")}</label
-      >
-      <input
-        id="nudge-step"
-        type="number"
-        min="1"
-        class={fieldClass}
-        value={config.nudge.stepPx}
-        oninput={onUpdateNudgeStep}
-        disabled={isLoading}
-      />
-    </div>
   </div>
 </SettingsCard>

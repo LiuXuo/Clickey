@@ -37,7 +37,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 回退：`Backspace`（撤销最近一次按键，恢复上一次 Region）
 - 直达：`Space`（直接点击当前 Region 中心点，跳过后续层级）
 - 切换显示器：`hotkeys.controls.nextMonitor`（默认 `Tab`，多屏时）
-- 单键层微调：方向键（`Up/Down/Left/Right`，5px 步长，仅单键层）
+- 区域微调：`hotkeys.controls.nudgeUp/Down/Left/Right`（默认 Arrow 四键，步长来自 `nudge.stepPx`，所有层/阶段均可触发）
 
 ### 1.2 坐标系与多显示器（当前实现）
 
@@ -79,7 +79,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - Layer 编辑：增删 / 排序 / mode 切换（single/combo）/ rows/cols/keys 修改 / auto-fit  
   combo 约束：阶段 1（列）固定 `1xN`，阶段 2（行）固定 `Nx1`
 - 热键编辑：activation + controls
-- 热键录制：`trigger` / `switchAction` 支持点击录制（Esc 取消、Backspace 清空）
+- 热键录制：`trigger` / `switchAction` / `nudgeUp/Down/Left/Right` 支持点击录制（Esc 取消、Backspace 清空）
 - 鼠标行为配置：平滑移动、按压时长、落点随机、速度随机、曲率/抖动、远距离提速与步进策略
 - Overlay 样式：alpha/line width/per-layer font size + color picker
 - 导入/导出：override JSON（仅包含与默认配置不同字段）
@@ -202,7 +202,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 
 补充：
 
-- 仅单键层支持方向键 5px 微调。
+- 所有层（含 combo 的两个阶段）都支持区域微调（默认 Arrow 四键，步长由 `nudge.stepPx` 控制）。
 - 多显示器可用 `hotkeys.controls.nextMonitor`（默认 `Tab`）切换当前屏幕。
 
 ### 5.3 v1.0（原 `clickey.ahk` → `demo/clickey_v1.0.ahk`）的“分层步骤表”（历史）
@@ -252,7 +252,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - `layerIndex`：当前层索引
 - `stage`：`combo` 的阶段（0/1）
 - `region`：当前可选区域
-- `baseRegion`：初始 Region（用于微调边界）
+- `baseRegion`：初始 Region（用于运行时基准与状态重建）
 - `history[]`：撤销栈（保存上一步的 `layerIndex/stage/region`）
 - `done`：是否结束（退出或完成点击）
 
@@ -271,7 +271,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
    - 先做 key 归一化（大小写无关，支持 `Esc/Backspace/Space/Arrow*` 等别名）
    - 控制键来源于 `config.hotkeys.controls.*`（归一化后比较）
    - 控制键规则：`cancel` 结束且不点击；`undo` 在 `history` 为空时结束，否则弹栈恢复 `region/layerIndex/stage`；`directClick` 直接返回 `clickPoint = center(region)` 并结束。
-   - 方向键微调：仅在 `single` 层生效；步长来自 `config.nudge.stepPx`（非法值回退到 5px），且必须被 `baseRegion` 夹紧。
+   - 区域微调：按 `hotkeys.controls.nudgeLeft/Right/Up/Down` 触发（支持别名归一化）；步长来自 `config.nudge.stepPx`（非法值回退到 5px）；对所有层/阶段生效；不做 `baseRegion` 边界夹紧。
    - 普通按键：当前 `layer` 不存在时 `done=true`；不在 `keys` 中时不变更；匹配后先写入 `history`，再计算 `nextRegion` 并推进状态，若完成则返回 `clickPoint = center(nextRegion)`。
 
 状态推进规则：
@@ -312,7 +312,11 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
       "undo": "Backspace",
       "directClick": "Space",
       "switchAction": "Enter",
-      "nextMonitor": "Tab"
+      "nextMonitor": "Tab",
+      "nudgeLeft": "ArrowLeft",
+      "nudgeRight": "ArrowRight",
+      "nudgeUp": "ArrowUp",
+      "nudgeDown": "ArrowDown"
     }
   },
   "nudge": {
@@ -524,3 +528,5 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-10：Settings 层编辑改为表格化直编：single 直接编辑网格单元，combo 在表头/表侧编辑键位并实时展示组合矩阵；移除键数提示与 auto-fit 入口。
 - 2026-03-13：通用设置完成“语言/配置”分区重排（上下排列），新增“打开目录”入口并切换为 `revealItemInDir`，统一按钮文案为“导入/导出/打开目录/恢复默认”，且当 override 为空（`{}`）时自动禁用“恢复默认”。
 - 2026-03-13：Settings 异常提示统一为右上角 toast，错误模型升级为“后端返回稳定 error code、前端按 code 做 i18n 翻译”，移除基于英文错误文案的前端解析，降低跨语言与重构时的耦合风险。
+- 2026-03-13：微调键纳入可配置热键（`nudgeLeft/Right/Up/Down`）；Settings 支持录制与冲突检测；Rust overlay 热键注册与连发逻辑改为读取配置，不再硬编码 Arrow。
+- 2026-03-13：Core 微调范围放开至所有层/阶段（包含 combo stage0/stage1）；移除 `baseRegion` 触边夹紧，改为按配置步长自由平移当前 Region。

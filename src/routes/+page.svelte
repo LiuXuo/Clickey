@@ -355,6 +355,22 @@
         label: $t("hotkeys.nextMonitor"),
         value: candidate.hotkeys.controls.nextMonitor,
       },
+      {
+        label: $t("hotkeys.nudgeLeft"),
+        value: candidate.hotkeys.controls.nudgeLeft,
+      },
+      {
+        label: $t("hotkeys.nudgeRight"),
+        value: candidate.hotkeys.controls.nudgeRight,
+      },
+      {
+        label: $t("hotkeys.nudgeUp"),
+        value: candidate.hotkeys.controls.nudgeUp,
+      },
+      {
+        label: $t("hotkeys.nudgeDown"),
+        value: candidate.hotkeys.controls.nudgeDown,
+      },
     ];
   }
 
@@ -1102,7 +1118,6 @@
             {isLoading}
             {fieldClass}
             selectClass={compactSelectClass}
-            onUpdateNudgeStep={updateNudgeStep}
             onAddSingleLayer={addSingleLayer}
             onAddComboLayer={addComboLayer}
             onSwitchLayerMode={switchLayerMode}
@@ -1117,7 +1132,13 @@
         </div>
 
         <div class:hidden={activeSection !== "hotkeys"}>
-          <HotkeysSection {config} {isLoading} {onConfigMutated} />
+          <HotkeysSection
+            {config}
+            {isLoading}
+            {fieldClass}
+            {onConfigMutated}
+            onUpdateNudgeStep={updateNudgeStep}
+          />
         </div>
 
         <div class:hidden={activeSection !== "overlay"}>

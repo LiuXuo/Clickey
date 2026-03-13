@@ -8,7 +8,8 @@ const CODE_TO_KEY_MAP: Record<string, TranslationKey> = {
   ERR_MOUSE_DURATION_RANDOMNESS_INVALID: "errors.mouseDurationRandomness",
   ERR_MOUSE_STEP_RANDOMNESS_INVALID: "errors.mouseStepRandomness",
   ERR_MOUSE_DISTANCE_BOOST_INVALID: "errors.mouseDistanceBoostPx",
-  ERR_MOUSE_DURATION_DISTANCE_BOOST_INVALID: "errors.mouseDurationDistanceBoost",
+  ERR_MOUSE_DURATION_DISTANCE_BOOST_INVALID:
+    "errors.mouseDurationDistanceBoost",
   ERR_MOUSE_STEP_DISTANCE_BOOST_INVALID: "errors.mouseStepDistanceBoost",
   ERR_MOUSE_CURVE_ALONG_RATIO_INVALID: "errors.mouseCurveAlongRatio",
   ERR_MOUSE_CURVE_SPREAD_RATIO_INVALID: "errors.mouseCurveSpreadRatio",
@@ -40,6 +41,10 @@ const HOTKEY_CODE_TO_LABEL_KEY: Record<string, TranslationKey> = {
   ERR_HOTKEY_INVALID_DIRECT_CLICK: "hotkeys.directClick",
   ERR_HOTKEY_INVALID_SWITCH_ACTION: "hotkeys.switchAction",
   ERR_HOTKEY_INVALID_NEXT_MONITOR: "hotkeys.nextMonitor",
+  ERR_HOTKEY_INVALID_NUDGE_LEFT: "hotkeys.nudgeLeft",
+  ERR_HOTKEY_INVALID_NUDGE_RIGHT: "hotkeys.nudgeRight",
+  ERR_HOTKEY_INVALID_NUDGE_UP: "hotkeys.nudgeUp",
+  ERR_HOTKEY_INVALID_NUDGE_DOWN: "hotkeys.nudgeDown",
 };
 
 function unwrapError(error: unknown): string {
@@ -62,11 +67,7 @@ function normalizeCode(raw: string): string {
   if (message.startsWith("Error: ")) {
     message = message.slice("Error: ".length).trim();
   }
-  if (
-    message.length >= 2 &&
-    message.startsWith('"') &&
-    message.endsWith('"')
-  ) {
+  if (message.length >= 2 && message.startsWith('"') && message.endsWith('"')) {
     try {
       const parsed = JSON.parse(message);
       if (typeof parsed === "string") {

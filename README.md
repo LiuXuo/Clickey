@@ -58,7 +58,7 @@ Clickey 的目标是提供一种高效、精确、可肌肉记忆的鼠标定位
 - 鼠标行为：平滑移动、按压时长、落点随机、曲线/抖动、远距离提速与步进策略
 - Overlay 样式：alpha/line width/per-layer font size + color picker
 - 键位输入规则：仅空格分隔；`,` 是合法键位本体，不作为分隔符
-- 热键录制器：`trigger` / `switchAction` 支持“点击录制”，并在冲突时阻止自动生效
+- 热键录制器：`trigger` / `switchAction` / `nudgeUp/Down/Left/Right` 支持“点击录制”，并在冲突时阻止自动生效
 - 配置导入/导出：override JSON（仅包含与默认配置不同的字段）
 - 自动生效：配置改动在前端校验通过后自动应用并持久化（去抖执行）
 - i18n：`zh-CN` / `en-US`，切换后设置页即时生效
@@ -81,15 +81,15 @@ Clickey 的目标是提供一种高效、精确、可肌肉记忆的鼠标定位
 
 不同配置可在 Settings 调整，以下为当前默认值：
 
-| 操作                                 | 快捷键 / 按键                                   |
-| ------------------------------------ | ----------------------------------------------- |
-| 激活（默认左键模式）                 | macOS：`Cmd + ;`；其他平台：`Ctrl + ;`          |
-| 切换点击动作（左键 -> 右键 -> 中键） | `hotkeys.controls.switchAction`（默认 `Enter`） |
-| 取消并退出                           | `Esc`                                           |
-| 回退一步（撤销上一按键）             | `Backspace`                                     |
-| 直接点击当前区域中心（跳过后续层级） | `Space`                                         |
-| 切换显示器（多屏）                   | `hotkeys.controls.nextMonitor`（默认 `Tab`）    |
-| 单键层微调                           | `Up / Down / Left / Right`（5px）               |
+| 操作                                 | 快捷键 / 按键                                                                      |
+| ------------------------------------ | ---------------------------------------------------------------------------------- |
+| 激活（默认左键模式）                 | macOS：`Cmd + ;`；其他平台：`Ctrl + ;`                                             |
+| 切换点击动作（左键 -> 右键 -> 中键） | `hotkeys.controls.switchAction`（默认 `Enter`）                                    |
+| 取消并退出                           | `Esc`                                                                              |
+| 回退一步（撤销上一按键）             | `Backspace`                                                                        |
+| 直接点击当前区域中心（跳过后续层级） | `Space`                                                                            |
+| 切换显示器（多屏）                   | `hotkeys.controls.nextMonitor`（默认 `Tab`）                                       |
+| 区域微调（所有层/阶段）              | `hotkeys.controls.nudgeUp/Down/Left/Right`（默认 Arrow 四键，步长 `nudge.stepPx`） |
 
 ---
 
@@ -128,7 +128,7 @@ Clickey 的目标是提供一种高效、精确、可肌肉记忆的鼠标定位
 
 1. combo 第 1 步：按“列键”选列（15 列）
 2. combo 第 2 步：按“行键”选行（15 行）
-3. single：单键 3x5 精细裁剪；可用方向键 5px 微调；`hotkeys.controls.nextMonitor`（默认 `Tab`）切换显示器
+3. single：单键 3x5 精细裁剪；任意层/阶段都可微调区域；`hotkeys.controls.nextMonitor`（默认 `Tab`）切换显示器
 
 ### v1.0（历史原型，原 `clickey.ahk` → `demo/clickey_v1.0.ahk`）
 
@@ -219,7 +219,7 @@ AHK 脚本保留价值仅限于：
 
 可定制项（方向）：
 
-- **交互热键**：单一激活热键（`hotkeys.activation.trigger`）与控制键（`cancel/undo/directClick/switchAction/nextMonitor`）。
+- **交互热键**：单一激活热键（`hotkeys.activation.trigger`）与控制键（`cancel/undo/directClick/switchAction/nextMonitor/nudgeUp/nudgeDown/nudgeLeft/nudgeRight`）。
 - **分层与网格（`layers`）**：基于单一默认配置直接编辑层；每层可定义行列数（`rows x cols`）与模式（`single` / `combo`）。
 - **按键映射**：每个（子）步骤都有自己的 `keys` 列表，决定 `keyIndex → row/col` 的映射。
 - **鼠标策略（`mouse`）**：平滑移动、落点随机、曲率/抖动、时长与步进随机、远距离提速、自适应步长与步数上限。
@@ -230,7 +230,7 @@ AHK 脚本保留价值仅限于：
 - 语言：`app.locale`
 - 托盘显隐：`app.tray.enabled`
 - 激活热键：`hotkeys.activation.trigger`
-- 控制键：`hotkeys.controls.cancel` / `hotkeys.controls.undo` / `hotkeys.controls.directClick` / `hotkeys.controls.switchAction` / `hotkeys.controls.nextMonitor`
+- 控制键：`hotkeys.controls.cancel` / `hotkeys.controls.undo` / `hotkeys.controls.directClick` / `hotkeys.controls.switchAction` / `hotkeys.controls.nextMonitor` / `hotkeys.controls.nudgeLeft` / `hotkeys.controls.nudgeRight` / `hotkeys.controls.nudgeUp` / `hotkeys.controls.nudgeDown`
 - 鼠标策略：`mouse.*`（`smoothMove` / `moveDurationMs` / `moveStepMs` / `pressDurationMs` / `landingRadiusPx` / `durationRandomness` / `stepRandomness` / `distanceBoostPx` / `durationDistanceBoost` / `stepDistanceBoost` / `curveAlongRatio` / `curveSpreadRatio` / `jitterRatio` / `adaptiveStrideBasePx` / `adaptiveStrideDistanceRatio` / `adaptiveStrideMaxPx` / `extraStepsMax` / `maxSteps` / `maxStepSleepMs`）
 - 分层列表：`layers[]`
 - 遮罩外观：`overlay.*`

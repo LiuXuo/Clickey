@@ -14,12 +14,19 @@
     | "cancel"
     | "undo"
     | "directClick"
-    | "nextMonitor";
+    | "nextMonitor"
+    | "nudgeLeft"
+    | "nudgeRight"
+    | "nudgeUp"
+    | "nudgeDown";
 
-  let { config, isLoading, onConfigMutated } = $props<{
+  let { config, isLoading, fieldClass, onConfigMutated, onUpdateNudgeStep } =
+    $props<{
     config: AppConfig;
     isLoading: boolean;
+    fieldClass: string;
     onConfigMutated: () => void;
+    onUpdateNudgeStep: (event: Event) => void;
   }>();
 
   let activeRecorder = $state<RecorderKey | null>(null);
@@ -48,6 +55,14 @@
       config.hotkeys.controls.undo = normalized;
     } else if (key === "directClick") {
       config.hotkeys.controls.directClick = normalized;
+    } else if (key === "nudgeLeft") {
+      config.hotkeys.controls.nudgeLeft = normalized;
+    } else if (key === "nudgeRight") {
+      config.hotkeys.controls.nudgeRight = normalized;
+    } else if (key === "nudgeUp") {
+      config.hotkeys.controls.nudgeUp = normalized;
+    } else if (key === "nudgeDown") {
+      config.hotkeys.controls.nudgeDown = normalized;
     } else {
       config.hotkeys.controls.nextMonitor = normalized;
     }
@@ -73,6 +88,18 @@
     if (key === "directClick") {
       return defaultConfig.hotkeys.controls.directClick;
     }
+    if (key === "nudgeLeft") {
+      return defaultConfig.hotkeys.controls.nudgeLeft;
+    }
+    if (key === "nudgeRight") {
+      return defaultConfig.hotkeys.controls.nudgeRight;
+    }
+    if (key === "nudgeUp") {
+      return defaultConfig.hotkeys.controls.nudgeUp;
+    }
+    if (key === "nudgeDown") {
+      return defaultConfig.hotkeys.controls.nudgeDown;
+    }
     return defaultConfig.hotkeys.controls.nextMonitor;
   }
 
@@ -97,8 +124,7 @@
       onStopRecording={stopRecording}
       onChange={(next) => applyHotkey("trigger", next)}
       onDisable={() => applyHotkey("trigger", "")}
-      onResetDefault={() =>
-        applyHotkey("trigger", getDefaultHotkey("trigger"))}
+      onResetDefault={() => applyHotkey("trigger", getDefaultHotkey("trigger"))}
     />
 
     <HotkeyRecorder
@@ -168,5 +194,75 @@
       onResetDefault={() =>
         applyHotkey("nextMonitor", getDefaultHotkey("nextMonitor"))}
     />
+
+    <HotkeyRecorder
+      id="hotkey-nudge-left"
+      label={$t("hotkeys.nudgeLeft")}
+      value={config.hotkeys.controls.nudgeLeft}
+      disabled={isLoading}
+      isRecording={activeRecorder === "nudgeLeft"}
+      onStartRecording={() => setRecorder("nudgeLeft")}
+      onStopRecording={stopRecording}
+      onChange={(next) => applyHotkey("nudgeLeft", next)}
+      onDisable={() => applyHotkey("nudgeLeft", "")}
+      onResetDefault={() =>
+        applyHotkey("nudgeLeft", getDefaultHotkey("nudgeLeft"))}
+    />
+
+    <HotkeyRecorder
+      id="hotkey-nudge-right"
+      label={$t("hotkeys.nudgeRight")}
+      value={config.hotkeys.controls.nudgeRight}
+      disabled={isLoading}
+      isRecording={activeRecorder === "nudgeRight"}
+      onStartRecording={() => setRecorder("nudgeRight")}
+      onStopRecording={stopRecording}
+      onChange={(next) => applyHotkey("nudgeRight", next)}
+      onDisable={() => applyHotkey("nudgeRight", "")}
+      onResetDefault={() =>
+        applyHotkey("nudgeRight", getDefaultHotkey("nudgeRight"))}
+    />
+
+    <HotkeyRecorder
+      id="hotkey-nudge-up"
+      label={$t("hotkeys.nudgeUp")}
+      value={config.hotkeys.controls.nudgeUp}
+      disabled={isLoading}
+      isRecording={activeRecorder === "nudgeUp"}
+      onStartRecording={() => setRecorder("nudgeUp")}
+      onStopRecording={stopRecording}
+      onChange={(next) => applyHotkey("nudgeUp", next)}
+      onDisable={() => applyHotkey("nudgeUp", "")}
+      onResetDefault={() => applyHotkey("nudgeUp", getDefaultHotkey("nudgeUp"))}
+    />
+
+    <HotkeyRecorder
+      id="hotkey-nudge-down"
+      label={$t("hotkeys.nudgeDown")}
+      value={config.hotkeys.controls.nudgeDown}
+      disabled={isLoading}
+      isRecording={activeRecorder === "nudgeDown"}
+      onStartRecording={() => setRecorder("nudgeDown")}
+      onStopRecording={stopRecording}
+      onChange={(next) => applyHotkey("nudgeDown", next)}
+      onDisable={() => applyHotkey("nudgeDown", "")}
+      onResetDefault={() =>
+        applyHotkey("nudgeDown", getDefaultHotkey("nudgeDown"))}
+    />
+
+    <div>
+      <label class="text-sm font-medium text-zinc-700" for="nudge-step"
+        >{$t("nudge.step")}</label
+      >
+      <input
+        id="nudge-step"
+        type="number"
+        min="1"
+        class={fieldClass}
+        value={config.nudge.stepPx}
+        oninput={onUpdateNudgeStep}
+        disabled={isLoading}
+      />
+    </div>
   </div>
 </SettingsCard>
