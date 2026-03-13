@@ -522,3 +522,4 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-11：默认激活热键改为按平台区分：macOS 使用 `Cmd+;`，其他平台保持 `Ctrl+;`；前后端热键显示与解析同步兼容 `Meta` / `Cmd` / `Super`。
 - 2026-03-08：新增 hotkey recorder（`trigger` / `switchAction`）与颜色字段 `ColorField`，并补充 toast 反馈与 i18n 目录化拆分（`index + locales`）。
 - 2026-03-10：Settings 层编辑改为表格化直编：single 直接编辑网格单元，combo 在表头/表侧编辑键位并实时展示组合矩阵；移除键数提示与 auto-fit 入口。
+- 2026-03-13：通用设置完成“语言/配置”分区重排（上下排列），新增“打开目录”入口并切换为 `revealItemInDir`，统一按钮文案为“导入/导出/打开目录/恢复默认”，且当 override 为空（`{}`）时自动禁用“恢复默认”。

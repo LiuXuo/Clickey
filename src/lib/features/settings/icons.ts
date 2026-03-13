@@ -6,5 +6,5 @@ export type SettingsIconName =
   | "overlay"
   | "import"
   | "export"
+  | "folder"
   | "reset";
-

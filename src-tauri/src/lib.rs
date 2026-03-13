@@ -630,6 +630,16 @@ fn set_locale(app: AppHandle, state: State<'_, AppState>, locale: String) -> Res
 }
 
 #[tauri::command]
+fn get_config_dir(app: AppHandle) -> Result<String, String> {
+    let path = config_path(&app)?;
+    let dir = path
+        .parent()
+        .ok_or_else(|| "unable to resolve app config directory".to_string())?;
+    fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    Ok(dir.to_string_lossy().into_owned())
+}
+
+#[tauri::command]
 fn export_override_json(state: State<'_, AppState>) -> Result<String, String> {
     let config = get_state_config(state.inner())?;
     let overrides = build_overrides(&config)?;
@@ -803,6 +813,7 @@ pub fn run() {
             get_config,
             reset_config,
             set_locale,
+            get_config_dir,
             export_override_json,
             import_override_json,
             native_click,

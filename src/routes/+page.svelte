@@ -1,5 +1,6 @@
 ﻿<script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import { revealItemInDir } from "@tauri-apps/plugin-opener";
   import { onMount } from "svelte";
   import { initLocale, locale, setLocale, t, type Locale } from "$lib/i18n";
   import { getDefaultConfig } from "$lib/shared/default-config";
@@ -70,6 +71,8 @@
   let isResetting = $state(false);
   let isImporting = $state(false);
   let isExporting = $state(false);
+  let isOpeningConfigDir = $state(false);
+  let canReset = $state(false);
   let activeSection = $state<SectionId>("general");
   let toasts = $state<ToastItem[]>([]);
   let fileInput: HTMLInputElement | null = null;
@@ -307,6 +310,24 @@
     scheduleAutoApply();
   }
 
+  function isEmptyOverridePayload(value: unknown): boolean {
+    if (!value || typeof value !== "object" || Array.isArray(value)) {
+      return false;
+    }
+    return Object.keys(value).length === 0;
+  }
+
+  async function refreshResetAvailability() {
+    try {
+      const json = await invoke<string>("export_override_json");
+      const payload: unknown = JSON.parse(json);
+      canReset = !isEmptyOverridePayload(payload);
+    } catch {
+      // Fail open to avoid locking the reset action when inspection fails.
+      canReset = true;
+    }
+  }
+
   function getHotkeyEntries(candidate: AppConfig) {
     return [
       {
@@ -425,7 +446,9 @@
             }),
           );
         }
-        const stage0DuplicateKeys = collectDuplicateLayerKeys(layer.stage0.keys);
+        const stage0DuplicateKeys = collectDuplicateLayerKeys(
+          layer.stage0.keys,
+        );
         if (stage0DuplicateKeys.length > 0) {
           issues.push(
             $t("errors.stage0DuplicateKeysSimple", {
@@ -434,7 +457,9 @@
             }),
           );
         }
-        const stage1DuplicateKeys = collectDuplicateLayerKeys(layer.stage1.keys);
+        const stage1DuplicateKeys = collectDuplicateLayerKeys(
+          layer.stage1.keys,
+        );
         if (stage1DuplicateKeys.length > 0) {
           issues.push(
             $t("errors.stage1DuplicateKeysSimple", {
@@ -620,6 +645,7 @@
 
     try {
       await invoke("apply_config", { config });
+      await refreshResetAvailability();
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       error = message;
@@ -634,12 +660,17 @@
   }
 
   async function resetConfig() {
+    if (!canReset) {
+      return;
+    }
+
     clearAutoApplyTimer();
     clearFeedback();
     isResetting = true;
     try {
       const reset = await invoke<AppConfig>("reset_config");
       config = ensureLayerFontSizesInConfig(reset);
+      await refreshResetAvailability();
       if (reset.app.locale === "zh-CN" || reset.app.locale === "en-US") {
         setLocale(reset.app.locale);
       }
@@ -679,6 +710,23 @@
     }
   }
 
+  async function openConfigDirectory() {
+    clearFeedback();
+    isOpeningConfigDir = true;
+    try {
+      const directory = await invoke<string>("get_config_dir");
+      await revealItemInDir(directory);
+      status = $t("status.openedConfigDir");
+      pushToast("success", $t("status.openedConfigDir"));
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      error = message;
+      pushToast("error", message);
+    } finally {
+      isOpeningConfigDir = false;
+    }
+  }
+
   function openImportPicker() {
     fileInput?.click();
   }
@@ -701,6 +749,7 @@
         json,
       });
       config = ensureLayerFontSizesInConfig(imported);
+      await refreshResetAvailability();
       if (imported.app.locale === "zh-CN" || imported.app.locale === "en-US") {
         setLocale(imported.app.locale);
       }
@@ -719,11 +768,15 @@
     setLocale(next);
     config.app.locale = next;
     clearFeedback();
-    void invoke("set_locale", { locale: next }).catch((err) => {
-      const message = err instanceof Error ? err.message : String(err);
-      error = message;
-      pushToast("error", message);
-    });
+    void invoke("set_locale", { locale: next })
+      .catch((err) => {
+        const message = err instanceof Error ? err.message : String(err);
+        error = message;
+        pushToast("error", message);
+      })
+      .then(() => {
+        void refreshResetAvailability();
+      });
     scheduleAutoApply();
   }
 
@@ -997,6 +1050,7 @@
       try {
         const loaded = await invoke<AppConfig>("get_config");
         config = ensureLayerFontSizesInConfig(loaded);
+        await refreshResetAvailability();
         if (loaded.app.locale === "zh-CN" || loaded.app.locale === "en-US") {
           setLocale(loaded.app.locale);
         }
@@ -1046,10 +1100,13 @@
             {compactSelectClass}
             {isImporting}
             {isExporting}
+            {isOpeningConfigDir}
             {isResetting}
             {isApplying}
+            {canReset}
             onImport={openImportPicker}
             onExport={exportOverrideJson}
+            onOpenConfigDir={openConfigDirectory}
             onReset={resetConfig}
             {onLocaleChange}
           />

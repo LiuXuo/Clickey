@@ -10,10 +10,13 @@
     compactSelectClass,
     isImporting,
     isExporting,
+    isOpeningConfigDir,
     isResetting,
     isApplying,
+    canReset,
     onImport,
     onExport,
+    onOpenConfigDir,
     onReset,
     onLocaleChange,
   } = $props<{
@@ -22,10 +25,13 @@
     compactSelectClass: string;
     isImporting: boolean;
     isExporting: boolean;
+    isOpeningConfigDir: boolean;
     isResetting: boolean;
     isApplying: boolean;
+    canReset: boolean;
     onImport: () => void;
     onExport: () => void;
+    onOpenConfigDir: () => void;
     onReset: () => void;
     onLocaleChange: (next: Locale) => void;
   }>();
@@ -40,20 +46,7 @@
 <SettingsCard id="general">
   <SectionHeader title={$t("general.title")} icon="general" />
 
-  <div class="mt-6">
-    <ActionBar
-      {isLoading}
-      {isImporting}
-      {isExporting}
-      {isResetting}
-      {isApplying}
-      {onImport}
-      {onExport}
-      {onReset}
-    />
-  </div>
-
-  <div class="mt-6 grid gap-6 md:grid-cols-2">
+  <div class="mt-6 space-y-6">
     <div>
       <label class="text-sm font-medium text-zinc-700" for="locale-select"
         >{$t("language.label")}</label
@@ -86,6 +79,27 @@
             <path d="M3 7.5 6 10.2l3-2.7" />
           </svg>
         </span>
+      </div>
+    </div>
+
+    <div>
+      <p class="text-sm font-medium text-zinc-700">
+        {$t("general.configLabel")}
+      </p>
+      <div class="mt-2">
+        <ActionBar
+          {isLoading}
+          {isImporting}
+          {isExporting}
+          {isOpeningConfigDir}
+          {isResetting}
+          {isApplying}
+          {canReset}
+          {onImport}
+          {onExport}
+          {onOpenConfigDir}
+          {onReset}
+        />
       </div>
     </div>
   </div>
