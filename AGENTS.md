@@ -96,6 +96,9 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 
 > 是否最终采用这些 crate 允许调整，但调整必须在本文件“变更记录”里写明原因与替代方案。
 
+- macOS 发布包执行鼠标移动/点击依赖系统“辅助功能”权限；`tauri dev` 与安装后的 `.app` 是不同的 TCC 身份。智能体在排查“开发态正常、安装态无法点击/无法控制鼠标”时，优先检查安装包是否已单独授权；adhoc 本地签名在重打包后可能需要重新授权。
+- macOS 构建入口默认走 `npm run tauri:build`：脚本会优先探测本机签名证书（`Developer ID Application` -> `Apple Distribution` -> `Apple Development`），找不到时显式回退到 `APPLE_SIGNING_IDENTITY="-"`。需要固定证书时优先通过环境变量覆盖，而不是改业务代码。
+
 ### 2.4 测试与质量（目标，不一定立即落地）
 
 - Core Engine（TS 纯逻辑）：单测覆盖率目标 **100%**
@@ -435,6 +438,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - Core Engine 只依赖配置与输入事件，不读取 OS。
 - **“设置页/托盘”也是配置入口的一部分**：Settings 只负责编辑配置并触发自动应用；不直接参与 Overlay 的事件循环。
 - 托盘菜单属于运行时 UI：文案必须与 `app.locale` 同步，交互与设置页行为保持一致。
+- macOS 当前期望行为：应用默认以 agent app（`LSUIElement=1`）方式启动，仅设置页打开时显示 Dock 图标；关闭设置页（如 `Cmd+W`）后退回“仅托盘常驻”，真正退出（如 `Cmd+Q` / 托盘退出）时托盘也一并消失。
 - **层（`layers`）是定制化的单位**：Settings 直接编辑 `layers[]`；Overlay 只消费“当前运行时配置”。
 - **combo 层固定为轴向两段式**：`stage0=1xN`（阶段 1，列），`stage1=Nx1`（阶段 2，行）；不支持 `2x15/15x2` 这类双轴 stage。
 - **键位输入仅按空白分隔**：`,` 是合法键位本体，不作为分隔符。
@@ -485,6 +489,10 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - Settings UI 结构化重构完成（SettingsShell + 5 sections + keepalive 导航 + 自动生效）
 - 托盘交互优化完成（左键打开设置；右键菜单“设置/暂停或启动/退出”；菜单文案随 i18n 实时更新）
 - 鼠标行为配置化完成（`mouse.*` 全量参数接入 Settings，Native 轨迹/落点/随机策略改为配置驱动）
+- macOS 辅助功能权限兜底完成（安装态缺权限时自动打开设置页与系统辅助功能面板，并提示重新授权）
+- macOS 打包签名入口完成（自动探测本机证书并支持 `APPLE_SIGNING_IDENTITY` 覆盖；无证书时显式 ad-hoc）
+- macOS Dock/托盘生命周期完成（设置页打开时显示 Dock；`Cmd+W` 改为隐藏到托盘；`Cmd+Q` / 托盘退出时真正结束）
+- macOS agent 模式启动完成（bundle `Info.plist` 合并 `LSUIElement=1`，settings 窗口默认不在启动时显示）
 
 ---
 
@@ -530,3 +538,5 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-13：Settings 异常提示统一为右上角 toast，错误模型升级为“后端返回稳定 error code、前端按 code 做 i18n 翻译”，移除基于英文错误文案的前端解析，降低跨语言与重构时的耦合风险。
 - 2026-03-13：微调键纳入可配置热键（`nudgeLeft/Right/Up/Down`）；Settings 支持录制与冲突检测；Rust overlay 热键注册与连发逻辑改为读取配置，不再硬编码 Arrow。
 - 2026-03-13：Core 微调范围放开至所有层/阶段（包含 combo stage0/stage1）；移除 `baseRegion` 触边夹紧，改为按配置步长自由平移当前 Region。
+- 2026-03-14：macOS 新增安装态权限与打包兜底：缺少辅助功能权限时阻止进入 Overlay，自动打开 Settings 与系统“隐私与安全性 > 辅助功能”，并通过稳定 error code 走前端 toast 提示；同时新增 `scripts/tauri-build.mjs` 作为打包入口，自动探测 `Developer ID Application / Apple Distribution / Apple Development` 证书，未命中时显式回退到 `APPLE_SIGNING_IDENTITY="-"`。
+- 2026-03-14：macOS 设置页窗口接入 Dock/托盘生命周期控制：settings 窗口默认 `visible=false`，bundle 合并 `src-tauri/Info.plist`（`LSUIElement=1`）以 agent app 模式启动；打开设置页时显示 Dock，关闭设置页（`Cmd+W` / 关闭按钮）改为隐藏窗口并退回托盘常驻，`Cmd+Q` / 托盘退出时真正结束应用。

@@ -209,6 +209,8 @@
   "errors.backendConfigDirUnavailable": "无法定位配置目录。",
   "errors.backendConfigPersistFailed": "配置读写失败，请检查目录权限。",
   "errors.backendClickUnsupported": "当前点击动作暂不支持。",
+  "errors.backendMacAccessibilityRequired":
+    "macOS 需要为已安装的 Clickey.app 授予“辅助功能”权限后才能移动和点击鼠标。系统设置已打开，请在“隐私与安全性 > 辅助功能”里启用它；如果刚重装或重打包过，请删除旧授权后重新勾选。",
   "errors.backendUnknown": "操作失败，请重试。",
   "errors.backendUnknownWithDetail": "操作失败：{detail}",
   "errors.layerGridInvalidSimple": "第 {index} 层网格无效。",

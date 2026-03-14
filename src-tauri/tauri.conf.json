@@ -16,7 +16,8 @@
         "label": "settings",
         "title": "Clickey Settings",
         "width": 960,
-        "height": 720
+        "height": 720,
+        "visible": false
       }
     ],
     "security": {
@@ -26,6 +27,9 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "macOS": {
+      "signingIdentity": "-"
+    },
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -219,6 +219,8 @@ const en: Record<TranslationKey, string> = {
     "Failed to read/write config. Please check directory permissions.",
   "errors.backendClickUnsupported":
     "The current click action is not supported yet.",
+  "errors.backendMacAccessibilityRequired":
+    'Clickey.app needs macOS Accessibility permission before it can move or click the mouse. System Settings has been opened for "Privacy & Security > Accessibility"; if you just reinstalled or rebuilt the app, remove the old entry and enable it again.',
   "errors.backendUnknown": "Operation failed. Please try again.",
   "errors.backendUnknownWithDetail": "Operation failed: {detail}",
   "errors.layerGridInvalidSimple": "Layer {index} grid is invalid.",

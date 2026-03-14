@@ -29,6 +29,15 @@ use tauri::{
 };
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
+#[cfg(target_os = "macos")]
+use tauri::ActivationPolicy;
+
+#[cfg(target_os = "macos")]
+#[link(name = "ApplicationServices", kind = "framework")]
+extern "C" {
+    fn AXIsProcessTrusted() -> u8;
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct Region {
@@ -72,6 +81,12 @@ struct NativeKeyPayload {
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
+struct BackendErrorPayload {
+    code: String,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
 struct OverlayActionPayload {
     click_action: ClickAction,
 }
@@ -109,6 +124,7 @@ struct AppState {
     overlay_click_action: Mutex<Option<ClickAction>>,
     monitor_index: Mutex<usize>,
     nudge_repeat: Mutex<Option<NudgeRepeat>>,
+    last_accessibility_hint_at: Mutex<Option<SystemTime>>,
     paused: Mutex<bool>,
     tray_menu_items: Mutex<Option<TrayMenuItems>>,
 }
@@ -138,6 +154,7 @@ struct TrayTexts {
 const OVERRIDE_FILE_NAME: &str = "settings.override.json";
 const NUDGE_REPEAT_DELAY_MS: u64 = 250;
 const NUDGE_REPEAT_INTERVAL_MS: u64 = 40;
+const ACCESSIBILITY_HINT_THROTTLE_SECS: u64 = 2;
 const TRAY_ICON_ID: &str = "main";
 const TRAY_MENU_SETTINGS_ID: &str = "tray-settings";
 const TRAY_MENU_TOGGLE_ID: &str = "tray-toggle-runtime";
@@ -193,6 +210,7 @@ const ERR_OVERRIDE_JSON_PARSE_FAILED: &str = "ERR_OVERRIDE_JSON_PARSE_FAILED";
 const ERR_OVERRIDE_JSON_NOT_OBJECT: &str = "ERR_OVERRIDE_JSON_NOT_OBJECT";
 const ERR_OVERRIDE_SCHEMA_INVALID: &str = "ERR_OVERRIDE_SCHEMA_INVALID";
 const ERR_CLICK_ACTION_UNSUPPORTED: &str = "ERR_CLICK_ACTION_UNSUPPORTED";
+const ERR_MAC_ACCESSIBILITY_REQUIRED: &str = "ERR_MAC_ACCESSIBILITY_REQUIRED";
 
 fn error_code(code: &str) -> String {
     code.to_string()
@@ -259,16 +277,16 @@ fn merge_value(default: &Value, overrides: &Value) -> Value {
 }
 
 fn build_overrides(config: &AppConfig) -> Result<Value, String> {
-    let default_value =
-        serde_json::to_value(default_config()).map_err(|_| error_code(ERR_CONFIG_SERIALIZE_FAILED))?;
+    let default_value = serde_json::to_value(default_config())
+        .map_err(|_| error_code(ERR_CONFIG_SERIALIZE_FAILED))?;
     let current_value =
         serde_json::to_value(config).map_err(|_| error_code(ERR_CONFIG_SERIALIZE_FAILED))?;
     Ok(diff_value(&default_value, &current_value).unwrap_or_else(|| Value::Object(Map::new())))
 }
 
 fn resolve_config_from_overrides(overrides: &Value) -> Result<AppConfig, String> {
-    let default_value =
-        serde_json::to_value(default_config()).map_err(|_| error_code(ERR_CONFIG_SERIALIZE_FAILED))?;
+    let default_value = serde_json::to_value(default_config())
+        .map_err(|_| error_code(ERR_CONFIG_SERIALIZE_FAILED))?;
     let resolved = merge_value(&default_value, overrides);
     let config: AppConfig =
         serde_json::from_value(resolved).map_err(|_| error_code(ERR_OVERRIDE_SCHEMA_INVALID))?;
@@ -322,8 +340,8 @@ fn persist_config(app: &AppHandle, config: &AppConfig) -> Result<(), String> {
         fs::create_dir_all(parent).map_err(|_| error_code(ERR_CONFIG_PERSIST_FAILED))?;
     }
     let overrides = build_overrides(config)?;
-    let payload =
-        serde_json::to_string_pretty(&overrides).map_err(|_| error_code(ERR_CONFIG_SERIALIZE_FAILED))?;
+    let payload = serde_json::to_string_pretty(&overrides)
+        .map_err(|_| error_code(ERR_CONFIG_SERIALIZE_FAILED))?;
     fs::write(&path, payload).map_err(|_| error_code(ERR_CONFIG_PERSIST_FAILED))
 }
 
@@ -401,6 +419,34 @@ fn show_settings_from_tray(app: &AppHandle, _state: &AppState) {
     show_settings(app);
 }
 
+#[cfg(target_os = "macos")]
+fn set_settings_dock_visibility(app: &AppHandle, visible: bool) {
+    let activation_policy = if visible {
+        ActivationPolicy::Regular
+    } else {
+        ActivationPolicy::Accessory
+    };
+
+    if let Err(err) = app.set_activation_policy(activation_policy) {
+        println!("[macos] failed to set activation policy: {}", err);
+    }
+    if let Err(err) = app.set_dock_visibility(visible) {
+        println!("[macos] failed to set dock visibility: {}", err);
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn set_settings_dock_visibility(_app: &AppHandle, _visible: bool) {}
+
+fn hide_settings(app: &AppHandle) {
+    if let Some(window) = app.get_webview_window("settings") {
+        let _ = window.hide();
+    }
+    set_settings_dock_visibility(app, false);
+    #[cfg(target_os = "macos")]
+    let _ = app.hide();
+}
+
 fn refresh_tray(app: &AppHandle, state: &AppState) {
     let config = get_state_config(state).unwrap_or_else(|_| default_config());
     let texts = tray_texts(locale_from_config(&config));
@@ -465,8 +511,12 @@ fn validate_keys(
 ) -> Result<(), String> {
     if keys.len() != expected_len {
         return Err(match stage {
-            Some(0) => error_with_layer_expected(ERR_LAYER_STAGE0_KEYS_EXPECTED, layer_index, expected_len),
-            Some(1) => error_with_layer_expected(ERR_LAYER_STAGE1_KEYS_EXPECTED, layer_index, expected_len),
+            Some(0) => {
+                error_with_layer_expected(ERR_LAYER_STAGE0_KEYS_EXPECTED, layer_index, expected_len)
+            }
+            Some(1) => {
+                error_with_layer_expected(ERR_LAYER_STAGE1_KEYS_EXPECTED, layer_index, expected_len)
+            }
             _ => error_with_layer_expected(ERR_LAYER_KEYS_EXPECTED, layer_index, expected_len),
         });
     }
@@ -494,7 +544,10 @@ fn validate_config(config: &AppConfig) -> Result<(), String> {
         return Err(error_code(ERR_LAYERS_EMPTY));
     }
 
-    validate_hotkey(&config.hotkeys.activation.trigger, ERR_HOTKEY_INVALID_TRIGGER)?;
+    validate_hotkey(
+        &config.hotkeys.activation.trigger,
+        ERR_HOTKEY_INVALID_TRIGGER,
+    )?;
     validate_hotkey(&config.hotkeys.controls.cancel, ERR_HOTKEY_INVALID_CANCEL)?;
     validate_hotkey(&config.hotkeys.controls.undo, ERR_HOTKEY_INVALID_UNDO)?;
     validate_hotkey(
@@ -749,6 +802,7 @@ fn native_click(app: AppHandle, payload: NativeClickPayload) -> Result<(), Strin
         "[native] click action={:?} requested_x={} requested_y={}",
         payload.button, payload.x, payload.y
     );
+    ensure_mouse_control_ready(&app, app.state::<AppState>().inner())?;
     perform_click(&app, &payload)?;
     hide_overlay(&app, app.state::<AppState>().inner());
 
@@ -867,6 +921,16 @@ pub fn run() {
         .build();
 
     tauri::Builder::default()
+        .on_window_event(|window, event| {
+            if window.label() != "settings" {
+                return;
+            }
+
+            if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                api.prevent_close();
+                hide_settings(window.app_handle());
+            }
+        })
         .manage(AppState {
             config: Mutex::new(default_cfg),
             activation_ids: Mutex::new(activation_ids),
@@ -877,6 +941,7 @@ pub fn run() {
             overlay_click_action: Mutex::new(None),
             monitor_index: Mutex::new(0),
             nudge_repeat: Mutex::new(None),
+            last_accessibility_hint_at: Mutex::new(None),
             paused: Mutex::new(false),
             tray_menu_items: Mutex::new(None),
         })
@@ -920,6 +985,12 @@ pub fn run() {
             }
             register_tray(&handle, state.inner())?;
             refresh_tray(&handle, state.inner());
+            #[cfg(target_os = "macos")]
+            {
+                app.set_activation_policy(ActivationPolicy::Accessory);
+                app.set_dock_visibility(false);
+                let _ = app.hide();
+            }
             println!("[startup] activation hotkeys registered");
             Ok(())
         })
@@ -1000,6 +1071,10 @@ fn register_tray(app: &AppHandle, state: &AppState) -> tauri::Result<()> {
 }
 
 fn show_settings(app: &AppHandle) {
+    set_settings_dock_visibility(app, true);
+    #[cfg(target_os = "macos")]
+    let _ = app.show();
+
     if let Some(window) = app.get_webview_window("settings") {
         let _ = window.unminimize();
         let _ = window.show();
@@ -1021,6 +1096,8 @@ fn show_settings(app: &AppHandle) {
             let _ = window.unminimize();
             let _ = window.show();
             let _ = window.set_focus();
+        } else {
+            set_settings_dock_visibility(app, false);
         }
         return;
     }
@@ -1029,7 +1106,88 @@ fn show_settings(app: &AppHandle) {
         let _ = window.unminimize();
         let _ = window.show();
         let _ = window.set_focus();
+    } else {
+        set_settings_dock_visibility(app, false);
     }
+}
+
+#[cfg(target_os = "macos")]
+fn has_macos_accessibility_permission() -> bool {
+    unsafe { AXIsProcessTrusted() != 0 }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn has_macos_accessibility_permission() -> bool {
+    true
+}
+
+fn should_emit_accessibility_hint(state: &AppState) -> bool {
+    let now = SystemTime::now();
+    let mut guard = match state.last_accessibility_hint_at.lock() {
+        Ok(guard) => guard,
+        Err(_) => return true,
+    };
+
+    if let Some(last) = *guard {
+        let elapsed = now.duration_since(last).unwrap_or_default();
+        if elapsed < Duration::from_secs(ACCESSIBILITY_HINT_THROTTLE_SECS) {
+            return false;
+        }
+    }
+
+    *guard = Some(now);
+    true
+}
+
+fn emit_settings_error(app: &AppHandle, code: &str) {
+    let app_handle = app.clone();
+    let payload = BackendErrorPayload {
+        code: error_code(code),
+    };
+
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(350));
+        let _ = app_handle.emit_to(
+            EventTarget::webview_window("settings"),
+            "backend:error",
+            payload,
+        );
+    });
+}
+
+#[cfg(target_os = "macos")]
+fn open_macos_accessibility_settings() {
+    let _ = std::process::Command::new("open")
+        .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+        .spawn();
+}
+
+#[cfg(not(target_os = "macos"))]
+fn open_macos_accessibility_settings() {}
+
+fn ensure_mouse_control_ready(app: &AppHandle, state: &AppState) -> Result<(), String> {
+    if has_macos_accessibility_permission() {
+        return Ok(());
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        let executable = std::env::current_exe()
+            .map(|path| path.display().to_string())
+            .unwrap_or_else(|_| "<unknown>".to_string());
+        println!(
+            "[macos] accessibility permission missing; executable={}",
+            executable
+        );
+
+        if should_emit_accessibility_hint(state) {
+            show_settings(app);
+            open_macos_accessibility_settings();
+            emit_settings_error(app, ERR_MAC_ACCESSIBILITY_REQUIRED);
+        }
+    }
+
+    Err(error_code(ERR_MAC_ACCESSIBILITY_REQUIRED))
 }
 
 fn create_overlay_window(app: &AppHandle) -> tauri::Result<()> {
@@ -1188,6 +1346,10 @@ fn switch_monitor(app: &AppHandle) {
 
 fn trigger_overlay(app: &AppHandle, action: ClickAction) {
     let state = app.state::<AppState>();
+    if let Err(err) = ensure_mouse_control_ready(app, state.inner()) {
+        println!("[overlay] activation blocked: {}", err);
+        return;
+    }
     let config = state
         .config
         .lock()

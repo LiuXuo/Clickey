@@ -44,6 +44,15 @@ Clickey 的目标是提供一种高效、精确、可肌肉记忆的鼠标定位
 
 如果你只想回看历史原型，可单独运行 `demo/clickey_v3.1.ahk`（需 AutoHotkey v1.1），但它不会再跟随主项目更新。
 
+### macOS 打包注意
+
+- `tauri dev` 与安装后的 `Clickey.app` 在 macOS TCC 里是两个不同身份；开发态能点，不代表 `.dmg` 安装态也已经拿到权限。
+- `npm run tauri:build` 现在会优先自动探测本机 keychain 里的签名证书：`Developer ID Application` -> `Apple Distribution` -> `Apple Development`；如果一个都没有，会显式回退到 ad-hoc `"-"`。
+- 如果安装后的版本能唤起 Overlay、但最后不执行鼠标移动/点击，请先把 `Clickey.app` 移到 `/Applications`，然后到“系统设置 > 隐私与安全性 > 辅助功能”里启用它。
+- 本地 `tauri build` 默认多为 adhoc 签名；重打包、换路径或重装后，macOS 可能把它当成新的应用实体，需要删除旧授权后重新勾选。
+- 如果你已经装好了证书，且想固定使用某一个身份，可手动指定：`APPLE_SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" npm run tauri:build`
+- 如果连激活热键都失效，再额外检查“输入监控”权限。
+
 ---
 
 ## Settings UI（Tauri 原型）
@@ -66,6 +75,7 @@ Clickey 的目标是提供一种高效、精确、可肌肉记忆的鼠标定位
   - 左键单击托盘图标直接打开设置页
   - 右键菜单包含 `设置 / 暂停或启动 / 退出`
   - 右键菜单文本会跟随 i18n 语言实时变化
+  - macOS 下应用默认以 agent app 方式启动（无 Dock）；仅当设置页打开时显示 Dock 图标；`Cmd+W` 关闭设置页后回到“仅托盘常驻”，`Cmd+Q` / 托盘退出才会真正结束进程
 
 按钮：
 

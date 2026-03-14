@@ -1,5 +1,6 @@
 ﻿<script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
+  import { listen } from "@tauri-apps/api/event";
   import { revealItemInDir } from "@tauri-apps/plugin-opener";
   import { onMount } from "svelte";
   import { initLocale, locale, setLocale, t, type Locale } from "$lib/i18n";
@@ -89,6 +90,9 @@
     { mode: "combo" }
   >;
   type ComboStageConfig = ComboLayerConfig["stage0"];
+  type BackendErrorPayload = {
+    code: string;
+  };
 
   const sections = $derived<SettingsSectionItem[]>([
     {
@@ -1046,12 +1050,22 @@
   onMount(() => {
     initLocale();
     syncSectionFromHash();
+    let unlistenBackendError: (() => void) | undefined;
 
     const onHashChange = () => {
       syncSectionFromHash();
     };
 
     window.addEventListener("hashchange", onHashChange);
+
+    void (async () => {
+      unlistenBackendError = await listen<BackendErrorPayload>(
+        "backend:error",
+        (event) => {
+          pushToast("error", resolveErrorMessage(event.payload.code));
+        },
+      );
+    })();
 
     void (async () => {
       try {
@@ -1073,6 +1087,7 @@
     return () => {
       clearAutoApplyTimer();
       window.removeEventListener("hashchange", onHashChange);
+      unlistenBackendError?.();
     };
   });
 </script>

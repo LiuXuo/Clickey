@@ -33,6 +33,7 @@ const CODE_TO_KEY_MAP: Record<string, TranslationKey> = {
   ERR_CONFIG_SERIALIZE_FAILED: "errors.backendConfigPersistFailed",
   ERR_CONFIG_PERSIST_FAILED: "errors.backendConfigPersistFailed",
   ERR_CLICK_ACTION_UNSUPPORTED: "errors.backendClickUnsupported",
+  ERR_MAC_ACCESSIBILITY_REQUIRED: "errors.backendMacAccessibilityRequired",
 };
 
 const HOTKEY_CODE_TO_LABEL_KEY: Record<string, TranslationKey> = {
