@@ -555,3 +555,4 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-14：macOS 新增安装态权限与打包兜底：缺少辅助功能权限时阻止进入 Overlay，自动打开 Settings 与系统“隐私与安全性 > 辅助功能”，并通过稳定 error code 走前端 toast 提示；同时新增 `scripts/tauri-build.mjs` 作为打包入口，自动探测 `Developer ID Application / Apple Distribution / Apple Development` 证书，未命中时显式回退到 `APPLE_SIGNING_IDENTITY="-"`。
 - 2026-03-14：macOS 设置页窗口接入 Dock/托盘生命周期控制：settings 窗口默认 `visible=false`，bundle 合并 `src-tauri/Info.plist`（`LSUIElement=1`）以 agent app 模式启动；打开设置页时显示 Dock，关闭设置页（`Cmd+W` / 关闭按钮）改为隐藏窗口并退回托盘常驻，`Cmd+Q` / 托盘退出时真正结束应用。
 - 2026-03-15：鼠标动作系统收敛为 `mouse.actionCycle + mouse.disabledActions`：默认启用左/右/中/仅移动，默认禁用左键双击与 `Ctrl/Cmd/Shift + 左键`；Settings 动作编辑器改为统一排序+启用/禁用，并将排序实现从原生 HTML5 drag 切换为 `svelte-dnd-action`。
+- 2026-03-15：Settings 小图标切换为 `@lucide/svelte` 深路径导入，并保留 `AppIcon` 语义封装；继续把表单标签、热键录制器、颜色字段、图层操作、鼠标动作项与 toast 状态统一接入 Lucide，同时通过减法收敛录入框/颜色框/动作项图标与按钮字重、层操作按钮密度等细节，尽量在不增加认知负担的前提下提升扫读效率。

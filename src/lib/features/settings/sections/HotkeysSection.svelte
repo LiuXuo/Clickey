@@ -6,6 +6,7 @@
   import SectionHeader from "$lib/features/settings/ui/SectionHeader.svelte";
   import HotkeyRecorder from "$lib/features/settings/ui/HotkeyRecorder.svelte";
   import { controlInputSpaceWrapClass } from "$lib/features/settings/ui/control-classes";
+  import FieldLabel from "$lib/features/settings/ui/FieldLabel.svelte";
   import { formatHotkeyDisplay } from "$lib/features/settings/hotkey-utils";
 
   type RecorderKey =
@@ -22,12 +23,12 @@
 
   let { config, isLoading, fieldClass, onConfigMutated, onUpdateNudgeStep } =
     $props<{
-    config: AppConfig;
-    isLoading: boolean;
-    fieldClass: string;
-    onConfigMutated: () => void;
-    onUpdateNudgeStep: (event: Event) => void;
-  }>();
+      config: AppConfig;
+      isLoading: boolean;
+      fieldClass: string;
+      onConfigMutated: () => void;
+      onUpdateNudgeStep: (event: Event) => void;
+    }>();
 
   let activeRecorder = $state<RecorderKey | null>(null);
 
@@ -116,6 +117,7 @@
   <div class={`mt-6 gap-4 ${controlInputSpaceWrapClass}`}>
     <HotkeyRecorder
       id="hotkey-trigger"
+      icon="focus"
       label={$t("hotkeys.trigger")}
       value={config.hotkeys.activation.trigger}
       disabled={isLoading}
@@ -129,6 +131,7 @@
 
     <HotkeyRecorder
       id="hotkey-switch-action"
+      icon="workflow"
       label={$t("hotkeys.switchAction")}
       value={config.hotkeys.controls.switchAction}
       disabled={isLoading}
@@ -143,6 +146,7 @@
 
     <HotkeyRecorder
       id="hotkey-cancel"
+      icon="clear"
       label={$t("hotkeys.cancel")}
       value={config.hotkeys.controls.cancel}
       disabled={isLoading}
@@ -156,6 +160,7 @@
 
     <HotkeyRecorder
       id="hotkey-undo"
+      icon="default"
       label={$t("hotkeys.undo")}
       value={config.hotkeys.controls.undo}
       disabled={isLoading}
@@ -169,6 +174,7 @@
 
     <HotkeyRecorder
       id="hotkey-direct"
+      icon="leftAction"
       label={$t("hotkeys.directClick")}
       value={config.hotkeys.controls.directClick}
       disabled={isLoading}
@@ -183,6 +189,7 @@
 
     <HotkeyRecorder
       id="hotkey-next-monitor"
+      icon="monitor"
       label={$t("hotkeys.nextMonitor")}
       value={config.hotkeys.controls.nextMonitor}
       disabled={isLoading}
@@ -197,6 +204,7 @@
 
     <HotkeyRecorder
       id="hotkey-nudge-left"
+      icon="arrowLeft"
       label={$t("hotkeys.nudgeLeft")}
       value={config.hotkeys.controls.nudgeLeft}
       disabled={isLoading}
@@ -211,6 +219,7 @@
 
     <HotkeyRecorder
       id="hotkey-nudge-right"
+      icon="arrowRight"
       label={$t("hotkeys.nudgeRight")}
       value={config.hotkeys.controls.nudgeRight}
       disabled={isLoading}
@@ -225,6 +234,7 @@
 
     <HotkeyRecorder
       id="hotkey-nudge-up"
+      icon="arrowUp"
       label={$t("hotkeys.nudgeUp")}
       value={config.hotkeys.controls.nudgeUp}
       disabled={isLoading}
@@ -238,6 +248,7 @@
 
     <HotkeyRecorder
       id="hotkey-nudge-down"
+      icon="arrowDown"
       label={$t("hotkeys.nudgeDown")}
       value={config.hotkeys.controls.nudgeDown}
       disabled={isLoading}
@@ -251,9 +262,7 @@
     />
 
     <div>
-      <label class="text-sm font-medium text-zinc-700" for="nudge-step"
-        >{$t("nudge.step")}</label
-      >
+      <FieldLabel text={$t("nudge.step")} icon="nudge" forId="nudge-step" />
       <input
         id="nudge-step"
         type="number"

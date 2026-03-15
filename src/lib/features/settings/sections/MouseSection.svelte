@@ -5,10 +5,13 @@
   import type { AppConfig, MouseAction } from "$lib/core";
   import SettingsCard from "$lib/features/settings/ui/SettingsCard.svelte";
   import SectionHeader from "$lib/features/settings/ui/SectionHeader.svelte";
+  import AppIcon from "$lib/features/settings/ui/AppIcon.svelte";
   import {
+    controlChipTextClass,
     controlInputSpaceWrapClass,
     switchTrackClass,
   } from "$lib/features/settings/ui/control-classes";
+  import FieldLabel from "$lib/features/settings/ui/FieldLabel.svelte";
 
   let { config, isLoading, fieldClass, onConfigMutated } = $props<{
     config: AppConfig;
@@ -34,7 +37,7 @@
     enabled: boolean;
   };
 
-  let orderedActionItems = $state<ActionItem[]>([]);
+  let orderedActionItems = $derived(orderedActionsFromConfig());
   let enabledActionCount = $derived(
     orderedActionItems.filter((item) => item.enabled).length,
   );
@@ -141,10 +144,6 @@
   function handleActionFinalize(event: CustomEvent<DndEvent<ActionItem>>) {
     commitActionLayout(event.detail.items);
   }
-
-  $effect(() => {
-    orderedActionItems = orderedActionsFromConfig();
-  });
 </script>
 
 <SettingsCard id="mouse">
@@ -152,7 +151,10 @@
 
   <div class="mt-6 rounded-xl border border-zinc-200 bg-zinc-50/80 p-4">
     <div class="max-w-2xl">
-      <p class="text-sm font-semibold text-zinc-900">
+      <p
+        class="inline-flex items-center gap-2 text-sm font-semibold text-zinc-900"
+      >
+        <AppIcon name="actionCycle" size={16} className="text-zinc-500" />
         {$t("mouse.actionCycle")}
       </p>
       <p class="mt-1 text-sm text-zinc-500">{$t("mouse.actionCycleHint")}</p>
@@ -182,8 +184,13 @@
               : "cursor-grab active:cursor-grabbing"
           } ${item.enabled ? "border-zinc-200 bg-white" : "border-zinc-200 bg-zinc-50"}`}
         >
+          <AppIcon
+            name="dragHandle"
+            size={14}
+            className={item.enabled ? "text-zinc-400" : "text-zinc-300"}
+          />
           <p
-            class={`whitespace-nowrap text-sm font-semibold ${
+            class={`${controlChipTextClass} ${
               item.enabled ? "text-zinc-900" : "text-zinc-400"
             }`}
           >
@@ -219,7 +226,15 @@
         isLoading ? "opacity-60" : ""
       }`}
     >
-      <span>{$t("mouse.smoothMove")}</span>
+      <span class="inline-flex items-center gap-2">
+        <AppIcon
+          name="smoothMove"
+          size={15}
+          strokeWidth={2.1}
+          className="text-zinc-400"
+        />
+        <span>{$t("mouse.smoothMove")}</span>
+      </span>
       <span class="relative inline-flex items-center">
         <input
           id="mouse-smooth-move"
@@ -237,9 +252,11 @@
   {#if config.mouse.smoothMove}
     <div class={`mt-6 gap-6 ${controlInputSpaceWrapClass}`}>
       <div>
-        <label class="text-sm font-medium text-zinc-700" for="mouse-duration"
-          >{$t("mouse.moveDurationMs")}</label
-        >
+        <FieldLabel
+          text={$t("mouse.moveDurationMs")}
+          icon="duration"
+          forId="mouse-duration"
+        />
         <input
           id="mouse-duration"
           type="number"
@@ -258,9 +275,11 @@
         />
       </div>
       <div>
-        <label class="text-sm font-medium text-zinc-700" for="mouse-step-ms"
-          >{$t("mouse.moveStepMs")}</label
-        >
+        <FieldLabel
+          text={$t("mouse.moveStepMs")}
+          icon="step"
+          forId="mouse-step-ms"
+        />
         <input
           id="mouse-step-ms"
           type="number"
@@ -279,9 +298,11 @@
         />
       </div>
       <div>
-        <label class="text-sm font-medium text-zinc-700" for="mouse-press-ms"
-          >{$t("mouse.pressDurationMs")}</label
-        >
+        <FieldLabel
+          text={$t("mouse.pressDurationMs")}
+          icon="press"
+          forId="mouse-press-ms"
+        />
         <input
           id="mouse-press-ms"
           type="number"
@@ -300,10 +321,11 @@
         />
       </div>
       <div>
-        <label
-          class="text-sm font-medium text-zinc-700"
-          for="mouse-landing-radius">{$t("mouse.landingRadiusPx")}</label
-        >
+        <FieldLabel
+          text={$t("mouse.landingRadiusPx")}
+          icon="landing"
+          forId="mouse-landing-radius"
+        />
         <input
           id="mouse-landing-radius"
           type="number"
@@ -322,11 +344,11 @@
         />
       </div>
       <div>
-        <label
-          class="text-sm font-medium text-zinc-700"
-          for="mouse-duration-randomness"
-          >{$t("mouse.durationRandomness")}</label
-        >
+        <FieldLabel
+          text={$t("mouse.durationRandomness")}
+          icon="randomness"
+          forId="mouse-duration-randomness"
+        />
         <input
           id="mouse-duration-randomness"
           type="number"
@@ -349,10 +371,11 @@
         />
       </div>
       <div>
-        <label
-          class="text-sm font-medium text-zinc-700"
-          for="mouse-step-randomness">{$t("mouse.stepRandomness")}</label
-        >
+        <FieldLabel
+          text={$t("mouse.stepRandomness")}
+          icon="randomness"
+          forId="mouse-step-randomness"
+        />
         <input
           id="mouse-step-randomness"
           type="number"
@@ -375,10 +398,11 @@
         />
       </div>
       <div>
-        <label
-          class="text-sm font-medium text-zinc-700"
-          for="mouse-distance-boost-px">{$t("mouse.distanceBoostPx")}</label
-        >
+        <FieldLabel
+          text={$t("mouse.distanceBoostPx")}
+          icon="distance"
+          forId="mouse-distance-boost-px"
+        />
         <input
           id="mouse-distance-boost-px"
           type="number"
@@ -400,11 +424,11 @@
         />
       </div>
       <div>
-        <label
-          class="text-sm font-medium text-zinc-700"
-          for="mouse-duration-distance-boost"
-          >{$t("mouse.durationDistanceBoost")}</label
-        >
+        <FieldLabel
+          text={$t("mouse.durationDistanceBoost")}
+          icon="distance"
+          forId="mouse-duration-distance-boost"
+        />
         <input
           id="mouse-duration-distance-boost"
           type="number"
@@ -427,10 +451,11 @@
         />
       </div>
       <div>
-        <label
-          class="text-sm font-medium text-zinc-700"
-          for="mouse-step-distance-boost">{$t("mouse.stepDistanceBoost")}</label
-        >
+        <FieldLabel
+          text={$t("mouse.stepDistanceBoost")}
+          icon="distance"
+          forId="mouse-step-distance-boost"
+        />
         <input
           id="mouse-step-distance-boost"
           type="number"
@@ -453,9 +478,11 @@
         />
       </div>
       <div>
-        <label class="text-sm font-medium text-zinc-700" for="mouse-curve-along"
-          >{$t("mouse.curveAlongRatio")}</label
-        >
+        <FieldLabel
+          text={$t("mouse.curveAlongRatio")}
+          icon="curve"
+          forId="mouse-curve-along"
+        />
         <input
           id="mouse-curve-along"
           type="number"
@@ -478,10 +505,11 @@
         />
       </div>
       <div>
-        <label
-          class="text-sm font-medium text-zinc-700"
-          for="mouse-curve-spread">{$t("mouse.curveSpreadRatio")}</label
-        >
+        <FieldLabel
+          text={$t("mouse.curveSpreadRatio")}
+          icon="curve"
+          forId="mouse-curve-spread"
+        />
         <input
           id="mouse-curve-spread"
           type="number"
@@ -504,9 +532,11 @@
         />
       </div>
       <div>
-        <label class="text-sm font-medium text-zinc-700" for="mouse-jitter"
-          >{$t("mouse.jitterRatio")}</label
-        >
+        <FieldLabel
+          text={$t("mouse.jitterRatio")}
+          icon="jitter"
+          forId="mouse-jitter"
+        />
         <input
           id="mouse-jitter"
           type="number"
@@ -529,11 +559,11 @@
         />
       </div>
       <div>
-        <label
-          class="text-sm font-medium text-zinc-700"
-          for="mouse-adaptive-stride-base"
-          >{$t("mouse.adaptiveStrideBasePx")}</label
-        >
+        <FieldLabel
+          text={$t("mouse.adaptiveStrideBasePx")}
+          icon="stride"
+          forId="mouse-adaptive-stride-base"
+        />
         <input
           id="mouse-adaptive-stride-base"
           type="number"
@@ -555,11 +585,11 @@
         />
       </div>
       <div>
-        <label
-          class="text-sm font-medium text-zinc-700"
-          for="mouse-adaptive-stride-ratio"
-          >{$t("mouse.adaptiveStrideDistanceRatio")}</label
-        >
+        <FieldLabel
+          text={$t("mouse.adaptiveStrideDistanceRatio")}
+          icon="stride"
+          forId="mouse-adaptive-stride-ratio"
+        />
         <input
           id="mouse-adaptive-stride-ratio"
           type="number"
@@ -582,11 +612,11 @@
         />
       </div>
       <div>
-        <label
-          class="text-sm font-medium text-zinc-700"
-          for="mouse-adaptive-stride-max"
-          >{$t("mouse.adaptiveStrideMaxPx")}</label
-        >
+        <FieldLabel
+          text={$t("mouse.adaptiveStrideMaxPx")}
+          icon="stride"
+          forId="mouse-adaptive-stride-max"
+        />
         <input
           id="mouse-adaptive-stride-max"
           type="number"
@@ -608,9 +638,11 @@
         />
       </div>
       <div>
-        <label class="text-sm font-medium text-zinc-700" for="mouse-extra-steps"
-          >{$t("mouse.extraStepsMax")}</label
-        >
+        <FieldLabel
+          text={$t("mouse.extraStepsMax")}
+          icon="maxSteps"
+          forId="mouse-extra-steps"
+        />
         <input
           id="mouse-extra-steps"
           type="number"
@@ -629,9 +661,11 @@
         />
       </div>
       <div>
-        <label class="text-sm font-medium text-zinc-700" for="mouse-max-steps"
-          >{$t("mouse.maxSteps")}</label
-        >
+        <FieldLabel
+          text={$t("mouse.maxSteps")}
+          icon="maxSteps"
+          forId="mouse-max-steps"
+        />
         <input
           id="mouse-max-steps"
           type="number"
@@ -650,10 +684,11 @@
         />
       </div>
       <div>
-        <label
-          class="text-sm font-medium text-zinc-700"
-          for="mouse-max-step-sleep">{$t("mouse.maxStepSleepMs")}</label
-        >
+        <FieldLabel
+          text={$t("mouse.maxStepSleepMs")}
+          icon="maxSteps"
+          forId="mouse-max-step-sleep"
+        />
         <input
           id="mouse-max-step-sleep"
           type="number"

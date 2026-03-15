@@ -1,5 +1,133 @@
 <script lang="ts">
-  import type { SettingsIconName } from "$lib/features/settings/icons";
+  import type { Component } from "svelte";
+  import ArrowDown from "@lucide/svelte/icons/arrow-down";
+  import ArrowLeft from "@lucide/svelte/icons/arrow-left";
+  import ArrowLeftRight from "@lucide/svelte/icons/arrow-left-right";
+  import ArrowRight from "@lucide/svelte/icons/arrow-right";
+  import ArrowUp from "@lucide/svelte/icons/arrow-up";
+  import Ban from "@lucide/svelte/icons/ban";
+  import Blend from "@lucide/svelte/icons/blend";
+  import CaseSensitive from "@lucide/svelte/icons/case-sensitive";
+  import ChevronsUpDown from "@lucide/svelte/icons/chevrons-up-down";
+  import CircleAlert from "@lucide/svelte/icons/circle-alert";
+  import CircleCheckBig from "@lucide/svelte/icons/circle-check-big";
+  import CirclePlus from "@lucide/svelte/icons/circle-plus";
+  import Clock3 from "@lucide/svelte/icons/clock-3";
+  import Columns3 from "@lucide/svelte/icons/columns-3";
+  import Combine from "@lucide/svelte/icons/combine";
+  import Crosshair from "@lucide/svelte/icons/crosshair";
+  import Dice5 from "@lucide/svelte/icons/dice-5";
+  import FileInput from "@lucide/svelte/icons/file-input";
+  import FileOutput from "@lucide/svelte/icons/file-output";
+  import Focus from "@lucide/svelte/icons/focus";
+  import FolderOpen from "@lucide/svelte/icons/folder-open";
+  import Gauge from "@lucide/svelte/icons/gauge";
+  import Grid3x3 from "@lucide/svelte/icons/grid-3x3";
+  import GripVertical from "@lucide/svelte/icons/grip-vertical";
+  import Info from "@lucide/svelte/icons/info";
+  import Keyboard from "@lucide/svelte/icons/keyboard";
+  import Layers3 from "@lucide/svelte/icons/layers-3";
+  import Languages from "@lucide/svelte/icons/languages";
+  import ListOrdered from "@lucide/svelte/icons/list-ordered";
+  import MonitorUp from "@lucide/svelte/icons/monitor-up";
+  import MousePointer2 from "@lucide/svelte/icons/mouse-pointer-2";
+  import MousePointerClick from "@lucide/svelte/icons/mouse-pointer-click";
+  import Paintbrush from "@lucide/svelte/icons/paintbrush";
+  import Palette from "@lucide/svelte/icons/palette";
+  import Pilcrow from "@lucide/svelte/icons/pilcrow";
+  import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
+  import Rows3 from "@lucide/svelte/icons/rows-3";
+  import ScanSearch from "@lucide/svelte/icons/scan-search";
+  import ScanLine from "@lucide/svelte/icons/scan-line";
+  import Settings2 from "@lucide/svelte/icons/settings-2";
+  import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
+  import Sparkles from "@lucide/svelte/icons/sparkles";
+  import SquareMousePointer from "@lucide/svelte/icons/square-mouse-pointer";
+  import SquareStack from "@lucide/svelte/icons/square-stack";
+  import Trash2 from "@lucide/svelte/icons/trash-2";
+  import Type from "@lucide/svelte/icons/type";
+  import Undo2 from "@lucide/svelte/icons/undo-2";
+  import Waypoints from "@lucide/svelte/icons/waypoints";
+  import Workflow from "@lucide/svelte/icons/workflow";
+  import X from "@lucide/svelte/icons/x";
+  import type { AppIconName } from "$lib/features/settings/icons";
+
+  type LucideIconComponent = Component<{
+    "aria-hidden"?: "true" | "false";
+    class?: string;
+    size?: number | string;
+    strokeWidth?: number | string;
+  }>;
+
+  const icons = {
+    general: Settings2,
+    mouse: MousePointerClick,
+    layers: Layers3,
+    hotkeys: Keyboard,
+    overlay: ScanSearch,
+    language: Languages,
+    config: SlidersHorizontal,
+    selectArrows: ChevronsUpDown,
+    import: FileInput,
+    export: FileOutput,
+    folder: FolderOpen,
+    reset: RotateCcw,
+    record: SquareMousePointer,
+    cancel: X,
+    clear: Ban,
+    default: Undo2,
+    focus: Focus,
+    workflow: Workflow,
+    arrowLeft: ArrowLeft,
+    arrowRight: ArrowRight,
+    arrowUp: ArrowUp,
+    arrowDown: ArrowDown,
+    nudge: ArrowLeftRight,
+    monitor: MonitorUp,
+    layerItem: SquareStack,
+    addSingle: CirclePlus,
+    addCombo: Combine,
+    moveUp: ArrowUp,
+    moveDown: ArrowDown,
+    remove: Trash2,
+    mode: Workflow,
+    font: Type,
+    rows: Rows3,
+    columns: Columns3,
+    keys: CaseSensitive,
+    showGrid: Grid3x3,
+    showDiagonals: ScanLine,
+    alpha: Blend,
+    lineWidth: Paintbrush,
+    fontFamily: Pilcrow,
+    colorMask: Palette,
+    colorLine: Paintbrush,
+    colorText: Pilcrow,
+    actionCycle: ListOrdered,
+    smoothMove: MousePointer2,
+    duration: Clock3,
+    step: ListOrdered,
+    press: MousePointerClick,
+    landing: Crosshair,
+    randomness: Dice5,
+    distance: ArrowLeftRight,
+    curve: Waypoints,
+    jitter: Sparkles,
+    stride: Workflow,
+    maxSteps: Gauge,
+    success: CircleCheckBig,
+    error: CircleAlert,
+    info: Info,
+    leftAction: MousePointerClick,
+    rightAction: MousePointer2,
+    middleAction: Crosshair,
+    moveOnlyAction: Focus,
+    doubleLeftAction: Workflow,
+    ctrlLeftAction: Keyboard,
+    cmdLeftAction: Keyboard,
+    shiftLeftAction: Keyboard,
+    dragHandle: GripVertical,
+  } satisfies Record<AppIconName, LucideIconComponent>;
 
   let {
     name,
@@ -7,69 +135,13 @@
     strokeWidth = 2,
     className = "",
   } = $props<{
-    name: SettingsIconName;
+    name: AppIconName;
     size?: number;
     strokeWidth?: number;
     className?: string;
   }>();
+
+  const Icon = $derived(icons[name as AppIconName]);
 </script>
 
-<svg
-  aria-hidden="true"
-  width={size}
-  height={size}
-  viewBox="0 0 24 24"
-  fill="none"
-  stroke="currentColor"
-  stroke-width={strokeWidth}
-  stroke-linecap="round"
-  stroke-linejoin="round"
-  class={`shrink-0 ${className}`}
->
-  {#if name === "general"}
-    <circle cx="12" cy="12" r="3.2" />
-    <path d="M12 3.5v2.2" />
-    <path d="M12 18.3v2.2" />
-    <path d="m18.1 5.9-1.6 1.6" />
-    <path d="m7.5 16.5-1.6 1.6" />
-    <path d="M20.5 12h-2.2" />
-    <path d="M5.7 12H3.5" />
-    <path d="m18.1 18.1-1.6-1.6" />
-    <path d="m7.5 7.5-1.6-1.6" />
-  {:else if name === "mouse"}
-    <rect x="7" y="2.8" width="10" height="18.4" rx="5" />
-    <path d="M12 2.8v5.4" />
-  {:else if name === "layers"}
-    <rect x="3.5" y="3.5" width="17" height="17" rx="2.5" />
-    <path d="M12 3.5v17" />
-    <path d="M3.5 12h17" />
-  {:else if name === "hotkeys"}
-    <rect x="2.8" y="6.2" width="18.4" height="11.6" rx="2" />
-    <path d="M6.4 10h0.01" />
-    <path d="M10.2 10h0.01" />
-    <path d="M14 10h0.01" />
-    <path d="M17.8 10h0.01" />
-    <path d="M6.4 13.8h11.4" />
-  {:else if name === "overlay"}
-    <rect x="3.5" y="3.5" width="17" height="17" rx="2.5" />
-    <path d="M3.5 12h17" />
-    <path d="M12 3.5v17" />
-    <path d="m3.5 3.5 17 17" />
-  {:else if name === "import"}
-    <path d="M12 3.5v10.4" />
-    <path d="m8.2 10.8 3.8 3.8 3.8-3.8" />
-    <path d="M4 18.5h16" />
-  {:else if name === "export"}
-    <path d="M12 20.5V10.1" />
-    <path d="m15.8 13.2-3.8-3.8-3.8 3.8" />
-    <path d="M4 5.5h16" />
-  {:else if name === "folder"}
-    <path
-      d="M3.5 8.4a2 2 0 0 1 2-2h4l1.4 1.6h7.6a2 2 0 0 1 2 2v7.2a2 2 0 0 1-2 2h-13a2 2 0 0 1-2-2z"
-    />
-    <path d="M3.8 10.1h16.4" />
-  {:else}
-    <path d="M20 11a8 8 0 1 0 2 5.2" />
-    <path d="M20.4 4.6v5h-5" />
-  {/if}
-</svg>
+<Icon aria-hidden="true" {size} {strokeWidth} class={`shrink-0 ${className}`} />

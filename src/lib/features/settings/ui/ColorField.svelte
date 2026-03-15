@@ -1,12 +1,16 @@
 ﻿<script lang="ts">
+  import type { AppIconName } from "$lib/features/settings/icons";
+  import AppIcon from "$lib/features/settings/ui/AppIcon.svelte";
   import {
     colorNativeInputClass,
     controlButtonSmClass,
     controlInputClass,
   } from "$lib/features/settings/ui/control-classes";
+  import FieldLabel from "$lib/features/settings/ui/FieldLabel.svelte";
 
-  let { id, label, value, disabled, onChange } = $props<{
+  let { id, icon, label, value, disabled, onChange } = $props<{
     id: string;
+    icon?: AppIconName;
     label: string;
     value: string;
     disabled: boolean;
@@ -58,7 +62,7 @@
 <svelte:window onpointerdown={handleWindowPointerDown} />
 
 <div class="space-y-2" bind:this={container}>
-  <label class="text-sm font-medium text-zinc-700" for={id}>{label}</label>
+  <FieldLabel text={label} {icon} forId={id} />
   <div class="relative">
     <button
       {id}
@@ -72,7 +76,7 @@
           class="h-4 w-4 rounded border border-zinc-300"
           style={`background:${safeHex};`}
         ></span>
-        <span class="font-semibold">{value}</span>
+        <span>{value}</span>
       </span>
       <span class="text-xs text-zinc-500">HEX</span>
     </button>
@@ -103,9 +107,10 @@
         <div class="mt-3 flex justify-end">
           <button
             type="button"
-            class={controlButtonSmClass}
+            class={`${controlButtonSmClass} gap-1.5`}
             onclick={closePicker}
           >
+            <AppIcon name="success" size={14} />
             OK
           </button>
         </div>

@@ -3,11 +3,13 @@
   import type { AppConfig } from "$lib/core";
   import SettingsCard from "$lib/features/settings/ui/SettingsCard.svelte";
   import SectionHeader from "$lib/features/settings/ui/SectionHeader.svelte";
+  import AppIcon from "$lib/features/settings/ui/AppIcon.svelte";
   import ColorField from "$lib/features/settings/ui/ColorField.svelte";
   import {
     controlInputSpaceWrapClass,
     switchTrackClass,
   } from "$lib/features/settings/ui/control-classes";
+  import FieldLabel from "$lib/features/settings/ui/FieldLabel.svelte";
 
   let {
     config,
@@ -55,7 +57,15 @@
         isLoading ? "opacity-60" : ""
       }`}
     >
-      <span>{$t("overlay.showGrid")}</span>
+      <span class="inline-flex items-center gap-2">
+        <AppIcon
+          name="showGrid"
+          size={15}
+          strokeWidth={2.1}
+          className="text-zinc-400"
+        />
+        <span>{$t("overlay.showGrid")}</span>
+      </span>
       <span class="relative inline-flex items-center">
         <input
           id="overlay-show-grid"
@@ -65,9 +75,7 @@
           onchange={onConfigMutated}
           disabled={isLoading}
         />
-        <span
-          class={switchTrackClass}
-        ></span>
+        <span class={switchTrackClass}></span>
       </span>
     </label>
 
@@ -77,7 +85,15 @@
         isLoading ? "opacity-60" : ""
       }`}
     >
-      <span>{$t("overlay.showDiagonals")}</span>
+      <span class="inline-flex items-center gap-2">
+        <AppIcon
+          name="showDiagonals"
+          size={15}
+          strokeWidth={2.1}
+          className="text-zinc-400"
+        />
+        <span>{$t("overlay.showDiagonals")}</span>
+      </span>
       <span class="relative inline-flex items-center">
         <input
           id="overlay-show-diagonals"
@@ -87,18 +103,18 @@
           onchange={onConfigMutated}
           disabled={isLoading}
         />
-        <span
-          class={switchTrackClass}
-        ></span>
+        <span class={switchTrackClass}></span>
       </span>
     </label>
   </div>
 
   <div class={`mt-6 gap-6 ${controlInputSpaceWrapClass}`}>
     <div>
-      <label class="text-sm font-medium text-zinc-700" for="overlay-alpha"
-        >{$t("overlay.alpha")}</label
-      >
+      <FieldLabel
+        text={$t("overlay.alpha")}
+        icon="alpha"
+        forId="overlay-alpha"
+      />
       <input
         id="overlay-alpha"
         type="number"
@@ -120,9 +136,11 @@
       />
     </div>
     <div>
-      <label class="text-sm font-medium text-zinc-700" for="overlay-line"
-        >{$t("overlay.lineWidth")}</label
-      >
+      <FieldLabel
+        text={$t("overlay.lineWidth")}
+        icon="lineWidth"
+        forId="overlay-line"
+      />
       <input
         id="overlay-line"
         type="number"
@@ -141,9 +159,11 @@
       />
     </div>
     <div>
-      <label class="text-sm font-medium text-zinc-700" for="overlay-font"
-        >{$t("overlay.fontSizeFallback")}</label
-      >
+      <FieldLabel
+        text={$t("overlay.fontSizeFallback")}
+        icon="font"
+        forId="overlay-font"
+      />
       <input
         id="overlay-font"
         type="number"
@@ -156,6 +176,7 @@
     </div>
     <ColorField
       id="overlay-mask-color"
+      icon="colorMask"
       label={$t("overlay.maskColor")}
       value={config.overlay.maskColor}
       disabled={isLoading}
@@ -164,6 +185,7 @@
 
     <ColorField
       id="overlay-line-color"
+      icon="colorLine"
       label={$t("overlay.lineColor")}
       value={config.overlay.lineColor}
       disabled={isLoading}
@@ -172,6 +194,7 @@
 
     <ColorField
       id="overlay-text-color"
+      icon="colorText"
       label={$t("overlay.textColor")}
       value={config.overlay.textColor}
       disabled={isLoading}
@@ -179,9 +202,11 @@
     />
 
     <div>
-      <label class="text-sm font-medium text-zinc-700" for="overlay-font-family"
-        >{$t("overlay.fontFamily")}</label
-      >
+      <FieldLabel
+        text={$t("overlay.fontFamily")}
+        icon="fontFamily"
+        forId="overlay-font-family"
+      />
       <input
         id="overlay-font-family"
         class={fieldClass}

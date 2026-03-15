@@ -3,12 +3,11 @@
   import type { AppConfig } from "$lib/core";
   import SettingsCard from "$lib/features/settings/ui/SettingsCard.svelte";
   import SectionHeader from "$lib/features/settings/ui/SectionHeader.svelte";
+  import AppIcon from "$lib/features/settings/ui/AppIcon.svelte";
   import GridKeyTableEditor from "$lib/features/settings/ui/GridKeyTableEditor.svelte";
   import ComboKeyTableEditor from "$lib/features/settings/ui/ComboKeyTableEditor.svelte";
-  import {
-    controlButtonMdClass,
-    controlButtonSmClass,
-  } from "$lib/features/settings/ui/control-classes";
+  import { controlButtonMdClass } from "$lib/features/settings/ui/control-classes";
+  import FieldLabel from "$lib/features/settings/ui/FieldLabel.svelte";
 
   type LayerMode = "single" | "combo";
 
@@ -74,27 +73,14 @@
     return normalized;
   }
 
-  const removeButtonClass = `${controlButtonSmClass} border-rose-200 text-rose-700 hover:border-rose-300 hover:text-rose-800`;
+  const actionIconButtonClass =
+    "inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-40";
+  const removeIconButtonClass =
+    "inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-40";
 </script>
 
 <SettingsCard id="layers">
-  <div class="flex flex-wrap items-start justify-between gap-4">
-    <SectionHeader title={$t("layers.title")} icon="layers" />
-    <div class="flex flex-wrap items-center gap-2 pt-0.5">
-      <button
-        type="button"
-        class={controlButtonMdClass}
-        onclick={onAddSingleLayer}
-        disabled={isLoading}>{$t("layers.addSingle")}</button
-      >
-      <button
-        type="button"
-        class={controlButtonMdClass}
-        onclick={onAddComboLayer}
-        disabled={isLoading}>{$t("layers.addCombo")}</button
-      >
-    </div>
-  </div>
+  <SectionHeader title={$t("layers.title")} icon="layers" />
 
   <div class="mt-6 space-y-5">
     {#each config.layers as layer, index (index)}
@@ -105,35 +91,47 @@
               {$t("layers.layerLabel", { index: index + 1 })}
             </p>
           </div>
-          <div class="flex flex-wrap items-center gap-2">
+          <div class="flex flex-wrap items-center gap-1">
             <button
               type="button"
-              class={controlButtonSmClass}
+              class={actionIconButtonClass}
               onclick={() => onMoveLayer(index, -1)}
-              disabled={isLoading || index === 0}>{$t("layers.moveUp")}</button
+              disabled={isLoading || index === 0}
+              aria-label={$t("layers.moveUp")}
+              title={$t("layers.moveUp")}
             >
+              <AppIcon name="moveUp" size={14} />
+            </button>
             <button
               type="button"
-              class={controlButtonSmClass}
+              class={actionIconButtonClass}
               onclick={() => onMoveLayer(index, 1)}
               disabled={isLoading || index === config.layers.length - 1}
-              >{$t("layers.moveDown")}</button
+              aria-label={$t("layers.moveDown")}
+              title={$t("layers.moveDown")}
             >
+              <AppIcon name="moveDown" size={14} />
+            </button>
             <button
               type="button"
-              class={removeButtonClass}
+              class={removeIconButtonClass}
               onclick={() => onRemoveLayer(index)}
               disabled={isLoading || config.layers.length <= 1}
-              >{$t("layers.remove")}</button
+              aria-label={$t("layers.remove")}
+              title={$t("layers.remove")}
             >
+              <AppIcon name="remove" size={14} />
+            </button>
           </div>
         </div>
 
         <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>
-            <label class="text-sm font-medium text-zinc-700" for={`layer-${index}-mode`}
-              >{$t("layers.mode")}</label
-            >
+            <FieldLabel
+              text={$t("layers.mode")}
+              icon="mode"
+              forId={`layer-${index}-mode`}
+            />
             <div class="relative mt-2">
               <select
                 id={`layer-${index}-mode`}
@@ -142,7 +140,8 @@
                 onchange={(event) =>
                   onSwitchLayerMode(
                     index,
-                    (event.currentTarget as HTMLSelectElement).value as LayerMode,
+                    (event.currentTarget as HTMLSelectElement)
+                      .value as LayerMode,
                   )}
                 disabled={isLoading}
               >
@@ -152,26 +151,16 @@
               <span
                 class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-zinc-500"
               >
-                <svg
-                  aria-hidden="true"
-                  viewBox="0 0 12 12"
-                  class="h-3.5 w-3.5"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="1.5"
-                  stroke-linecap="round"
-                  stroke-linejoin="round"
-                >
-                  <path d="M3 4.5 6 1.8l3 2.7" />
-                  <path d="M3 7.5 6 10.2l3-2.7" />
-                </svg>
+                <AppIcon name="selectArrows" size={14} strokeWidth={1.8} />
               </span>
             </div>
           </div>
           <div>
-            <label class="text-sm font-medium text-zinc-700" for={`layer-${index}-font-size`}
-              >{$t("overlay.fontSize")}</label
-            >
+            <FieldLabel
+              text={$t("overlay.fontSize")}
+              icon="font"
+              forId={`layer-${index}-font-size`}
+            />
             <input
               id={`layer-${index}-font-size`}
               type="number"
@@ -190,35 +179,47 @@
           <div class="mt-4">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label class="text-sm font-medium text-zinc-700" for={`layer-${index}-rows`}
-                  >{$t("layers.rows")}</label
-                >
+                <FieldLabel
+                  text={$t("layers.rows")}
+                  icon="rows"
+                  forId={`layer-${index}-rows`}
+                />
                 <input
                   id={`layer-${index}-rows`}
                   type="number"
                   min="1"
                   class={fieldClass}
                   value={layer.rows}
-                  oninput={(event) => onUpdateSingleLayerGrid(index, "rows", event)}
+                  oninput={(event) =>
+                    onUpdateSingleLayerGrid(index, "rows", event)}
                   disabled={isLoading}
                 />
               </div>
               <div>
-                <label class="text-sm font-medium text-zinc-700" for={`layer-${index}-cols`}
-                  >{$t("layers.columns")}</label
-                >
+                <FieldLabel
+                  text={$t("layers.columns")}
+                  icon="columns"
+                  forId={`layer-${index}-cols`}
+                />
                 <input
                   id={`layer-${index}-cols`}
                   type="number"
                   min="1"
                   class={fieldClass}
                   value={layer.cols}
-                  oninput={(event) => onUpdateSingleLayerGrid(index, "cols", event)}
+                  oninput={(event) =>
+                    onUpdateSingleLayerGrid(index, "cols", event)}
                   disabled={isLoading}
                 />
               </div>
             </div>
             <div class="mt-3">
+              <FieldLabel
+                text={$t("layers.keys")}
+                icon="keys"
+                element="p"
+                className="mb-2"
+              />
               <GridKeyTableEditor
                 idPrefix={`layer-${index}-keys`}
                 rows={layer.rows}
@@ -235,51 +236,85 @@
           <div class="mt-4">
             <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div>
-                <label
-                  class="text-sm font-medium text-zinc-700"
-                  for={`layer-${index}-stage1-rows`}
-                  >{$t("layers.stage1")} / {$t("layers.rows")}</label
-                >
+                <FieldLabel
+                  text={`${$t("layers.stage1")} / ${$t("layers.rows")}`}
+                  icon="rows"
+                  forId={`layer-${index}-stage1-rows`}
+                />
                 <input
                   id={`layer-${index}-stage1-rows`}
                   type="number"
                   min="1"
                   class={fieldClass}
                   value={layer.stage1.rows}
-                  oninput={(event) => onUpdateComboStageGrid(index, 1, "rows", event)}
+                  oninput={(event) =>
+                    onUpdateComboStageGrid(index, 1, "rows", event)}
                   disabled={isLoading}
                 />
               </div>
               <div>
-                <label
-                  class="text-sm font-medium text-zinc-700"
-                  for={`layer-${index}-stage0-cols`}
-                  >{$t("layers.stage0")} / {$t("layers.columns")}</label
-                >
+                <FieldLabel
+                  text={`${$t("layers.stage0")} / ${$t("layers.columns")}`}
+                  icon="columns"
+                  forId={`layer-${index}-stage0-cols`}
+                />
                 <input
                   id={`layer-${index}-stage0-cols`}
                   type="number"
                   min="1"
                   class={fieldClass}
                   value={layer.stage0.cols}
-                  oninput={(event) => onUpdateComboStageGrid(index, 0, "cols", event)}
+                  oninput={(event) =>
+                    onUpdateComboStageGrid(index, 0, "cols", event)}
                   disabled={isLoading}
                 />
               </div>
             </div>
             <div class="mt-3">
+              <FieldLabel
+                text={$t("layers.keys")}
+                icon="keys"
+                element="p"
+                className="mb-2"
+              />
               <ComboKeyTableEditor
                 idPrefix={`layer-${index}-combo`}
-                columnKeys={normalizeSlotKeys(layer.stage0.keys, stage0Expected)}
+                columnKeys={normalizeSlotKeys(
+                  layer.stage0.keys,
+                  stage0Expected,
+                )}
                 rowKeys={normalizeSlotKeys(layer.stage1.keys, stage1Expected)}
                 disabled={isLoading}
-                onColumnKeysChange={(keys) => onUpdateComboStageKeys(index, 0, keys)}
-                onRowKeysChange={(keys) => onUpdateComboStageKeys(index, 1, keys)}
+                onColumnKeysChange={(keys) =>
+                  onUpdateComboStageKeys(index, 0, keys)}
+                onRowKeysChange={(keys) =>
+                  onUpdateComboStageKeys(index, 1, keys)}
               />
             </div>
           </div>
         {/if}
       </div>
     {/each}
+
+    <div class="grid grid-cols-2 gap-3">
+      <button
+        type="button"
+        class={`${controlButtonMdClass} w-full`}
+        onclick={onAddSingleLayer}
+        disabled={isLoading}
+      >
+        <AppIcon name="addSingle" size={16} />
+        单层
+      </button>
+      <button
+        type="button"
+        class={`${controlButtonMdClass} w-full`}
+        onclick={onAddComboLayer}
+        disabled={isLoading}
+      >
+        <AppIcon name="addSingle" size={16} />
+        组合
+      </button>
+    </div>
   </div>
 </SettingsCard>

@@ -3,9 +3,9 @@
   import SettingsCard from "$lib/features/settings/ui/SettingsCard.svelte";
   import SectionHeader from "$lib/features/settings/ui/SectionHeader.svelte";
   import ActionBar from "$lib/features/settings/ui/ActionBar.svelte";
-  import {
-    controlInputSpaceWrapClass,
-  } from "$lib/features/settings/ui/control-classes";
+  import AppIcon from "$lib/features/settings/ui/AppIcon.svelte";
+  import { controlInputSpaceWrapClass } from "$lib/features/settings/ui/control-classes";
+  import FieldLabel from "$lib/features/settings/ui/FieldLabel.svelte";
 
   let {
     localeValue,
@@ -51,9 +51,11 @@
 
   <div class="mt-6 space-y-6">
     <div>
-      <label class="text-sm font-medium text-zinc-700" for="locale-select"
-        >{$t("language.label")}</label
-      >
+      <FieldLabel
+        text={$t("language.label")}
+        icon="language"
+        forId="locale-select"
+      />
       <div class={`mt-2 gap-2 ${controlInputSpaceWrapClass}`}>
         <div class="relative">
           <select
@@ -69,28 +71,14 @@
           <span
             class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-zinc-500"
           >
-            <svg
-              aria-hidden="true"
-              viewBox="0 0 12 12"
-              class="h-3.5 w-3.5"
-              fill="none"
-              stroke="currentColor"
-              stroke-width="1.5"
-              stroke-linecap="round"
-              stroke-linejoin="round"
-            >
-              <path d="M3 4.5 6 1.8l3 2.7" />
-              <path d="M3 7.5 6 10.2l3-2.7" />
-            </svg>
+            <AppIcon name="selectArrows" size={14} strokeWidth={1.8} />
           </span>
         </div>
       </div>
     </div>
 
     <div>
-      <p class="text-sm font-medium text-zinc-700">
-        {$t("general.configLabel")}
-      </p>
+      <FieldLabel text={$t("general.configLabel")} icon="config" element="p" />
       <div class="mt-2">
         <ActionBar
           {isLoading}

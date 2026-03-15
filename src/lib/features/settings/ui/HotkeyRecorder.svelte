@@ -1,16 +1,20 @@
 ﻿<script lang="ts">
+  import type { AppIconName } from "$lib/features/settings/icons";
   import { t } from "$lib/i18n";
   import {
     formatHotkeyDisplay,
     formatHotkeyFromKeyboardEvent,
   } from "$lib/features/settings/hotkey-utils";
+  import AppIcon from "$lib/features/settings/ui/AppIcon.svelte";
   import {
     controlButtonSmClass,
     controlInputClass,
   } from "$lib/features/settings/ui/control-classes";
+  import FieldLabel from "$lib/features/settings/ui/FieldLabel.svelte";
 
   let {
     id,
+    icon,
     label,
     value,
     disabled,
@@ -22,6 +26,7 @@
     onResetDefault,
   } = $props<{
     id: string;
+    icon?: AppIconName;
     label: string;
     value: string;
     disabled: boolean;
@@ -34,6 +39,7 @@
   }>();
 
   const displayValue = $derived(formatHotkeyDisplay(value));
+  const spacedDisplayValue = $derived(displayValue.replaceAll("+", " + "));
   const recorderButtonClass = `${controlInputClass} text-left`;
 
   function beginRecording() {
@@ -78,7 +84,7 @@
 <svelte:window onkeydown={handleWindowKeydown} />
 
 <div class="space-y-2">
-  <label class="text-sm font-medium text-zinc-700" for={id}>{label}</label>
+  <FieldLabel {icon} text={label} forId={id} />
   <button
     {id}
     type="button"
@@ -90,35 +96,42 @@
     onclick={beginRecording}
     {disabled}
   >
-    {#if isRecording}
-      <span class="font-semibold text-zinc-900">{$t("hotkeys.recording")}</span>
-    {:else if displayValue}
-      <span class="font-semibold text-zinc-900">{displayValue}</span>
-    {:else}
-      <span class="text-zinc-500">{$t("hotkeys.recorderPlaceholder")}</span>
-    {/if}
+    <span class="inline-flex items-center gap-2">
+      {#if isRecording}
+        <span class="text-zinc-900"
+          >{$t("hotkeys.recording")}</span
+        >
+      {:else if displayValue}
+        <span class="text-zinc-900">{spacedDisplayValue}</span>
+      {:else}
+        <span class="text-zinc-500">{$t("hotkeys.recorderPlaceholder")}</span>
+      {/if}
+    </span>
   </button>
   {#if isRecording}
     <div class="flex items-center gap-2">
       <button
         type="button"
-        class={controlButtonSmClass}
+        class={`${controlButtonSmClass} gap-1.5`}
         onclick={onStopRecording}
       >
+        <AppIcon name="cancel" size={14} />
         {$t("hotkeys.recorderCancel")}
       </button>
       <button
         type="button"
-        class={controlButtonSmClass}
+        class={`${controlButtonSmClass} gap-1.5`}
         onclick={disableValue}
       >
+        <AppIcon name="clear" size={14} />
         {$t("hotkeys.recorderClear")}
       </button>
       <button
         type="button"
-        class={controlButtonSmClass}
+        class={`${controlButtonSmClass} gap-1.5`}
         onclick={resetDefaultValue}
       >
+        <AppIcon name="default" size={14} />
         {$t("hotkeys.recorderDefault")}
       </button>
     </div>
