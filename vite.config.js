@@ -31,6 +31,6 @@ export default defineConfig(async () => ({
   },
   test: {
     environment: "node",
-    include: ["src/lib/core/__tests__/**/*.test.ts"],
+    include: ["src/lib/**/*.test.ts"],
   },
 }));

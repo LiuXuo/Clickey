@@ -148,6 +148,8 @@ const en: Record<TranslationKey, string> = {
     "Imported content does not match the config schema.",
   "errors.activationHotkeyInvalid": "Activation hotkey format is invalid.",
   "errors.backendHotkeyInvalid": 'Hotkey "{field}" format is invalid.',
+  "errors.backendMacosFunctionKeyUnsupported":
+    "macOS currently supports function keys up to F20 for global hotkeys.",
   "errors.backendHotkeyRegisterFailed":
     "System hotkey registration failed. Check for conflicts with other apps.",
   "errors.backendStateUnavailable":

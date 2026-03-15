@@ -1,6 +1,8 @@
 ﻿import { isMacPlatform } from "$lib/shared/platform";
 
 const modifierOrder = ["ctrl", "alt", "shift", "meta"] as const;
+const macFunctionKeyCodePointStart = 0xf704;
+const macFunctionKeyCodePointEnd = 0xf71b;
 
 type ModifierToken = (typeof modifierOrder)[number];
 
@@ -40,6 +42,33 @@ const keyAliases: Record<string, string> = {
   insert: "Insert",
 };
 
+function normalizeFunctionKeyToken(token: string): string | null {
+  const trimmed = token.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (/^f\d{1,2}$/i.test(trimmed)) {
+    const index = Number.parseInt(trimmed.slice(1), 10);
+    if (index >= 1 && index <= 24) {
+      return `F${index}`;
+    }
+  }
+
+  if (trimmed.length === 1) {
+    const codePoint = trimmed.codePointAt(0);
+    if (
+      codePoint &&
+      codePoint >= macFunctionKeyCodePointStart &&
+      codePoint <= macFunctionKeyCodePointEnd
+    ) {
+      return `F${codePoint - macFunctionKeyCodePointStart + 1}`;
+    }
+  }
+
+  return null;
+}
+
 function normalizeModifier(token: string): ModifierToken | null {
   const lowered = token.trim().toLowerCase();
   return modifierAliases[lowered] ?? null;
@@ -51,13 +80,14 @@ function normalizeMainKey(token: string): string {
     return "";
   }
 
+  const functionKey = normalizeFunctionKeyToken(trimmed);
+  if (functionKey) {
+    return functionKey;
+  }
+
   const lowered = trimmed.toLowerCase();
   if (keyAliases[lowered]) {
     return keyAliases[lowered];
-  }
-
-  if (/^f\d{1,2}$/i.test(trimmed)) {
-    return trimmed.toUpperCase();
   }
 
   if (trimmed.length === 1) {
@@ -114,9 +144,19 @@ function isModifierKey(key: string): boolean {
   );
 }
 
-function normalizeEventKey(key: string): string {
+function normalizeEventKey(key: string, code = ""): string {
+  const codeMainKey = normalizeFunctionKeyToken(code);
+  if (codeMainKey) {
+    return codeMainKey;
+  }
+
   if (key === " ") {
     return "Space";
+  }
+
+  const functionKey = normalizeFunctionKeyToken(key);
+  if (functionKey) {
+    return functionKey;
   }
 
   if (keyAliases[key.toLowerCase()]) {
@@ -125,10 +165,6 @@ function normalizeEventKey(key: string): string {
 
   if (key.length === 1) {
     return /^[a-z]$/i.test(key) ? key.toUpperCase() : key;
-  }
-
-  if (/^f\d{1,2}$/i.test(key)) {
-    return key.toUpperCase();
   }
 
   return key[0].toUpperCase() + key.slice(1);
@@ -155,7 +191,7 @@ export function formatHotkeyFromKeyboardEvent(
     parts.push(isMacPlatform() ? "Cmd" : "Super");
   }
 
-  const mainKey = normalizeEventKey(event.key);
+  const mainKey = normalizeEventKey(event.key, event.code);
   if (!mainKey) {
     return null;
   }

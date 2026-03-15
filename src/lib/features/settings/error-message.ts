@@ -33,6 +33,8 @@ const CODE_TO_KEY_MAP: Record<string, TranslationKey> = {
   ERR_OVERRIDE_JSON_PARSE_FAILED: "errors.overrideJsonParse",
   ERR_OVERRIDE_SCHEMA_INVALID: "errors.overrideJsonSchemaInvalid",
   ERR_HOTKEY_INVALID_TRIGGER: "errors.activationHotkeyInvalid",
+  ERR_HOTKEY_MACOS_FUNCTION_KEY_UNSUPPORTED:
+    "errors.backendMacosFunctionKeyUnsupported",
   ERR_HOTKEY_REGISTER_FAILED: "errors.backendHotkeyRegisterFailed",
   ERR_BACKEND_STATE_UNAVAILABLE: "errors.backendStateUnavailable",
   ERR_CONFIG_DIR_UNAVAILABLE: "errors.backendConfigDirUnavailable",

@@ -139,6 +139,8 @@
   "errors.overrideJsonSchemaInvalid": "导入内容字段不符合配置结构。",
   "errors.activationHotkeyInvalid": "激活热键格式无效。",
   "errors.backendHotkeyInvalid": "热键“{field}”格式无效。",
+  "errors.backendMacosFunctionKeyUnsupported":
+    "macOS 当前仅支持将 F1 到 F20 用作全局热键。",
   "errors.backendHotkeyRegisterFailed":
     "系统热键注册失败，请检查是否与其他应用冲突。",
   "errors.backendStateUnavailable": "应用状态暂不可用，请重启后重试。",

@@ -99,6 +99,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 > 是否最终采用这些 crate 允许调整，但调整必须在本文件“变更记录”里写明原因与替代方案。
 
 - macOS 发布包执行鼠标移动/点击依赖系统“辅助功能”权限；`tauri dev` 与安装后的 `.app` 是不同的 TCC 身份。智能体在排查“开发态正常、安装态无法点击/无法控制鼠标”时，优先检查安装包是否已单独授权；adhoc 本地签名在重打包后可能需要重新授权。
+- macOS 当前全局热键链路（`tauri-plugin-global-shortcut` / `global-hotkey`）对函数键的稳定支持上限为 `F20`；Settings WebView 录制函数键时需兼容 AppKit 私有字符（`NSF*FunctionKey`），但 `F21`~`F24` 不能作为可注册的全局热键。
 - macOS 构建入口默认走 `npm run tauri:build`：脚本会优先探测本机签名证书（`Developer ID Application` -> `Apple Distribution` -> `Apple Development`），找不到时显式回退到 `APPLE_SIGNING_IDENTITY="-"`。需要固定证书时优先通过环境变量覆盖，而不是改业务代码。
 
 ### 2.4 测试与质量（目标，不一定立即落地）
@@ -562,3 +563,4 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-15：Settings 小图标切换为 `@lucide/svelte` 深路径导入，并保留 `AppIcon` 语义封装；继续把表单标签、热键录制器、颜色字段、图层操作、鼠标动作项与 toast 状态统一接入 Lucide，同时通过减法收敛录入框/颜色框/动作项图标与按钮字重、层操作按钮密度等细节，尽量在不增加认知负担的前提下提升扫读效率。
 - 2026-03-15：新增 `app.settingsWindow.theme`（`system/light/dark`）作为设置页专属主题配置；Settings UI 改为基于 CSS 变量的语义 token，主题切换仅作用于 Settings WebView，不影响 Overlay。
 - 2026-03-15：收敛构建链路与告警清理：`scripts/tauri-build.mjs` 的 Tauri CLI 调用改为直接通过当前 Node 进程执行 `@tauri-apps/cli/tauri.js`，避免 Windows 上 `spawnSync npx.cmd` 的兼容性问题并保留 macOS 证书探测与 ad-hoc 回退逻辑；Rust 侧同时将默认配置的平台覆写抽成 helper，并把 macOS 辅助功能权限兜底改为按平台编译，避免非 macOS 上遗留未使用字段、常量与空实现。
+- 2026-03-15：修复 macOS 高位函数键录制：Settings 热键录制新增对 AppKit `NSF*FunctionKey` 私有字符的归一化，`F20` 可被正确录制并通过校验；同时将 macOS 全局热键上限明确收敛为 `F20`，`F21`~`F24` 在配置校验阶段直接返回稳定错误码。

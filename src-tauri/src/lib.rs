@@ -27,7 +27,7 @@ use tauri::{
     AppHandle, Emitter, EventTarget, Manager, PhysicalPosition, PhysicalSize, Position, Size,
     State, WebviewUrl, WebviewWindowBuilder,
 };
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Shortcut, ShortcutState};
 
 #[cfg(target_os = "macos")]
 use tauri::ActivationPolicy;
@@ -159,6 +159,7 @@ const ERR_CONFIG_SERIALIZE_FAILED: &str = "ERR_CONFIG_SERIALIZE_FAILED";
 const ERR_CONFIG_PERSIST_FAILED: &str = "ERR_CONFIG_PERSIST_FAILED";
 const ERR_BACKEND_STATE_UNAVAILABLE: &str = "ERR_BACKEND_STATE_UNAVAILABLE";
 const ERR_HOTKEY_REGISTER_FAILED: &str = "ERR_HOTKEY_REGISTER_FAILED";
+const ERR_HOTKEY_MACOS_FUNCTION_KEY_UNSUPPORTED: &str = "ERR_HOTKEY_MACOS_FUNCTION_KEY_UNSUPPORTED";
 const ERR_HOTKEY_INVALID_TRIGGER: &str = "ERR_HOTKEY_INVALID_TRIGGER";
 const ERR_HOTKEY_INVALID_CANCEL: &str = "ERR_HOTKEY_INVALID_CANCEL";
 const ERR_HOTKEY_INVALID_UNDO: &str = "ERR_HOTKEY_INVALID_UNDO";
@@ -535,9 +536,13 @@ fn validate_hotkey(value: &str, code: &str) -> Result<(), String> {
     if value.trim().is_empty() {
         return Ok(());
     }
-    parse_shortcut(value)
-        .map(|_| ())
-        .ok_or_else(|| error_code(code))
+    let shortcut = parse_shortcut(value).ok_or_else(|| error_code(code))?;
+    if cfg!(target_os = "macos")
+        && matches!(shortcut.key, Code::F21 | Code::F22 | Code::F23 | Code::F24)
+    {
+        return Err(error_code(ERR_HOTKEY_MACOS_FUNCTION_KEY_UNSUPPORTED));
+    }
+    Ok(())
 }
 
 fn is_supported_overlay_click_action(action: &ClickAction) -> bool {
@@ -2245,6 +2250,22 @@ fn parse_shortcut(value: &str) -> Option<Shortcut> {
     normalize_shortcut(value).parse::<Shortcut>().ok()
 }
 
+fn normalize_macos_function_key_token(token: &str) -> Option<String> {
+    let trimmed = token.trim();
+    let mut chars = trimmed.chars();
+    let first = chars.next()?;
+    if chars.next().is_some() {
+        return None;
+    }
+
+    let code_point = first as u32;
+    if (0xF704..=0xF71B).contains(&code_point) {
+        return Some(format!("F{}", code_point - 0xF704 + 1));
+    }
+
+    None
+}
+
 fn normalize_shortcut(value: &str) -> String {
     value
         .split('+')
@@ -2256,6 +2277,8 @@ fn normalize_shortcut(value: &str) -> String {
                 } else {
                     "Super".to_string()
                 }
+            } else if let Some(function_key) = normalize_macos_function_key_token(trimmed) {
+                function_key
             } else {
                 trimmed.to_string()
             }
@@ -2271,4 +2294,23 @@ fn parse_shortcut_or_panic(label: &str, value: &str) -> Shortcut {
         .unwrap_or_else(|_| {
             panic!("invalid hotkey for {label}: {value}");
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::normalize_shortcut;
+
+    #[test]
+    fn normalize_shortcut_maps_macos_private_function_keys() {
+        let shortcut = format!("Cmd+{}", char::from_u32(0xF717).unwrap());
+
+        assert_eq!(normalize_shortcut(&shortcut), "Cmd+F20");
+    }
+
+    #[test]
+    fn normalize_shortcut_maps_high_macos_private_function_keys() {
+        let shortcut = String::from(char::from_u32(0xF71B).unwrap());
+
+        assert_eq!(normalize_shortcut(&shortcut), "F24");
+    }
 }
