@@ -1,6 +1,6 @@
 ﻿<script lang="ts">
   import type { AppIconName } from "$lib/features/settings/icons";
-  import AppIcon from "$lib/features/settings/ui/AppIcon.svelte";
+  import { t } from "$lib/i18n";
   import {
     colorNativeInputClass,
     controlButtonSmClass,
@@ -108,8 +108,7 @@
             class={`${controlButtonSmClass} gap-1.5`}
             onclick={closePicker}
           >
-            <AppIcon name="success" size={14} />
-            OK
+            {$t("app.confirm")}
           </button>
         </div>
       </div>

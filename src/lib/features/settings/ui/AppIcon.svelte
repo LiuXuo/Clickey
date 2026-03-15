@@ -11,6 +11,7 @@
   import ChevronsUpDown from "@lucide/svelte/icons/chevrons-up-down";
   import CircleAlert from "@lucide/svelte/icons/circle-alert";
   import CircleCheckBig from "@lucide/svelte/icons/circle-check-big";
+  import CircleHelp from "@lucide/svelte/icons/circle-help";
   import CirclePlus from "@lucide/svelte/icons/circle-plus";
   import Clock3 from "@lucide/svelte/icons/clock-3";
   import Columns3 from "@lucide/svelte/icons/columns-3";
@@ -35,9 +36,9 @@
   import Paintbrush from "@lucide/svelte/icons/paintbrush";
   import Palette from "@lucide/svelte/icons/palette";
   import Pilcrow from "@lucide/svelte/icons/pilcrow";
+  import Pipette from "@lucide/svelte/icons/pipette";
   import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
   import Rows3 from "@lucide/svelte/icons/rows-3";
-  import ScanSearch from "@lucide/svelte/icons/scan-search";
   import ScanLine from "@lucide/svelte/icons/scan-line";
   import Settings2 from "@lucide/svelte/icons/settings-2";
   import SlidersHorizontal from "@lucide/svelte/icons/sliders-horizontal";
@@ -64,7 +65,7 @@
     mouse: MousePointerClick,
     layers: Layers3,
     hotkeys: Keyboard,
-    overlay: ScanSearch,
+    overlay: Focus,
     language: Languages,
     theme: Palette,
     config: SlidersHorizontal,
@@ -102,8 +103,8 @@
     lineWidth: Paintbrush,
     fontFamily: Pilcrow,
     colorMask: Palette,
-    colorLine: Paintbrush,
-    colorText: Pilcrow,
+    colorLine: Pipette,
+    colorText: CaseSensitive,
     actionCycle: ListOrdered,
     smoothMove: MousePointer2,
     duration: Clock3,
@@ -119,6 +120,7 @@
     success: CircleCheckBig,
     error: CircleAlert,
     info: Info,
+    help: CircleHelp,
     leftAction: MousePointerClick,
     rightAction: MousePointer2,
     middleAction: Crosshair,

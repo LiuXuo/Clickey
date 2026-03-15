@@ -109,6 +109,15 @@
   </div>
 
   <div class={`mt-6 gap-6 ${controlInputSpaceWrapClass}`}>
+    <ColorField
+      id="overlay-mask-color"
+      icon="colorMask"
+      label={$t("overlay.maskColor")}
+      value={config.overlay.maskColor}
+      disabled={isLoading}
+      onChange={(next) => updateColor("maskColor", next)}
+    />
+
     <div>
       <FieldLabel
         text={$t("overlay.alpha")}
@@ -135,6 +144,16 @@
         disabled={isLoading}
       />
     </div>
+
+    <ColorField
+      id="overlay-line-color"
+      icon="colorLine"
+      label={$t("overlay.lineColor")}
+      value={config.overlay.lineColor}
+      disabled={isLoading}
+      onChange={(next) => updateColor("lineColor", next)}
+    />
+
     <div>
       <FieldLabel
         text={$t("overlay.lineWidth")}
@@ -158,12 +177,30 @@
         disabled={isLoading}
       />
     </div>
+
+    <ColorField
+      id="overlay-text-color"
+      icon="colorText"
+      label={$t("overlay.textColor")}
+      value={config.overlay.textColor}
+      disabled={isLoading}
+      onChange={(next) => updateColor("textColor", next)}
+    />
+
     <div>
-      <FieldLabel
-        text={$t("overlay.fontSizeFallback")}
-        icon="font"
-        forId="overlay-font"
-      />
+      <div class="flex items-center gap-1.5">
+        <FieldLabel
+          text={$t("overlay.fontSize")}
+          icon="font"
+          forId="overlay-font"
+        />
+        <span
+          class="settings-text-muted inline-flex h-4 w-4 items-center justify-center rounded-full transition hover:opacity-100"
+          title={$t("overlay.fontSizeFallback")}
+        >
+          <AppIcon name="help" size={14} strokeWidth={2.1} />
+        </span>
+      </div>
       <input
         id="overlay-font"
         type="number"
@@ -174,32 +211,6 @@
         disabled={isLoading}
       />
     </div>
-    <ColorField
-      id="overlay-mask-color"
-      icon="colorMask"
-      label={$t("overlay.maskColor")}
-      value={config.overlay.maskColor}
-      disabled={isLoading}
-      onChange={(next) => updateColor("maskColor", next)}
-    />
-
-    <ColorField
-      id="overlay-line-color"
-      icon="colorLine"
-      label={$t("overlay.lineColor")}
-      value={config.overlay.lineColor}
-      disabled={isLoading}
-      onChange={(next) => updateColor("lineColor", next)}
-    />
-
-    <ColorField
-      id="overlay-text-color"
-      icon="colorText"
-      label={$t("overlay.textColor")}
-      value={config.overlay.textColor}
-      disabled={isLoading}
-      onChange={(next) => updateColor("textColor", next)}
-    />
 
     <div>
       <FieldLabel

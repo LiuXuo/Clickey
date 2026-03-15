@@ -303,7 +303,7 @@
         disabled={isLoading}
       >
         <AppIcon name="addSingle" size={16} />
-        {$t("layers.type.single")}
+        {$t("layers.addSingle")}
       </button>
       <button
         type="button"
@@ -312,7 +312,7 @@
         disabled={isLoading}
       >
         <AppIcon name="addCombo" size={16} />
-        {$t("layers.type.combo")}
+        {$t("layers.addCombo")}
       </button>
     </div>
   </div>

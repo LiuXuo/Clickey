@@ -14,7 +14,7 @@
     "windows": [
       {
         "label": "settings",
-        "title": "Clickey Settings",
+        "title": "Clickey",
         "width": 960,
         "height": 720,
         "visible": false

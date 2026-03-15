@@ -626,7 +626,7 @@
       seenDisabledActions[action] = true;
     }
     if (
-      seenDisabledActions.size >= actionCycle.length &&
+      Object.keys(seenDisabledActions).length >= actionCycle.length &&
       actionCycle.length > 0
     ) {
       issues.push($t("errors.mouseActionCycleEmpty"));

@@ -58,6 +58,7 @@ export type AppIconName =
   | "success"
   | "error"
   | "info"
+  | "help"
   | "leftAction"
   | "rightAction"
   | "middleAction"
