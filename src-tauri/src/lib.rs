@@ -69,6 +69,7 @@ struct NativeKeyPayload {
     key: String,
 }
 
+#[cfg(target_os = "macos")]
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
 struct BackendErrorPayload {
@@ -114,6 +115,7 @@ struct AppState {
     overlay_click_action: Mutex<Option<ClickAction>>,
     monitor_index: Mutex<usize>,
     nudge_repeat: Mutex<Option<NudgeRepeat>>,
+    #[cfg(target_os = "macos")]
     last_accessibility_hint_at: Mutex<Option<SystemTime>>,
     paused: Mutex<bool>,
     tray_menu_items: Mutex<Option<TrayMenuItems>>,
@@ -144,6 +146,7 @@ struct TrayTexts {
 const OVERRIDE_FILE_NAME: &str = "settings.override.json";
 const NUDGE_REPEAT_DELAY_MS: u64 = 250;
 const NUDGE_REPEAT_INTERVAL_MS: u64 = 40;
+#[cfg(target_os = "macos")]
 const ACCESSIBILITY_HINT_THROTTLE_SECS: u64 = 2;
 const DOUBLE_CLICK_GAP_MS: u64 = 72;
 const TRAY_ICON_ID: &str = "main";
@@ -207,6 +210,7 @@ const ERR_OVERRIDE_JSON_PARSE_FAILED: &str = "ERR_OVERRIDE_JSON_PARSE_FAILED";
 const ERR_OVERRIDE_JSON_NOT_OBJECT: &str = "ERR_OVERRIDE_JSON_NOT_OBJECT";
 const ERR_OVERRIDE_SCHEMA_INVALID: &str = "ERR_OVERRIDE_SCHEMA_INVALID";
 const ERR_CLICK_ACTION_UNSUPPORTED: &str = "ERR_CLICK_ACTION_UNSUPPORTED";
+#[cfg(target_os = "macos")]
 const ERR_MAC_ACCESSIBILITY_REQUIRED: &str = "ERR_MAC_ACCESSIBILITY_REQUIRED";
 
 fn error_code(code: &str) -> String {
@@ -1090,6 +1094,7 @@ pub fn run() {
             overlay_click_action: Mutex::new(None),
             monitor_index: Mutex::new(0),
             nudge_repeat: Mutex::new(None),
+            #[cfg(target_os = "macos")]
             last_accessibility_hint_at: Mutex::new(None),
             paused: Mutex::new(false),
             tray_menu_items: Mutex::new(None),
@@ -1261,15 +1266,6 @@ fn show_settings(app: &AppHandle) {
 }
 
 #[cfg(target_os = "macos")]
-fn has_macos_accessibility_permission() -> bool {
-    unsafe { AXIsProcessTrusted() != 0 }
-}
-
-#[cfg(not(target_os = "macos"))]
-fn has_macos_accessibility_permission() -> bool {
-    true
-}
-
 fn should_emit_accessibility_hint(state: &AppState) -> bool {
     let now = SystemTime::now();
     let mut guard = match state.last_accessibility_hint_at.lock() {
@@ -1288,6 +1284,7 @@ fn should_emit_accessibility_hint(state: &AppState) -> bool {
     true
 }
 
+#[cfg(target_os = "macos")]
 fn emit_settings_error(app: &AppHandle, code: &str) {
     let app_handle = app.clone();
     let payload = BackendErrorPayload {
@@ -1311,32 +1308,32 @@ fn open_macos_accessibility_settings() {
         .spawn();
 }
 
-#[cfg(not(target_os = "macos"))]
-fn open_macos_accessibility_settings() {}
-
+#[cfg(target_os = "macos")]
 fn ensure_mouse_control_ready(app: &AppHandle, state: &AppState) -> Result<(), String> {
-    if has_macos_accessibility_permission() {
+    if unsafe { AXIsProcessTrusted() != 0 } {
         return Ok(());
     }
 
-    #[cfg(target_os = "macos")]
-    {
-        let executable = std::env::current_exe()
-            .map(|path| path.display().to_string())
-            .unwrap_or_else(|_| "<unknown>".to_string());
-        println!(
-            "[macos] accessibility permission missing; executable={}",
-            executable
-        );
+    let executable = std::env::current_exe()
+        .map(|path| path.display().to_string())
+        .unwrap_or_else(|_| "<unknown>".to_string());
+    println!(
+        "[macos] accessibility permission missing; executable={}",
+        executable
+    );
 
-        if should_emit_accessibility_hint(state) {
-            show_settings(app);
-            open_macos_accessibility_settings();
-            emit_settings_error(app, ERR_MAC_ACCESSIBILITY_REQUIRED);
-        }
+    if should_emit_accessibility_hint(state) {
+        show_settings(app);
+        open_macos_accessibility_settings();
+        emit_settings_error(app, ERR_MAC_ACCESSIBILITY_REQUIRED);
     }
 
     Err(error_code(ERR_MAC_ACCESSIBILITY_REQUIRED))
+}
+
+#[cfg(not(target_os = "macos"))]
+fn ensure_mouse_control_ready(_app: &AppHandle, _state: &AppState) -> Result<(), String> {
+    Ok(())
 }
 
 fn create_overlay_window(app: &AppHandle) -> tauri::Result<()> {

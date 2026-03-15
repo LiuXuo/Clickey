@@ -561,3 +561,4 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-15：鼠标动作系统收敛为 `mouse.actionCycle + mouse.disabledActions`：默认启用左/右/中/仅移动，默认禁用左键双击与 `Ctrl/Cmd/Shift + 左键`；Settings 动作编辑器改为统一排序+启用/禁用，并将排序实现从原生 HTML5 drag 切换为 `svelte-dnd-action`。
 - 2026-03-15：Settings 小图标切换为 `@lucide/svelte` 深路径导入，并保留 `AppIcon` 语义封装；继续把表单标签、热键录制器、颜色字段、图层操作、鼠标动作项与 toast 状态统一接入 Lucide，同时通过减法收敛录入框/颜色框/动作项图标与按钮字重、层操作按钮密度等细节，尽量在不增加认知负担的前提下提升扫读效率。
 - 2026-03-15：新增 `app.settingsWindow.theme`（`system/light/dark`）作为设置页专属主题配置；Settings UI 改为基于 CSS 变量的语义 token，主题切换仅作用于 Settings WebView，不影响 Overlay。
+- 2026-03-15：收敛构建链路与告警清理：`scripts/tauri-build.mjs` 的 Tauri CLI 调用改为直接通过当前 Node 进程执行 `@tauri-apps/cli/tauri.js`，避免 Windows 上 `spawnSync npx.cmd` 的兼容性问题并保留 macOS 证书探测与 ad-hoc 回退逻辑；Rust 侧同时将默认配置的平台覆写抽成 helper，并把 macOS 辅助功能权限兜底改为按平台编译，避免非 macOS 上遗留未使用字段、常量与空实现。

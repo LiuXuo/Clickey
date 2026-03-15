@@ -347,18 +347,23 @@ fn default_locale() -> String {
     "zh-CN".to_string()
 }
 
+#[cfg(target_os = "macos")]
+fn apply_platform_defaults(mut config: AppConfig) -> AppConfig {
+    config.hotkeys.activation.trigger = "Cmd+;".to_string();
+    config
+}
+
+#[cfg(not(target_os = "macos"))]
+fn apply_platform_defaults(config: AppConfig) -> AppConfig {
+    config
+}
+
 pub fn default_config() -> AppConfig {
     // 统一从默认 JSON 反序列化，保证结构一致
     let json = DEFAULT_CONFIG_JSON
         .strip_prefix('\u{FEFF}')
         .unwrap_or(DEFAULT_CONFIG_JSON);
-    let mut config: AppConfig =
+    let config: AppConfig =
         serde_json::from_str(json).expect("default-config.json should be valid AppConfig");
-
-    #[cfg(target_os = "macos")]
-    {
-        config.hotkeys.activation.trigger = "Cmd+;".to_string();
-    }
-
-    config
+    apply_platform_defaults(config)
 }

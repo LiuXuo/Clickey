@@ -1,4 +1,7 @@
 import { execFileSync, spawnSync } from "node:child_process";
+import { createRequire } from "node:module";
+
+const require = createRequire(import.meta.url);
 
 const args = process.argv.slice(2);
 
@@ -60,8 +63,8 @@ if (process.platform === "darwin") {
   env.APPLE_SIGNING_IDENTITY = findSigningIdentity();
 }
 
-const command = process.platform === "win32" ? "npx.cmd" : "npx";
-const result = spawnSync(command, ["tauri", "build", ...args], {
+const tauriCliEntry = require.resolve("@tauri-apps/cli/tauri.js");
+const result = spawnSync(process.execPath, [tauriCliEntry, "build", ...args], {
   stdio: "inherit",
   env,
 });
