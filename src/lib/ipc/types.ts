@@ -1,6 +1,6 @@
-﻿import type { AppConfig, Region } from "$lib/core";
+﻿import type { AppConfig, MouseAction, Region } from "$lib/core";
 
-export type ClickAction = "left" | "right" | "middle" | "moveOnly" | "drag";
+export type ClickAction = MouseAction | "drag";
 
 export interface OverlayActivatePayload {
   region: Region;

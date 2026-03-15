@@ -88,7 +88,7 @@ const en: Record<TranslationKey, string> = {
   "hotkeys.nextMonitor": "Switch Monitor",
   "hotkeys.cancel": "Cancel",
   "hotkeys.undo": "Undo",
-  "hotkeys.directClick": "Direct Click",
+  "hotkeys.directClick": "Execute Current Action",
   "hotkeys.nudgeLeft": "Nudge Left",
   "hotkeys.nudgeRight": "Nudge Right",
   "hotkeys.nudgeUp": "Nudge Up",
@@ -105,6 +105,11 @@ const en: Record<TranslationKey, string> = {
   "mouse.section": "Mouse",
   "mouse.title": "Mouse Behavior",
   "mouse.subtitle": "Path, randomness, landing",
+  "mouse.actionCycle": "Action Cycle",
+  "mouse.actionCycleHint":
+    "Press and drag to reorder. Click the switch to enable or disable.",
+  "mouse.actionDisabled": "Disabled",
+  "mouse.dragHandle": "Drag",
   "mouse.smoothMove": "Smooth pointer movement",
   "mouse.moveDurationMs": "Base move duration (ms)",
   "mouse.moveStepMs": "Base step interval (ms)",
@@ -137,11 +142,14 @@ const en: Record<TranslationKey, string> = {
   "overlay.lineColor": "Line Color",
   "overlay.textColor": "Text Color",
   "overlay.fontFamily": "Font Family",
-  "overlay.actionHint": "Action: {action} ({key} to cycle)",
   "overlay.action.left": "Left Click",
   "overlay.action.right": "Right Click",
   "overlay.action.middle": "Middle Click",
   "overlay.action.moveOnly": "Move Only",
+  "overlay.action.doubleLeft": "Double Left Click",
+  "overlay.action.ctrlLeft": "Ctrl + Left Click",
+  "overlay.action.cmdLeft": "Cmd + Left Click",
+  "overlay.action.shiftLeft": "Shift + Left Click",
   "overlay.action.drag": "Drag",
   "footer.note":
     "Settings are edited against defaults; only values different from defaults are persisted.",
@@ -179,6 +187,11 @@ const en: Record<TranslationKey, string> = {
   "errors.hotkeyConflict":
     "Hotkey conflict: {first} and {second} cannot be the same.",
   "errors.nudgeStep": "Nudge step must be > 0.",
+  "errors.mouseActionCycleEmpty": "Enable at least one mouse action.",
+  "errors.mouseActionCycleDuplicate":
+    "Mouse action cycle contains duplicate actions.",
+  "errors.mouseActionUnsupported":
+    "Mouse action cycle contains an unsupported action.",
   "errors.mouseMoveDuration": "Mouse moveDurationMs must be > 0.",
   "errors.mouseMoveStep": "Mouse moveStepMs must be > 0.",
   "errors.mousePressDuration": "Mouse pressDurationMs must be >= 0.",

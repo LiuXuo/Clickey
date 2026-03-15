@@ -14,7 +14,7 @@
 
 ## 0. 项目一句话
 
-Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全屏透明遮罩 → 按键逐层缩小区域 → 自动移动鼠标到区域中心并点击。
+Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全屏透明遮罩 → 按键逐层缩小区域 → 自动移动鼠标到区域中心并执行动作。
 
 ---
 
@@ -31,11 +31,11 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 
 ### 1.1 通用交互（以当前默认配置为准）
 
-- 激活：`hotkeys.activation.trigger`（macOS 默认 `Cmd+;`，其他平台默认 `Ctrl+;`，进入 Overlay 时默认左键动作）
-- 切换动作：`hotkeys.controls.switchAction`（默认 `Enter`，循环：左键 -> 右键 -> 中键）
+- 激活：`hotkeys.activation.trigger`（macOS 默认 `Cmd+;`，其他平台默认 `Ctrl+;`，进入 Overlay 时按“`mouse.actionCycle` 顺序里第一个未被 `mouse.disabledActions` 禁用的动作”作为初始动作；默认是左键）
+- 切换动作：`hotkeys.controls.switchAction`（默认 `Enter`，按 `mouse.actionCycle` 顺序在“未禁用动作”之间循环；默认顺序：左键 -> 右键 -> 中键 -> 仅移动；左键双击 / Ctrl+左键 / Cmd+左键 / Shift+左键默认禁用）
 - 取消：`Esc`（直接退出，不点击）
 - 回退：`Backspace`（撤销最近一次按键，恢复上一次 Region）
-- 直达：`Space`（直接点击当前 Region 中心点，跳过后续层级）
+- 直达：`Space`（直接执行当前 Region 中心点动作，跳过后续层级）
 - 切换显示器：`hotkeys.controls.nextMonitor`（默认 `Tab`，多屏时）
 - 区域微调：`hotkeys.controls.nudgeUp/Down/Left/Right`（默认 Arrow 四键，步长来自 `nudge.stepPx`，所有层/阶段均可触发）
 
@@ -62,6 +62,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - **TypeScript**
 - **Tailwind CSS + shadcn-svelte**
 - 遮罩渲染：Canvas 或 SVG（优先 Canvas，便于大量网格绘制）
+- Settings 内局部排序交互（当前：鼠标动作循环）使用 **`svelte-dnd-action`**，优先使用库能力而不是继续扩展原生 HTML5 drag。
 
 ### 2.2.1 设置页（Settings WebView）
 
@@ -80,7 +81,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
   combo 约束：阶段 1（列）固定 `1xN`，阶段 2（行）固定 `Nx1`
 - 热键编辑：activation + controls
 - 热键录制：`trigger` / `switchAction` / `nudgeUp/Down/Left/Right` 支持点击录制（Esc 取消、Backspace 清空）
-- 鼠标行为配置：平滑移动、按压时长、落点随机、速度随机、曲率/抖动、远距离提速与步进策略
+- 鼠标行为配置：左/右/中/仅移动动作循环的启用与排序，以及平滑移动、按压时长、落点随机、速度随机、曲率/抖动、远距离提速与步进策略
 - Overlay 样式：alpha/line width/per-layer font size + color picker
 - 导入/导出：override JSON（仅包含与默认配置不同字段）
 - 自动生效/Reset：配置改动在校验通过后自动应用并持久化；Reset 恢复默认配置（写入 AppConfig/settings.override.json）
@@ -326,6 +327,17 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
     "stepPx": 5
   },
   "mouse": {
+    "actionCycle": [
+      "left",
+      "right",
+      "middle",
+      "moveOnly",
+      "doubleLeft",
+      "ctrlLeft",
+      "cmdLeft",
+      "shiftLeft"
+    ],
+    "disabledActions": ["doubleLeft", "ctrlLeft", "cmdLeft", "shiftLeft"],
     "smoothMove": true,
     "moveDurationMs": 120,
     "moveStepMs": 8,
@@ -443,6 +455,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - **combo 层固定为轴向两段式**：`stage0=1xN`（阶段 1，列），`stage1=Nx1`（阶段 2，行）；不支持 `2x15/15x2` 这类双轴 stage。
 - **键位输入仅按空白分隔**：`,` 是合法键位本体，不作为分隔符。
 - **鼠标策略（`mouse.*`）也是运行时配置的一部分**：不得在 Rust 中硬编码轨迹参数；行为必须由配置驱动并可通过 Settings 调整。
+- **动作顺序（`mouse.actionCycle`）与禁用集合（`mouse.disabledActions`）也是运行时配置的一部分**：`actionCycle` 决定整体顺序，Overlay 只在其中选择“未被禁用的动作”参与切换；允许 `left/right/middle/moveOnly/doubleLeft/ctrlLeft/cmdLeft/shiftLeft`，且至少保留一个未禁用动作。
 - **持久化采用 override JSON**：仅写入与默认配置不同字段（`AppConfig/settings.override.json`），支持导入/导出同结构 JSON。
 
 ---
@@ -493,6 +506,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - macOS 打包签名入口完成（自动探测本机证书并支持 `APPLE_SIGNING_IDENTITY` 覆盖；无证书时显式 ad-hoc）
 - macOS Dock/托盘生命周期完成（设置页打开时显示 Dock；`Cmd+W` 改为隐藏到托盘；`Cmd+Q` / 托盘退出时真正结束）
 - macOS agent 模式启动完成（bundle `Info.plist` 合并 `LSUIElement=1`，settings 窗口默认不在启动时显示）
+- 鼠标动作顺序/禁用配置完成（`moveOnly` 默认启用；新增 `doubleLeft` / `ctrlLeft` / `cmdLeft` / `shiftLeft` 且默认禁用；Settings 支持统一排序与单独禁用）
 
 ---
 
@@ -540,3 +554,4 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-13：Core 微调范围放开至所有层/阶段（包含 combo stage0/stage1）；移除 `baseRegion` 触边夹紧，改为按配置步长自由平移当前 Region。
 - 2026-03-14：macOS 新增安装态权限与打包兜底：缺少辅助功能权限时阻止进入 Overlay，自动打开 Settings 与系统“隐私与安全性 > 辅助功能”，并通过稳定 error code 走前端 toast 提示；同时新增 `scripts/tauri-build.mjs` 作为打包入口，自动探测 `Developer ID Application / Apple Distribution / Apple Development` 证书，未命中时显式回退到 `APPLE_SIGNING_IDENTITY="-"`。
 - 2026-03-14：macOS 设置页窗口接入 Dock/托盘生命周期控制：settings 窗口默认 `visible=false`，bundle 合并 `src-tauri/Info.plist`（`LSUIElement=1`）以 agent app 模式启动；打开设置页时显示 Dock，关闭设置页（`Cmd+W` / 关闭按钮）改为隐藏窗口并退回托盘常驻，`Cmd+Q` / 托盘退出时真正结束应用。
+- 2026-03-15：鼠标动作系统收敛为 `mouse.actionCycle + mouse.disabledActions`：默认启用左/右/中/仅移动，默认禁用左键双击与 `Ctrl/Cmd/Shift + 左键`；Settings 动作编辑器改为统一排序+启用/禁用，并将排序实现从原生 HTML5 drag 切换为 `svelte-dnd-action`。

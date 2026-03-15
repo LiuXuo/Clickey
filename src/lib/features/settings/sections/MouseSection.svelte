@@ -1,6 +1,8 @@
 ﻿<script lang="ts">
+  import { flip } from "svelte/animate";
+  import { dndzone, type DndEvent } from "svelte-dnd-action";
   import { t } from "$lib/i18n";
-  import type { AppConfig } from "$lib/core";
+  import type { AppConfig, MouseAction } from "$lib/core";
   import SettingsCard from "$lib/features/settings/ui/SettingsCard.svelte";
   import SectionHeader from "$lib/features/settings/ui/SectionHeader.svelte";
   import {
@@ -14,6 +16,29 @@
     fieldClass: string;
     onConfigMutated: () => void;
   }>();
+
+  const availableActions: MouseAction[] = [
+    "left",
+    "right",
+    "middle",
+    "moveOnly",
+    "doubleLeft",
+    "ctrlLeft",
+    "cmdLeft",
+    "shiftLeft",
+  ];
+  const flipDurationMs = 160;
+
+  type ActionItem = {
+    id: MouseAction;
+    enabled: boolean;
+  };
+
+  let orderedActionItems = $state<ActionItem[]>([]);
+  let enabledActionCount = $derived(
+    orderedActionItems.filter((item) => item.enabled).length,
+  );
+  let dragDisabled = $derived(isLoading || orderedActionItems.length <= 1);
 
   function toPositiveInt(value: string, fallback: number): number {
     const parsed = Number.parseInt(value, 10);
@@ -37,10 +62,155 @@
     }
     return Math.min(Math.max(parsed, min), max);
   }
+
+  function actionLabel(action: MouseAction): string {
+    switch (action) {
+      case "left":
+        return $t("overlay.action.left");
+      case "right":
+        return $t("overlay.action.right");
+      case "middle":
+        return $t("overlay.action.middle");
+      case "moveOnly":
+        return $t("overlay.action.moveOnly");
+      case "doubleLeft":
+        return $t("overlay.action.doubleLeft");
+      case "ctrlLeft":
+        return $t("overlay.action.ctrlLeft");
+      case "cmdLeft":
+        return $t("overlay.action.cmdLeft");
+      case "shiftLeft":
+        return $t("overlay.action.shiftLeft");
+    }
+  }
+
+  function normalizedOrder(): MouseAction[] {
+    const next: MouseAction[] = [];
+    for (const action of config.mouse.actionCycle) {
+      if (!availableActions.includes(action) || next.includes(action)) {
+        continue;
+      }
+      next.push(action);
+    }
+    for (const action of availableActions) {
+      if (!next.includes(action)) {
+        next.push(action);
+      }
+    }
+    return next;
+  }
+
+  function toActionItems(
+    order: MouseAction[],
+    disabledActions: MouseAction[],
+  ): ActionItem[] {
+    const disabled = new Set(disabledActions);
+    return order.map((action) => ({
+      id: action,
+      enabled: !disabled.has(action),
+    }));
+  }
+
+  function orderedActionsFromConfig(): ActionItem[] {
+    return toActionItems(normalizedOrder(), config.mouse.disabledActions ?? []);
+  }
+
+  function commitActionLayout(next: ActionItem[]) {
+    config.mouse.actionCycle = next.map((item) => item.id);
+    config.mouse.disabledActions = next
+      .filter((item) => !item.enabled)
+      .map((item) => item.id);
+    orderedActionItems = orderedActionsFromConfig();
+    onConfigMutated();
+  }
+
+  function toggleActionEnabled(action: MouseAction) {
+    const next = orderedActionItems.map((item) =>
+      item.id === action ? { ...item, enabled: !item.enabled } : item,
+    );
+    if (next.every((item) => !item.enabled)) {
+      return;
+    }
+    commitActionLayout(next);
+  }
+
+  function handleActionConsider(event: CustomEvent<DndEvent<ActionItem>>) {
+    orderedActionItems = event.detail.items;
+  }
+
+  function handleActionFinalize(event: CustomEvent<DndEvent<ActionItem>>) {
+    commitActionLayout(event.detail.items);
+  }
+
+  $effect(() => {
+    orderedActionItems = orderedActionsFromConfig();
+  });
 </script>
 
 <SettingsCard id="mouse">
   <SectionHeader title={$t("mouse.title")} icon="mouse" />
+
+  <div class="mt-6 rounded-xl border border-zinc-200 bg-zinc-50/80 p-4">
+    <div class="max-w-2xl">
+      <p class="text-sm font-semibold text-zinc-900">
+        {$t("mouse.actionCycle")}
+      </p>
+      <p class="mt-1 text-sm text-zinc-500">{$t("mouse.actionCycleHint")}</p>
+    </div>
+
+    <div
+      class="mt-4 flex flex-wrap gap-2"
+      role="list"
+      aria-label={$t("mouse.actionCycle")}
+      use:dndzone={{
+        items: orderedActionItems,
+        flipDurationMs,
+        dragDisabled,
+        delayTouchStart: true,
+      }}
+      onconsider={handleActionConsider}
+      onfinalize={handleActionFinalize}
+    >
+      {#each orderedActionItems as item (item.id)}
+        <div
+          role="listitem"
+          aria-label={actionLabel(item.id)}
+          animate:flip={{ duration: flipDurationMs }}
+          class={`flex flex-none items-center gap-2 rounded-lg border px-3 py-2 transition ${
+            dragDisabled
+              ? "cursor-default"
+              : "cursor-grab active:cursor-grabbing"
+          } ${item.enabled ? "border-zinc-200 bg-white" : "border-zinc-200 bg-zinc-50"}`}
+        >
+          <p
+            class={`whitespace-nowrap text-sm font-semibold ${
+              item.enabled ? "text-zinc-900" : "text-zinc-400"
+            }`}
+          >
+            {actionLabel(item.id)}
+          </p>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <label
+              class={`inline-flex items-center ${isLoading ? "opacity-60" : ""}`}
+              for={`mouse-action-${item.id}`}
+            >
+              <input
+                id={`mouse-action-${item.id}`}
+                type="checkbox"
+                class="peer sr-only"
+                checked={item.enabled}
+                onchange={() => toggleActionEnabled(item.id)}
+                disabled={isLoading ||
+                  (item.enabled && enabledActionCount === 1)}
+              />
+              <span class={switchTrackClass}></span>
+            </label>
+          </div>
+        </div>
+      {/each}
+    </div>
+  </div>
 
   <div class="mt-6">
     <label
@@ -59,447 +229,448 @@
           onchange={onConfigMutated}
           disabled={isLoading}
         />
-        <span
-          class={switchTrackClass}
-        ></span>
+        <span class={switchTrackClass}></span>
       </span>
     </label>
   </div>
 
   {#if config.mouse.smoothMove}
     <div class={`mt-6 gap-6 ${controlInputSpaceWrapClass}`}>
-    <div>
-      <label class="text-sm font-medium text-zinc-700" for="mouse-duration"
-        >{$t("mouse.moveDurationMs")}</label
-      >
-      <input
-        id="mouse-duration"
-        type="number"
-        min="1"
-        class={fieldClass}
-        value={config.mouse.moveDurationMs}
-        oninput={(event) => {
-          const target = event.currentTarget as HTMLInputElement;
-          config.mouse.moveDurationMs = toPositiveInt(
-            target.value,
-            config.mouse.moveDurationMs,
-          );
-          onConfigMutated();
-        }}
-        disabled={isLoading}
-      />
-    </div>
-    <div>
-      <label class="text-sm font-medium text-zinc-700" for="mouse-step-ms"
-        >{$t("mouse.moveStepMs")}</label
-      >
-      <input
-        id="mouse-step-ms"
-        type="number"
-        min="1"
-        class={fieldClass}
-        value={config.mouse.moveStepMs}
-        oninput={(event) => {
-          const target = event.currentTarget as HTMLInputElement;
-          config.mouse.moveStepMs = toPositiveInt(
-            target.value,
-            config.mouse.moveStepMs,
-          );
-          onConfigMutated();
-        }}
-        disabled={isLoading}
-      />
-    </div>
-    <div>
-      <label class="text-sm font-medium text-zinc-700" for="mouse-press-ms"
-        >{$t("mouse.pressDurationMs")}</label
-      >
-      <input
-        id="mouse-press-ms"
-        type="number"
-        min="0"
-        class={fieldClass}
-        value={config.mouse.pressDurationMs}
-        oninput={(event) => {
-          const target = event.currentTarget as HTMLInputElement;
-          config.mouse.pressDurationMs = toNonNegativeInt(
-            target.value,
-            config.mouse.pressDurationMs,
-          );
-          onConfigMutated();
-        }}
-        disabled={isLoading}
-      />
-    </div>
-    <div>
-      <label
-        class="text-sm font-medium text-zinc-700"
-        for="mouse-landing-radius">{$t("mouse.landingRadiusPx")}</label
-      >
-      <input
-        id="mouse-landing-radius"
-        type="number"
-        min="0"
-        class={fieldClass}
-        value={config.mouse.landingRadiusPx}
-        oninput={(event) => {
-          const target = event.currentTarget as HTMLInputElement;
-          config.mouse.landingRadiusPx = toNonNegativeInt(
-            target.value,
-            config.mouse.landingRadiusPx,
-          );
-          onConfigMutated();
-        }}
-        disabled={isLoading}
-      />
-    </div>
-    <div>
-      <label
-        class="text-sm font-medium text-zinc-700"
-        for="mouse-duration-randomness">{$t("mouse.durationRandomness")}</label
-      >
-      <input
-        id="mouse-duration-randomness"
-        type="number"
-        min="0"
-        max="0.95"
-        step="0.01"
-        class={fieldClass}
-        value={config.mouse.durationRandomness}
-        oninput={(event) => {
-          const target = event.currentTarget as HTMLInputElement;
-          config.mouse.durationRandomness = clampNumber(
-            target.value,
-            0,
-            0.95,
-            config.mouse.durationRandomness,
-          );
-          onConfigMutated();
-        }}
-        disabled={isLoading}
-      />
-    </div>
-    <div>
-      <label
-        class="text-sm font-medium text-zinc-700"
-        for="mouse-step-randomness">{$t("mouse.stepRandomness")}</label
-      >
-      <input
-        id="mouse-step-randomness"
-        type="number"
-        min="0"
-        max="0.95"
-        step="0.01"
-        class={fieldClass}
-        value={config.mouse.stepRandomness}
-        oninput={(event) => {
-          const target = event.currentTarget as HTMLInputElement;
-          config.mouse.stepRandomness = clampNumber(
-            target.value,
-            0,
-            0.95,
-            config.mouse.stepRandomness,
-          );
-          onConfigMutated();
-        }}
-        disabled={isLoading}
-      />
-    </div>
-    <div>
-      <label
-        class="text-sm font-medium text-zinc-700"
-        for="mouse-distance-boost-px">{$t("mouse.distanceBoostPx")}</label
-      >
-      <input
-        id="mouse-distance-boost-px"
-        type="number"
-        min="1"
-        step="1"
-        class={fieldClass}
-        value={config.mouse.distanceBoostPx}
-        oninput={(event) => {
-          const target = event.currentTarget as HTMLInputElement;
-          config.mouse.distanceBoostPx = clampNumber(
-            target.value,
-            1,
-            100000,
-            config.mouse.distanceBoostPx,
-          );
-          onConfigMutated();
-        }}
-        disabled={isLoading}
-      />
-    </div>
-    <div>
-      <label
-        class="text-sm font-medium text-zinc-700"
-        for="mouse-duration-distance-boost"
-        >{$t("mouse.durationDistanceBoost")}</label
-      >
-      <input
-        id="mouse-duration-distance-boost"
-        type="number"
-        min="0"
-        max="0.95"
-        step="0.01"
-        class={fieldClass}
-        value={config.mouse.durationDistanceBoost}
-        oninput={(event) => {
-          const target = event.currentTarget as HTMLInputElement;
-          config.mouse.durationDistanceBoost = clampNumber(
-            target.value,
-            0,
-            0.95,
-            config.mouse.durationDistanceBoost,
-          );
-          onConfigMutated();
-        }}
-        disabled={isLoading}
-      />
-    </div>
-    <div>
-      <label
-        class="text-sm font-medium text-zinc-700"
-        for="mouse-step-distance-boost">{$t("mouse.stepDistanceBoost")}</label
-      >
-      <input
-        id="mouse-step-distance-boost"
-        type="number"
-        min="0"
-        max="0.95"
-        step="0.01"
-        class={fieldClass}
-        value={config.mouse.stepDistanceBoost}
-        oninput={(event) => {
-          const target = event.currentTarget as HTMLInputElement;
-          config.mouse.stepDistanceBoost = clampNumber(
-            target.value,
-            0,
-            0.95,
-            config.mouse.stepDistanceBoost,
-          );
-          onConfigMutated();
-        }}
-        disabled={isLoading}
-      />
-    </div>
-    <div>
-      <label class="text-sm font-medium text-zinc-700" for="mouse-curve-along"
-        >{$t("mouse.curveAlongRatio")}</label
-      >
-      <input
-        id="mouse-curve-along"
-        type="number"
-        min="0"
-        max="1"
-        step="0.01"
-        class={fieldClass}
-        value={config.mouse.curveAlongRatio}
-        oninput={(event) => {
-          const target = event.currentTarget as HTMLInputElement;
-          config.mouse.curveAlongRatio = clampNumber(
-            target.value,
-            0,
-            1,
-            config.mouse.curveAlongRatio,
-          );
-          onConfigMutated();
-        }}
-        disabled={isLoading}
-      />
-    </div>
-    <div>
-      <label class="text-sm font-medium text-zinc-700" for="mouse-curve-spread"
-        >{$t("mouse.curveSpreadRatio")}</label
-      >
-      <input
-        id="mouse-curve-spread"
-        type="number"
-        min="0"
-        max="1"
-        step="0.01"
-        class={fieldClass}
-        value={config.mouse.curveSpreadRatio}
-        oninput={(event) => {
-          const target = event.currentTarget as HTMLInputElement;
-          config.mouse.curveSpreadRatio = clampNumber(
-            target.value,
-            0,
-            1,
-            config.mouse.curveSpreadRatio,
-          );
-          onConfigMutated();
-        }}
-        disabled={isLoading}
-      />
-    </div>
-    <div>
-      <label class="text-sm font-medium text-zinc-700" for="mouse-jitter"
-        >{$t("mouse.jitterRatio")}</label
-      >
-      <input
-        id="mouse-jitter"
-        type="number"
-        min="0"
-        max="0.2"
-        step="0.001"
-        class={fieldClass}
-        value={config.mouse.jitterRatio}
-        oninput={(event) => {
-          const target = event.currentTarget as HTMLInputElement;
-          config.mouse.jitterRatio = clampNumber(
-            target.value,
-            0,
-            0.2,
-            config.mouse.jitterRatio,
-          );
-          onConfigMutated();
-        }}
-        disabled={isLoading}
-      />
-    </div>
-    <div>
-      <label
-        class="text-sm font-medium text-zinc-700"
-        for="mouse-adaptive-stride-base"
-        >{$t("mouse.adaptiveStrideBasePx")}</label
-      >
-      <input
-        id="mouse-adaptive-stride-base"
-        type="number"
-        min="0.1"
-        step="0.1"
-        class={fieldClass}
-        value={config.mouse.adaptiveStrideBasePx}
-        oninput={(event) => {
-          const target = event.currentTarget as HTMLInputElement;
-          config.mouse.adaptiveStrideBasePx = clampNumber(
-            target.value,
-            0.1,
-            500,
-            config.mouse.adaptiveStrideBasePx,
-          );
-          onConfigMutated();
-        }}
-        disabled={isLoading}
-      />
-    </div>
-    <div>
-      <label
-        class="text-sm font-medium text-zinc-700"
-        for="mouse-adaptive-stride-ratio"
-        >{$t("mouse.adaptiveStrideDistanceRatio")}</label
-      >
-      <input
-        id="mouse-adaptive-stride-ratio"
-        type="number"
-        min="0"
-        max="1"
-        step="0.001"
-        class={fieldClass}
-        value={config.mouse.adaptiveStrideDistanceRatio}
-        oninput={(event) => {
-          const target = event.currentTarget as HTMLInputElement;
-          config.mouse.adaptiveStrideDistanceRatio = clampNumber(
-            target.value,
-            0,
-            1,
-            config.mouse.adaptiveStrideDistanceRatio,
-          );
-          onConfigMutated();
-        }}
-        disabled={isLoading}
-      />
-    </div>
-    <div>
-      <label
-        class="text-sm font-medium text-zinc-700"
-        for="mouse-adaptive-stride-max">{$t("mouse.adaptiveStrideMaxPx")}</label
-      >
-      <input
-        id="mouse-adaptive-stride-max"
-        type="number"
-        min={config.mouse.adaptiveStrideBasePx}
-        step="0.1"
-        class={fieldClass}
-        value={config.mouse.adaptiveStrideMaxPx}
-        oninput={(event) => {
-          const target = event.currentTarget as HTMLInputElement;
-          config.mouse.adaptiveStrideMaxPx = clampNumber(
-            target.value,
-            config.mouse.adaptiveStrideBasePx,
-            1000,
-            config.mouse.adaptiveStrideMaxPx,
-          );
-          onConfigMutated();
-        }}
-        disabled={isLoading}
-      />
-    </div>
-    <div>
-      <label class="text-sm font-medium text-zinc-700" for="mouse-extra-steps"
-        >{$t("mouse.extraStepsMax")}</label
-      >
-      <input
-        id="mouse-extra-steps"
-        type="number"
-        min="0"
-        class={fieldClass}
-        value={config.mouse.extraStepsMax}
-        oninput={(event) => {
-          const target = event.currentTarget as HTMLInputElement;
-          config.mouse.extraStepsMax = toNonNegativeInt(
-            target.value,
-            config.mouse.extraStepsMax,
-          );
-          onConfigMutated();
-        }}
-        disabled={isLoading}
-      />
-    </div>
-    <div>
-      <label class="text-sm font-medium text-zinc-700" for="mouse-max-steps"
-        >{$t("mouse.maxSteps")}</label
-      >
-      <input
-        id="mouse-max-steps"
-        type="number"
-        min="2"
-        class={fieldClass}
-        value={config.mouse.maxSteps}
-        oninput={(event) => {
-          const target = event.currentTarget as HTMLInputElement;
-          config.mouse.maxSteps = Math.max(
-            2,
-            toPositiveInt(target.value, config.mouse.maxSteps),
-          );
-          onConfigMutated();
-        }}
-        disabled={isLoading}
-      />
-    </div>
-    <div>
-      <label
-        class="text-sm font-medium text-zinc-700"
-        for="mouse-max-step-sleep">{$t("mouse.maxStepSleepMs")}</label
-      >
-      <input
-        id="mouse-max-step-sleep"
-        type="number"
-        min="1"
-        class={fieldClass}
-        value={config.mouse.maxStepSleepMs}
-        oninput={(event) => {
-          const target = event.currentTarget as HTMLInputElement;
-          config.mouse.maxStepSleepMs = toPositiveInt(
-            target.value,
-            config.mouse.maxStepSleepMs,
-          );
-          onConfigMutated();
-        }}
-        disabled={isLoading}
-      />
-    </div>
+      <div>
+        <label class="text-sm font-medium text-zinc-700" for="mouse-duration"
+          >{$t("mouse.moveDurationMs")}</label
+        >
+        <input
+          id="mouse-duration"
+          type="number"
+          min="1"
+          class={fieldClass}
+          value={config.mouse.moveDurationMs}
+          oninput={(event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            config.mouse.moveDurationMs = toPositiveInt(
+              target.value,
+              config.mouse.moveDurationMs,
+            );
+            onConfigMutated();
+          }}
+          disabled={isLoading}
+        />
+      </div>
+      <div>
+        <label class="text-sm font-medium text-zinc-700" for="mouse-step-ms"
+          >{$t("mouse.moveStepMs")}</label
+        >
+        <input
+          id="mouse-step-ms"
+          type="number"
+          min="1"
+          class={fieldClass}
+          value={config.mouse.moveStepMs}
+          oninput={(event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            config.mouse.moveStepMs = toPositiveInt(
+              target.value,
+              config.mouse.moveStepMs,
+            );
+            onConfigMutated();
+          }}
+          disabled={isLoading}
+        />
+      </div>
+      <div>
+        <label class="text-sm font-medium text-zinc-700" for="mouse-press-ms"
+          >{$t("mouse.pressDurationMs")}</label
+        >
+        <input
+          id="mouse-press-ms"
+          type="number"
+          min="0"
+          class={fieldClass}
+          value={config.mouse.pressDurationMs}
+          oninput={(event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            config.mouse.pressDurationMs = toNonNegativeInt(
+              target.value,
+              config.mouse.pressDurationMs,
+            );
+            onConfigMutated();
+          }}
+          disabled={isLoading}
+        />
+      </div>
+      <div>
+        <label
+          class="text-sm font-medium text-zinc-700"
+          for="mouse-landing-radius">{$t("mouse.landingRadiusPx")}</label
+        >
+        <input
+          id="mouse-landing-radius"
+          type="number"
+          min="0"
+          class={fieldClass}
+          value={config.mouse.landingRadiusPx}
+          oninput={(event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            config.mouse.landingRadiusPx = toNonNegativeInt(
+              target.value,
+              config.mouse.landingRadiusPx,
+            );
+            onConfigMutated();
+          }}
+          disabled={isLoading}
+        />
+      </div>
+      <div>
+        <label
+          class="text-sm font-medium text-zinc-700"
+          for="mouse-duration-randomness"
+          >{$t("mouse.durationRandomness")}</label
+        >
+        <input
+          id="mouse-duration-randomness"
+          type="number"
+          min="0"
+          max="0.95"
+          step="0.01"
+          class={fieldClass}
+          value={config.mouse.durationRandomness}
+          oninput={(event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            config.mouse.durationRandomness = clampNumber(
+              target.value,
+              0,
+              0.95,
+              config.mouse.durationRandomness,
+            );
+            onConfigMutated();
+          }}
+          disabled={isLoading}
+        />
+      </div>
+      <div>
+        <label
+          class="text-sm font-medium text-zinc-700"
+          for="mouse-step-randomness">{$t("mouse.stepRandomness")}</label
+        >
+        <input
+          id="mouse-step-randomness"
+          type="number"
+          min="0"
+          max="0.95"
+          step="0.01"
+          class={fieldClass}
+          value={config.mouse.stepRandomness}
+          oninput={(event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            config.mouse.stepRandomness = clampNumber(
+              target.value,
+              0,
+              0.95,
+              config.mouse.stepRandomness,
+            );
+            onConfigMutated();
+          }}
+          disabled={isLoading}
+        />
+      </div>
+      <div>
+        <label
+          class="text-sm font-medium text-zinc-700"
+          for="mouse-distance-boost-px">{$t("mouse.distanceBoostPx")}</label
+        >
+        <input
+          id="mouse-distance-boost-px"
+          type="number"
+          min="1"
+          step="1"
+          class={fieldClass}
+          value={config.mouse.distanceBoostPx}
+          oninput={(event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            config.mouse.distanceBoostPx = clampNumber(
+              target.value,
+              1,
+              100000,
+              config.mouse.distanceBoostPx,
+            );
+            onConfigMutated();
+          }}
+          disabled={isLoading}
+        />
+      </div>
+      <div>
+        <label
+          class="text-sm font-medium text-zinc-700"
+          for="mouse-duration-distance-boost"
+          >{$t("mouse.durationDistanceBoost")}</label
+        >
+        <input
+          id="mouse-duration-distance-boost"
+          type="number"
+          min="0"
+          max="0.95"
+          step="0.01"
+          class={fieldClass}
+          value={config.mouse.durationDistanceBoost}
+          oninput={(event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            config.mouse.durationDistanceBoost = clampNumber(
+              target.value,
+              0,
+              0.95,
+              config.mouse.durationDistanceBoost,
+            );
+            onConfigMutated();
+          }}
+          disabled={isLoading}
+        />
+      </div>
+      <div>
+        <label
+          class="text-sm font-medium text-zinc-700"
+          for="mouse-step-distance-boost">{$t("mouse.stepDistanceBoost")}</label
+        >
+        <input
+          id="mouse-step-distance-boost"
+          type="number"
+          min="0"
+          max="0.95"
+          step="0.01"
+          class={fieldClass}
+          value={config.mouse.stepDistanceBoost}
+          oninput={(event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            config.mouse.stepDistanceBoost = clampNumber(
+              target.value,
+              0,
+              0.95,
+              config.mouse.stepDistanceBoost,
+            );
+            onConfigMutated();
+          }}
+          disabled={isLoading}
+        />
+      </div>
+      <div>
+        <label class="text-sm font-medium text-zinc-700" for="mouse-curve-along"
+          >{$t("mouse.curveAlongRatio")}</label
+        >
+        <input
+          id="mouse-curve-along"
+          type="number"
+          min="0"
+          max="1"
+          step="0.01"
+          class={fieldClass}
+          value={config.mouse.curveAlongRatio}
+          oninput={(event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            config.mouse.curveAlongRatio = clampNumber(
+              target.value,
+              0,
+              1,
+              config.mouse.curveAlongRatio,
+            );
+            onConfigMutated();
+          }}
+          disabled={isLoading}
+        />
+      </div>
+      <div>
+        <label
+          class="text-sm font-medium text-zinc-700"
+          for="mouse-curve-spread">{$t("mouse.curveSpreadRatio")}</label
+        >
+        <input
+          id="mouse-curve-spread"
+          type="number"
+          min="0"
+          max="1"
+          step="0.01"
+          class={fieldClass}
+          value={config.mouse.curveSpreadRatio}
+          oninput={(event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            config.mouse.curveSpreadRatio = clampNumber(
+              target.value,
+              0,
+              1,
+              config.mouse.curveSpreadRatio,
+            );
+            onConfigMutated();
+          }}
+          disabled={isLoading}
+        />
+      </div>
+      <div>
+        <label class="text-sm font-medium text-zinc-700" for="mouse-jitter"
+          >{$t("mouse.jitterRatio")}</label
+        >
+        <input
+          id="mouse-jitter"
+          type="number"
+          min="0"
+          max="0.2"
+          step="0.001"
+          class={fieldClass}
+          value={config.mouse.jitterRatio}
+          oninput={(event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            config.mouse.jitterRatio = clampNumber(
+              target.value,
+              0,
+              0.2,
+              config.mouse.jitterRatio,
+            );
+            onConfigMutated();
+          }}
+          disabled={isLoading}
+        />
+      </div>
+      <div>
+        <label
+          class="text-sm font-medium text-zinc-700"
+          for="mouse-adaptive-stride-base"
+          >{$t("mouse.adaptiveStrideBasePx")}</label
+        >
+        <input
+          id="mouse-adaptive-stride-base"
+          type="number"
+          min="0.1"
+          step="0.1"
+          class={fieldClass}
+          value={config.mouse.adaptiveStrideBasePx}
+          oninput={(event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            config.mouse.adaptiveStrideBasePx = clampNumber(
+              target.value,
+              0.1,
+              500,
+              config.mouse.adaptiveStrideBasePx,
+            );
+            onConfigMutated();
+          }}
+          disabled={isLoading}
+        />
+      </div>
+      <div>
+        <label
+          class="text-sm font-medium text-zinc-700"
+          for="mouse-adaptive-stride-ratio"
+          >{$t("mouse.adaptiveStrideDistanceRatio")}</label
+        >
+        <input
+          id="mouse-adaptive-stride-ratio"
+          type="number"
+          min="0"
+          max="1"
+          step="0.001"
+          class={fieldClass}
+          value={config.mouse.adaptiveStrideDistanceRatio}
+          oninput={(event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            config.mouse.adaptiveStrideDistanceRatio = clampNumber(
+              target.value,
+              0,
+              1,
+              config.mouse.adaptiveStrideDistanceRatio,
+            );
+            onConfigMutated();
+          }}
+          disabled={isLoading}
+        />
+      </div>
+      <div>
+        <label
+          class="text-sm font-medium text-zinc-700"
+          for="mouse-adaptive-stride-max"
+          >{$t("mouse.adaptiveStrideMaxPx")}</label
+        >
+        <input
+          id="mouse-adaptive-stride-max"
+          type="number"
+          min={config.mouse.adaptiveStrideBasePx}
+          step="0.1"
+          class={fieldClass}
+          value={config.mouse.adaptiveStrideMaxPx}
+          oninput={(event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            config.mouse.adaptiveStrideMaxPx = clampNumber(
+              target.value,
+              config.mouse.adaptiveStrideBasePx,
+              1000,
+              config.mouse.adaptiveStrideMaxPx,
+            );
+            onConfigMutated();
+          }}
+          disabled={isLoading}
+        />
+      </div>
+      <div>
+        <label class="text-sm font-medium text-zinc-700" for="mouse-extra-steps"
+          >{$t("mouse.extraStepsMax")}</label
+        >
+        <input
+          id="mouse-extra-steps"
+          type="number"
+          min="0"
+          class={fieldClass}
+          value={config.mouse.extraStepsMax}
+          oninput={(event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            config.mouse.extraStepsMax = toNonNegativeInt(
+              target.value,
+              config.mouse.extraStepsMax,
+            );
+            onConfigMutated();
+          }}
+          disabled={isLoading}
+        />
+      </div>
+      <div>
+        <label class="text-sm font-medium text-zinc-700" for="mouse-max-steps"
+          >{$t("mouse.maxSteps")}</label
+        >
+        <input
+          id="mouse-max-steps"
+          type="number"
+          min="2"
+          class={fieldClass}
+          value={config.mouse.maxSteps}
+          oninput={(event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            config.mouse.maxSteps = Math.max(
+              2,
+              toPositiveInt(target.value, config.mouse.maxSteps),
+            );
+            onConfigMutated();
+          }}
+          disabled={isLoading}
+        />
+      </div>
+      <div>
+        <label
+          class="text-sm font-medium text-zinc-700"
+          for="mouse-max-step-sleep">{$t("mouse.maxStepSleepMs")}</label
+        >
+        <input
+          id="mouse-max-step-sleep"
+          type="number"
+          min="1"
+          class={fieldClass}
+          value={config.mouse.maxStepSleepMs}
+          oninput={(event) => {
+            const target = event.currentTarget as HTMLInputElement;
+            config.mouse.maxStepSleepMs = toPositiveInt(
+              target.value,
+              config.mouse.maxStepSleepMs,
+            );
+            onConfigMutated();
+          }}
+          disabled={isLoading}
+        />
+      </div>
     </div>
   {/if}
 </SettingsCard>

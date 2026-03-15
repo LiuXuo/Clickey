@@ -29,6 +29,17 @@ function makeConfig(): AppConfig {
       stepPx: 5,
     },
     mouse: {
+      actionCycle: [
+        "left",
+        "right",
+        "middle",
+        "moveOnly",
+        "doubleLeft",
+        "ctrlLeft",
+        "cmdLeft",
+        "shiftLeft",
+      ],
+      disabledActions: ["doubleLeft", "ctrlLeft", "cmdLeft", "shiftLeft"],
       smoothMove: true,
       moveDurationMs: 120,
       moveStepMs: 8,

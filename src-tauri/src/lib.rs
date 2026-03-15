@@ -1,7 +1,7 @@
 mod config;
 
-use config::{default_config, AppConfig, ControlHotkeys, Layer, MouseConfig};
-use enigo::{Enigo, MouseButton, MouseControllable};
+use config::{default_config, AppConfig, ClickAction, ControlHotkeys, Layer, MouseConfig};
+use enigo::{Enigo, Key, KeyboardControllable, MouseButton, MouseControllable};
 use serde::{Deserialize, Serialize};
 use serde_json::{Map, Value};
 use std::{
@@ -45,16 +45,6 @@ struct Region {
     y: f64,
     width: f64,
     height: f64,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
-#[serde(rename_all = "camelCase")]
-enum ClickAction {
-    Left,
-    Right,
-    Middle,
-    MoveOnly,
-    Drag,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -155,6 +145,7 @@ const OVERRIDE_FILE_NAME: &str = "settings.override.json";
 const NUDGE_REPEAT_DELAY_MS: u64 = 250;
 const NUDGE_REPEAT_INTERVAL_MS: u64 = 40;
 const ACCESSIBILITY_HINT_THROTTLE_SECS: u64 = 2;
+const DOUBLE_CLICK_GAP_MS: u64 = 72;
 const TRAY_ICON_ID: &str = "main";
 const TRAY_MENU_SETTINGS_ID: &str = "tray-settings";
 const TRAY_MENU_TOGGLE_ID: &str = "tray-toggle-runtime";
@@ -177,6 +168,12 @@ const ERR_HOTKEY_INVALID_NUDGE_UP: &str = "ERR_HOTKEY_INVALID_NUDGE_UP";
 const ERR_HOTKEY_INVALID_NUDGE_DOWN: &str = "ERR_HOTKEY_INVALID_NUDGE_DOWN";
 const ERR_LAYERS_EMPTY: &str = "ERR_LAYERS_EMPTY";
 const ERR_NUDGE_STEP_INVALID: &str = "ERR_NUDGE_STEP_INVALID";
+const ERR_MOUSE_ACTION_CYCLE_EMPTY: &str = "ERR_MOUSE_ACTION_CYCLE_EMPTY";
+const ERR_MOUSE_ACTION_CYCLE_DUPLICATE: &str = "ERR_MOUSE_ACTION_CYCLE_DUPLICATE";
+const ERR_MOUSE_ACTION_UNSUPPORTED: &str = "ERR_MOUSE_ACTION_UNSUPPORTED";
+const ERR_MOUSE_DISABLED_ACTION_DUPLICATE: &str = "ERR_MOUSE_DISABLED_ACTION_DUPLICATE";
+const ERR_MOUSE_DISABLED_ACTION_UNSUPPORTED: &str = "ERR_MOUSE_DISABLED_ACTION_UNSUPPORTED";
+const ERR_MOUSE_ACTION_ALL_DISABLED: &str = "ERR_MOUSE_ACTION_ALL_DISABLED";
 const ERR_MOUSE_MOVE_DURATION_INVALID: &str = "ERR_MOUSE_MOVE_DURATION_INVALID";
 const ERR_MOUSE_MOVE_STEP_INVALID: &str = "ERR_MOUSE_MOVE_STEP_INVALID";
 const ERR_MOUSE_DURATION_RANDOMNESS_INVALID: &str = "ERR_MOUSE_DURATION_RANDOMNESS_INVALID";
@@ -539,6 +536,128 @@ fn validate_hotkey(value: &str, code: &str) -> Result<(), String> {
         .ok_or_else(|| error_code(code))
 }
 
+fn is_supported_overlay_click_action(action: &ClickAction) -> bool {
+    matches!(
+        action,
+        ClickAction::Left
+            | ClickAction::Right
+            | ClickAction::Middle
+            | ClickAction::MoveOnly
+            | ClickAction::DoubleLeft
+            | ClickAction::CtrlLeft
+            | ClickAction::CmdLeft
+            | ClickAction::ShiftLeft
+    )
+}
+
+fn canonical_mouse_actions() -> Vec<ClickAction> {
+    vec![
+        ClickAction::Left,
+        ClickAction::Right,
+        ClickAction::Middle,
+        ClickAction::MoveOnly,
+        ClickAction::DoubleLeft,
+        ClickAction::CtrlLeft,
+        ClickAction::CmdLeft,
+        ClickAction::ShiftLeft,
+    ]
+}
+
+fn normalized_action_order(config: &AppConfig) -> Vec<ClickAction> {
+    let mut seen = HashSet::new();
+    let mut order = Vec::new();
+
+    for action in &config.mouse.action_cycle {
+        if !is_supported_overlay_click_action(action) {
+            continue;
+        }
+        if seen.insert(action.clone()) {
+            order.push(action.clone());
+        }
+    }
+
+    for action in canonical_mouse_actions() {
+        if seen.insert(action.clone()) {
+            order.push(action);
+        }
+    }
+
+    if order.is_empty() {
+        return canonical_mouse_actions();
+    }
+
+    order
+}
+
+fn normalized_disabled_actions(config: &AppConfig) -> Vec<ClickAction> {
+    let order = normalized_action_order(config);
+    let order_set: HashSet<ClickAction> = order.iter().cloned().collect();
+    let mut seen = HashSet::new();
+    let mut disabled = Vec::new();
+
+    for action in &config.mouse.disabled_actions {
+        if !is_supported_overlay_click_action(action) || !order_set.contains(action) {
+            continue;
+        }
+        if seen.insert(action.clone()) {
+            disabled.push(action.clone());
+        }
+    }
+
+    let raw_order: HashSet<ClickAction> = config
+        .mouse
+        .action_cycle
+        .iter()
+        .filter(|action| is_supported_overlay_click_action(action))
+        .cloned()
+        .collect();
+    for action in &order {
+        if !raw_order.contains(action) && !seen.contains(action) {
+            seen.insert(action.clone());
+            disabled.push(action.clone());
+        }
+    }
+
+    disabled
+}
+
+fn resolved_action_cycle(config: &AppConfig) -> Vec<ClickAction> {
+    let order = normalized_action_order(config);
+    let disabled: HashSet<ClickAction> = normalized_disabled_actions(config).into_iter().collect();
+    let cycle: Vec<ClickAction> = order
+        .into_iter()
+        .filter(|action| !disabled.contains(action))
+        .collect();
+
+    if cycle.is_empty() {
+        return vec![ClickAction::Left];
+    }
+
+    cycle
+}
+
+fn resolved_overlay_click_action(config: &AppConfig, current: Option<ClickAction>) -> ClickAction {
+    let cycle = resolved_action_cycle(config);
+    if let Some(action) = current {
+        if cycle.contains(&action) {
+            return action;
+        }
+    }
+    cycle.into_iter().next().unwrap_or(ClickAction::Left)
+}
+
+fn next_cycle_action_in_order(current: ClickAction, cycle: &[ClickAction]) -> ClickAction {
+    if cycle.is_empty() {
+        return ClickAction::Left;
+    }
+
+    let current_index = cycle.iter().position(|candidate| *candidate == current);
+    match current_index {
+        Some(index) => cycle[(index + 1) % cycle.len()].clone(),
+        None => cycle[0].clone(),
+    }
+}
+
 fn validate_config(config: &AppConfig) -> Result<(), String> {
     if config.layers.is_empty() {
         return Err(error_code(ERR_LAYERS_EMPTY));
@@ -581,6 +700,36 @@ fn validate_config(config: &AppConfig) -> Result<(), String> {
 
     if config.nudge.step_px == 0 {
         return Err(error_code(ERR_NUDGE_STEP_INVALID));
+    }
+    if config.mouse.action_cycle.is_empty() {
+        return Err(error_code(ERR_MOUSE_ACTION_CYCLE_EMPTY));
+    }
+    let mut seen_actions = HashSet::new();
+    for action in &config.mouse.action_cycle {
+        if !is_supported_overlay_click_action(action) {
+            return Err(error_code(ERR_MOUSE_ACTION_UNSUPPORTED));
+        }
+        if !seen_actions.insert(action.clone()) {
+            return Err(error_code(ERR_MOUSE_ACTION_CYCLE_DUPLICATE));
+        }
+    }
+    let mut seen_disabled_actions = HashSet::new();
+    for action in &config.mouse.disabled_actions {
+        if !is_supported_overlay_click_action(action) {
+            return Err(error_code(ERR_MOUSE_DISABLED_ACTION_UNSUPPORTED));
+        }
+        if !seen_disabled_actions.insert(action.clone()) {
+            return Err(error_code(ERR_MOUSE_DISABLED_ACTION_DUPLICATE));
+        }
+    }
+    let disabled_actions: HashSet<ClickAction> =
+        normalized_disabled_actions(config).into_iter().collect();
+    let enabled_count = normalized_action_order(config)
+        .into_iter()
+        .filter(|action| !disabled_actions.contains(action))
+        .count();
+    if enabled_count == 0 {
+        return Err(error_code(ERR_MOUSE_ACTION_ALL_DISABLED));
     }
     if config.mouse.move_duration_ms == 0 {
         return Err(error_code(ERR_MOUSE_MOVE_DURATION_INVALID));
@@ -872,7 +1021,7 @@ pub fn run() {
 
             if is_activation_trigger {
                 println!("[shortcut] activation trigger");
-                trigger_overlay(app, ClickAction::Left);
+                trigger_overlay(app);
                 return;
             }
 
@@ -1323,7 +1472,8 @@ fn switch_monitor(app: &AppHandle) {
         .lock()
         .ok()
         .and_then(|guard| guard.clone())
-        .unwrap_or(ClickAction::Left);
+        .map(|stored| resolved_overlay_click_action(&config, Some(stored)))
+        .unwrap_or_else(|| resolved_overlay_click_action(&config, None));
 
     println!(
         "[overlay] switch monitor region=({}, {}, {}, {})",
@@ -1335,16 +1485,20 @@ fn switch_monitor(app: &AppHandle) {
     let payload = OverlayActivatePayload {
         region,
         config,
-        click_action: action,
+        click_action: action.clone(),
     };
     let _ = app.emit_to(
         EventTarget::webview_window("overlay"),
         "overlay:activate",
         payload,
     );
+
+    if let Ok(mut stored_action) = state.inner().overlay_click_action.lock() {
+        *stored_action = Some(action);
+    };
 }
 
-fn trigger_overlay(app: &AppHandle, action: ClickAction) {
+fn trigger_overlay(app: &AppHandle) {
     let state = app.state::<AppState>();
     if let Err(err) = ensure_mouse_control_ready(app, state.inner()) {
         println!("[overlay] activation blocked: {}", err);
@@ -1362,6 +1516,7 @@ fn trigger_overlay(app: &AppHandle, action: ClickAction) {
     } else {
         monitor_region(&monitors[index])
     };
+    let action = resolved_overlay_click_action(&config, None);
 
     if let Ok(mut active) = state.overlay_active.lock() {
         *active = true;
@@ -1447,6 +1602,24 @@ fn perform_click(app: &AppHandle, payload: &NativeClickPayload) -> Result<(), St
             click_mouse_button(&mut enigo, MouseButton::Middle, mouse_cfg.press_duration_ms);
             Ok(())
         }
+        ClickAction::DoubleLeft => {
+            click_mouse_button(&mut enigo, MouseButton::Left, mouse_cfg.press_duration_ms);
+            std::thread::sleep(Duration::from_millis(DOUBLE_CLICK_GAP_MS));
+            click_mouse_button(&mut enigo, MouseButton::Left, mouse_cfg.press_duration_ms);
+            Ok(())
+        }
+        ClickAction::CtrlLeft => {
+            click_left_with_modifier(&mut enigo, Key::Control, mouse_cfg.press_duration_ms);
+            Ok(())
+        }
+        ClickAction::CmdLeft => {
+            click_left_with_modifier(&mut enigo, Key::Meta, mouse_cfg.press_duration_ms);
+            Ok(())
+        }
+        ClickAction::ShiftLeft => {
+            click_left_with_modifier(&mut enigo, Key::Shift, mouse_cfg.press_duration_ms);
+            Ok(())
+        }
         ClickAction::MoveOnly => Ok(()),
         ClickAction::Drag => Err(error_code(ERR_CLICK_ACTION_UNSUPPORTED)),
     }
@@ -1460,7 +1633,13 @@ fn resolve_landing_point(
 ) -> (i32, i32) {
     if !matches!(
         button,
-        ClickAction::Left | ClickAction::Right | ClickAction::Middle
+        ClickAction::Left
+            | ClickAction::Right
+            | ClickAction::Middle
+            | ClickAction::DoubleLeft
+            | ClickAction::CtrlLeft
+            | ClickAction::CmdLeft
+            | ClickAction::ShiftLeft
     ) {
         return (base_x, base_y);
     }
@@ -1689,6 +1868,12 @@ fn click_mouse_button(enigo: &mut Enigo, button: MouseButton, press_duration_ms:
     enigo.mouse_up(button);
 }
 
+fn click_left_with_modifier(enigo: &mut Enigo, modifier: Key, press_duration_ms: u32) {
+    enigo.key_down(modifier);
+    click_mouse_button(enigo, MouseButton::Left, press_duration_ms);
+    enigo.key_up(modifier);
+}
+
 // stub key sequence removed; we only advance on real input
 
 fn compute_virtual_region(app: &AppHandle) -> Region {
@@ -1901,24 +2086,20 @@ fn hotkey_matches(value: &str, configured_key: &str) -> bool {
     !configured_key.trim().is_empty() && value.eq_ignore_ascii_case(configured_key)
 }
 
-fn next_cycle_click_action(current: ClickAction) -> ClickAction {
-    match current {
-        ClickAction::Left => ClickAction::Right,
-        ClickAction::Right => ClickAction::Middle,
-        ClickAction::Middle => ClickAction::Left,
-        ClickAction::MoveOnly => ClickAction::Left,
-        ClickAction::Drag => ClickAction::Left,
-    }
-}
-
 fn cycle_overlay_click_action(app: &AppHandle, state: &AppState) {
+    let config = state
+        .config
+        .lock()
+        .map(|guard| guard.clone())
+        .unwrap_or_else(|_| default_config());
+    let cycle = resolved_action_cycle(&config);
     let next_action = {
         let mut guard = match state.overlay_click_action.lock() {
             Ok(guard) => guard,
             Err(_) => return,
         };
-        let current = guard.clone().unwrap_or(ClickAction::Left);
-        let next = next_cycle_click_action(current);
+        let current = resolved_overlay_click_action(&config, guard.clone());
+        let next = next_cycle_action_in_order(current, &cycle);
         *guard = Some(next.clone());
         next
     };

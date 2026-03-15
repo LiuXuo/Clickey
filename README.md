@@ -1,6 +1,6 @@
 # Clickey
 
-用键盘把鼠标“投送”到屏幕任意位置：按下热键 → 看到全屏网格遮罩 → 连续按几下键把区域逐层缩小 → 自动移动并点击目标点。
+用键盘把鼠标“投送”到屏幕任意位置：按下热键 → 看到全屏网格遮罩 → 连续按几下键把区域逐层缩小 → 自动移动并执行目标动作。
 
 > 当前仓库阶段：**Tauri + Rust + Svelte 已独立演化**。`demo/` 下的 AHK 脚本仅作历史归档，不再作为后续迭代基准。
 
@@ -10,7 +10,7 @@
 
 Clickey 的目标是提供一种高效、精确、可肌肉记忆的鼠标定位方式：
 
-- **不离开键盘**：用固定键位序列完成“移动 + 点击”。
+- **不离开键盘**：用固定键位序列完成“移动 + 执行动作”。
 - **精确可控**：通过“分层网格裁剪”逐步缩小选择区域。
 - **跨平台一致**：最终用 Web 技术统一 UI，Rust 只负责系统能力。
 
@@ -64,7 +64,7 @@ Clickey 的目标是提供一种高效、精确、可肌肉记忆的鼠标定位
 - Layer 编辑：增删 / 排序 / mode 切换（single/combo）/ rows/cols/keys 修改 / auto-fit  
   combo 固定约束：阶段 1（列）=`1xN`，阶段 2（行）=`Nx1`
 - 热键编辑：activation + controls
-- 鼠标行为：平滑移动、按压时长、落点随机、曲线/抖动、远距离提速与步进策略
+- 鼠标行为：左/右/中/仅移动的启用与排序，以及平滑移动、按压时长、落点随机、曲线/抖动、远距离提速与步进策略
 - Overlay 样式：alpha/line width/per-layer font size + color picker
 - 键位输入规则：仅空格分隔；`,` 是合法键位本体，不作为分隔符
 - 热键录制器：`trigger` / `switchAction` / `nudgeUp/Down/Left/Right` 支持“点击录制”，并在冲突时阻止自动生效
@@ -91,15 +91,15 @@ Clickey 的目标是提供一种高效、精确、可肌肉记忆的鼠标定位
 
 不同配置可在 Settings 调整，以下为当前默认值：
 
-| 操作                                 | 快捷键 / 按键                                                                      |
-| ------------------------------------ | ---------------------------------------------------------------------------------- |
-| 激活（默认左键模式）                 | macOS：`Cmd + ;`；其他平台：`Ctrl + ;`                                             |
-| 切换点击动作（左键 -> 右键 -> 中键） | `hotkeys.controls.switchAction`（默认 `Enter`）                                    |
-| 取消并退出                           | `Esc`                                                                              |
-| 回退一步（撤销上一按键）             | `Backspace`                                                                        |
-| 直接点击当前区域中心（跳过后续层级） | `Space`                                                                            |
-| 切换显示器（多屏）                   | `hotkeys.controls.nextMonitor`（默认 `Tab`）                                       |
-| 区域微调（所有层/阶段）              | `hotkeys.controls.nudgeUp/Down/Left/Right`（默认 Arrow 四键，步长 `nudge.stepPx`） |
+| 操作                                            | 快捷键 / 按键                                                                                                                                    |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| 激活（默认左键模式）                            | macOS：`Cmd + ;`；其他平台：`Ctrl + ;`                                                                                                           |
+| 切换动作（默认 左键 -> 右键 -> 中键 -> 仅移动） | `hotkeys.controls.switchAction`（默认 `Enter`；可在 Settings 调整动作顺序，并单独启用/禁用“左键双击 / Ctrl+左键 / Cmd+左键 / Shift+左键”等动作） |
+| 取消并退出                                      | `Esc`                                                                                                                                            |
+| 回退一步（撤销上一按键）                        | `Backspace`                                                                                                                                      |
+| 直接执行当前区域中心动作（跳过后续层级）        | `Space`                                                                                                                                          |
+| 切换显示器（多屏）                              | `hotkeys.controls.nextMonitor`（默认 `Tab`）                                                                                                     |
+| 区域微调（所有层/阶段）                         | `hotkeys.controls.nudgeUp/Down/Left/Right`（默认 Arrow 四键，步长 `nudge.stepPx`）                                                               |
 
 ---
 
@@ -232,7 +232,7 @@ AHK 脚本保留价值仅限于：
 - **交互热键**：单一激活热键（`hotkeys.activation.trigger`）与控制键（`cancel/undo/directClick/switchAction/nextMonitor/nudgeUp/nudgeDown/nudgeLeft/nudgeRight`）。
 - **分层与网格（`layers`）**：基于单一默认配置直接编辑层；每层可定义行列数（`rows x cols`）与模式（`single` / `combo`）。
 - **按键映射**：每个（子）步骤都有自己的 `keys` 列表，决定 `keyIndex → row/col` 的映射。
-- **鼠标策略（`mouse`）**：平滑移动、落点随机、曲率/抖动、时长与步进随机、远距离提速、自适应步长与步数上限。
+- **鼠标策略（`mouse`）**：动作顺序（`actionCycle`）、禁用动作（`disabledActions`）、平滑移动、落点随机、曲率/抖动、时长与步进随机、远距离提速、自适应步长与步数上限。
 - **遮罩外观**：透明度、线条颜色/粗细、文字颜色/字号（支持按层设置）等。
 
 字段名约定（与 `AGENTS.md` 的配置模型一致）：
@@ -241,7 +241,7 @@ AHK 脚本保留价值仅限于：
 - 托盘显隐：`app.tray.enabled`
 - 激活热键：`hotkeys.activation.trigger`
 - 控制键：`hotkeys.controls.cancel` / `hotkeys.controls.undo` / `hotkeys.controls.directClick` / `hotkeys.controls.switchAction` / `hotkeys.controls.nextMonitor` / `hotkeys.controls.nudgeLeft` / `hotkeys.controls.nudgeRight` / `hotkeys.controls.nudgeUp` / `hotkeys.controls.nudgeDown`
-- 鼠标策略：`mouse.*`（`smoothMove` / `moveDurationMs` / `moveStepMs` / `pressDurationMs` / `landingRadiusPx` / `durationRandomness` / `stepRandomness` / `distanceBoostPx` / `durationDistanceBoost` / `stepDistanceBoost` / `curveAlongRatio` / `curveSpreadRatio` / `jitterRatio` / `adaptiveStrideBasePx` / `adaptiveStrideDistanceRatio` / `adaptiveStrideMaxPx` / `extraStepsMax` / `maxSteps` / `maxStepSleepMs`）
+- 鼠标策略：`mouse.*`（`actionCycle` / `disabledActions` / `smoothMove` / `moveDurationMs` / `moveStepMs` / `pressDurationMs` / `landingRadiusPx` / `durationRandomness` / `stepRandomness` / `distanceBoostPx` / `durationDistanceBoost` / `stepDistanceBoost` / `curveAlongRatio` / `curveSpreadRatio` / `jitterRatio` / `adaptiveStrideBasePx` / `adaptiveStrideDistanceRatio` / `adaptiveStrideMaxPx` / `extraStepsMax` / `maxSteps` / `maxStepSleepMs`）
 - 分层列表：`layers[]`
 - 遮罩外观：`overlay.*`
 - 覆盖配置文件：`settings.override.json`（仅记录与默认配置差异，支持导入/导出）

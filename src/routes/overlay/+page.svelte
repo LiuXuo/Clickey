@@ -17,8 +17,42 @@
   let runtime = $state<RuntimeState | null>(null);
   let baseRegion = $state<Region | null>(null);
   let clickAction = $state<ClickAction | null>(null);
+  let actionHintVisible = $state(false);
   let canvas: HTMLCanvasElement | null = null;
   const currentWindow = getCurrentWindow();
+  let actionHintTimer: ReturnType<typeof setTimeout> | null = null;
+
+  function withAlpha(color: string, alpha: number, fallback: string): string {
+    if (!color.startsWith("#")) {
+      return fallback;
+    }
+
+    const hex = color.slice(1);
+    if (hex.length !== 6) {
+      return fallback;
+    }
+
+    const channel = Math.round(Math.min(Math.max(alpha, 0), 1) * 255)
+      .toString(16)
+      .padStart(2, "0");
+    return `${color}${channel}`;
+  }
+
+  function enabledActions(config: AppConfig | null): ClickAction[] {
+    if (!config) {
+      return ["left"];
+    }
+    const disabled = new Set(config.mouse.disabledActions ?? []);
+    const enabled = config.mouse.actionCycle.filter(
+      (action) => !disabled.has(action),
+    );
+    return enabled.length > 0 ? enabled : ["left"];
+  }
+
+  function defaultAction(config: AppConfig | null): ClickAction {
+    const [first] = enabledActions(config);
+    return first ?? "left";
+  }
 
   function actionLabel(action: ClickAction | null): string {
     switch (action) {
@@ -30,11 +64,60 @@
         return $t("overlay.action.middle");
       case "moveOnly":
         return $t("overlay.action.moveOnly");
+      case "doubleLeft":
+        return $t("overlay.action.doubleLeft");
+      case "ctrlLeft":
+        return $t("overlay.action.ctrlLeft");
+      case "cmdLeft":
+        return $t("overlay.action.cmdLeft");
+      case "shiftLeft":
+        return $t("overlay.action.shiftLeft");
       case "drag":
         return $t("overlay.action.drag");
       default:
-        return $t("overlay.action.left");
+        return actionLabel(defaultAction(config));
     }
+  }
+
+  function clearActionHintTimer() {
+    if (!actionHintTimer) {
+      return;
+    }
+    clearTimeout(actionHintTimer);
+    actionHintTimer = null;
+  }
+
+  function showActionHint() {
+    actionHintVisible = true;
+    clearActionHintTimer();
+    actionHintTimer = setTimeout(() => {
+      actionHintVisible = false;
+      actionHintTimer = null;
+    }, 1000);
+  }
+
+  function actionHintStyle(config: AppConfig | null): string {
+    if (!config) {
+      return "";
+    }
+
+    const background = withAlpha(
+      config.overlay.maskColor,
+      0.22,
+      "rgba(0, 0, 0, 0.22)",
+    );
+    const border = withAlpha(
+      config.overlay.lineColor,
+      0.14,
+      "rgba(255, 255, 255, 0.14)",
+    );
+    const text = withAlpha(
+      config.overlay.textColor,
+      0.9,
+      "rgba(255, 255, 255, 0.9)",
+    );
+
+    return `background:${background};border-color:${border};color:${text};`;
   }
 
   function getDisplayGrid(
@@ -67,7 +150,10 @@
     return { rows: rowKeys.length, cols: colKeys.length, keys: labels };
   }
 
-  function resolveLayerFontSize(config: AppConfig, runtime: RuntimeState): number {
+  function resolveLayerFontSize(
+    config: AppConfig,
+    runtime: RuntimeState,
+  ): number {
     const fallback = Math.max(1, Math.round(config.overlay.font.sizePx));
     const perLayer = config.overlay.font.layerSizePx;
     if (!Array.isArray(perLayer)) {
@@ -193,7 +279,7 @@
     draw();
 
     if (result.clickPoint) {
-      const action = clickAction ?? "left";
+      const action = clickAction ?? defaultAction(config);
       try {
         await invoke("native_click", {
           payload: {
@@ -232,7 +318,9 @@
             event.payload.config,
             event.payload.region,
           );
-          clickAction = event.payload.clickAction ?? "left";
+          clickAction =
+            event.payload.clickAction ?? defaultAction(event.payload.config);
+          showActionHint();
           draw();
         },
       );
@@ -241,6 +329,7 @@
         "overlay:action",
         (event) => {
           clickAction = event.payload.clickAction;
+          showActionHint();
         },
       );
 
@@ -253,6 +342,7 @@
     window.addEventListener("resize", handleResize);
 
     return () => {
+      clearActionHintTimer();
       unlistenActivate?.();
       unlistenAction?.();
       unlistenKey?.();
@@ -262,12 +352,9 @@
 </script>
 
 <main>
-  {#if runtime}
-    <div class="action-hint">
-      {$t("overlay.actionHint", {
-        action: actionLabel(clickAction),
-        key: config?.hotkeys.controls.switchAction ?? "Enter",
-      })}
+  {#if runtime && actionHintVisible}
+    <div class="action-hint" style={actionHintStyle(config)}>
+      {actionLabel(clickAction)}
     </div>
   {/if}
   <canvas bind:this={canvas}></canvas>
@@ -288,18 +375,21 @@
 
   .action-hint {
     position: fixed;
-    top: 12px;
-    right: 12px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
     z-index: 1;
-    padding: 4px 8px;
-    border: 1px solid rgba(255, 255, 255, 0.28);
+    padding: 12px 18px;
+    border: 1px solid rgba(255, 255, 255, 0.14);
     border-radius: 9999px;
-    background: rgba(0, 0, 0, 0.45);
-    color: #fff;
-    font-size: 12px;
-    line-height: 1.2;
-    letter-spacing: 0.01em;
-    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.22);
+    color: rgba(255, 255, 255, 0.9);
+    font-size: clamp(24px, 3.2vw, 34px);
+    font-weight: 700;
+    line-height: 1;
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    backdrop-filter: blur(6px);
   }
 
   canvas {

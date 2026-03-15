@@ -85,6 +85,10 @@ impl Default for NudgeConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct MouseConfig {
+    #[serde(default = "default_mouse_action_cycle")]
+    pub action_cycle: Vec<ClickAction>,
+    #[serde(default = "default_mouse_disabled_actions")]
+    pub disabled_actions: Vec<ClickAction>,
     #[serde(default = "default_mouse_smooth_move")]
     pub smooth_move: bool,
     #[serde(default = "default_mouse_move_duration_ms")]
@@ -128,6 +132,8 @@ pub struct MouseConfig {
 impl Default for MouseConfig {
     fn default() -> Self {
         Self {
+            action_cycle: default_mouse_action_cycle(),
+            disabled_actions: default_mouse_disabled_actions(),
             smooth_move: default_mouse_smooth_move(),
             move_duration_ms: default_mouse_move_duration_ms(),
             move_step_ms: default_mouse_move_step_ms(),
@@ -149,6 +155,42 @@ impl Default for MouseConfig {
             max_step_sleep_ms: default_mouse_max_step_sleep_ms(),
         }
     }
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash)]
+#[serde(rename_all = "camelCase")]
+pub enum ClickAction {
+    Left,
+    Right,
+    Middle,
+    MoveOnly,
+    DoubleLeft,
+    CtrlLeft,
+    CmdLeft,
+    ShiftLeft,
+    Drag,
+}
+
+fn default_mouse_action_cycle() -> Vec<ClickAction> {
+    vec![
+        ClickAction::Left,
+        ClickAction::Right,
+        ClickAction::Middle,
+        ClickAction::MoveOnly,
+        ClickAction::DoubleLeft,
+        ClickAction::CtrlLeft,
+        ClickAction::CmdLeft,
+        ClickAction::ShiftLeft,
+    ]
+}
+
+fn default_mouse_disabled_actions() -> Vec<ClickAction> {
+    vec![
+        ClickAction::DoubleLeft,
+        ClickAction::CtrlLeft,
+        ClickAction::CmdLeft,
+        ClickAction::ShiftLeft,
+    ]
 }
 
 fn default_mouse_smooth_move() -> bool {

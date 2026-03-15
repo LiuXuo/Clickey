@@ -5,7 +5,7 @@
   import { onMount } from "svelte";
   import { initLocale, locale, setLocale, t, type Locale } from "$lib/i18n";
   import { getDefaultConfig } from "$lib/shared/default-config";
-  import type { AppConfig } from "$lib/core";
+  import type { AppConfig, MouseAction } from "$lib/core";
   import SettingsShell, {
     type SettingsSectionItem,
   } from "$lib/features/settings/SettingsShell.svelte";
@@ -24,8 +24,6 @@
   } from "$lib/features/settings/ui/control-classes";
   import { canonicalizeHotkey } from "$lib/features/settings/hotkey-utils";
   import { toLocalizedErrorMessage } from "$lib/features/settings/error-message";
-
-  const initialConfig = ensureLayerFontSizesInConfig(getDefaultConfig());
 
   const fieldClass = controlInputWithMarginClass;
   const compactSelectClass = controlSelectClass;
@@ -65,6 +63,18 @@
 
   const AUTO_APPLY_DELAY_MS = 320;
   const TOAST_AUTO_DISMISS_MS = 5000;
+  const supportedMouseActions: MouseAction[] = [
+    "left",
+    "right",
+    "middle",
+    "moveOnly",
+    "doubleLeft",
+    "ctrlLeft",
+    "cmdLeft",
+    "shiftLeft",
+  ];
+  const supportedMouseActionSet = new Set<MouseAction>(supportedMouseActions);
+  const initialConfig = ensureLayerFontSizesInConfig(getDefaultConfig());
 
   type SectionId = "general" | "mouse" | "layers" | "hotkeys" | "overlay";
 
@@ -174,8 +184,55 @@
     return candidate;
   }
 
+  function normalizeMouseActionsInConfig(candidate: AppConfig): AppConfig {
+    const rawOrder = Array.isArray(candidate.mouse.actionCycle)
+      ? candidate.mouse.actionCycle
+      : [];
+    const normalizedOrder: MouseAction[] = [];
+    for (const action of rawOrder) {
+      if (
+        !supportedMouseActionSet.has(action) ||
+        normalizedOrder.includes(action)
+      ) {
+        continue;
+      }
+      normalizedOrder.push(action);
+    }
+    for (const action of supportedMouseActions) {
+      if (!normalizedOrder.includes(action)) {
+        normalizedOrder.push(action);
+      }
+    }
+    candidate.mouse.actionCycle = normalizedOrder;
+
+    const rawDisabled = Array.isArray(candidate.mouse.disabledActions)
+      ? candidate.mouse.disabledActions
+      : [];
+    const normalizedDisabled: MouseAction[] = [];
+    for (const action of rawDisabled) {
+      if (
+        !supportedMouseActionSet.has(action) ||
+        normalizedDisabled.includes(action)
+      ) {
+        continue;
+      }
+      normalizedDisabled.push(action);
+    }
+    for (const action of supportedMouseActions) {
+      if (!rawOrder.includes(action) && !normalizedDisabled.includes(action)) {
+        normalizedDisabled.push(action);
+      }
+    }
+    if (normalizedDisabled.length >= normalizedOrder.length) {
+      normalizedDisabled.splice(normalizedOrder.length - 1);
+    }
+    candidate.mouse.disabledActions = normalizedDisabled;
+    return candidate;
+  }
+
   function ensureLayerFontSizesInConfig(candidate: AppConfig): AppConfig {
     normalizeComboLayersInConfig(candidate);
+    normalizeMouseActionsInConfig(candidate);
     const fallbackRaw = Number.isFinite(candidate.overlay.font.sizePx)
       ? candidate.overlay.font.sizePx
       : 12;
@@ -513,6 +570,46 @@
 
     if (candidate.nudge.stepPx <= 0) {
       issues.push($t("errors.nudgeStep"));
+    }
+    const actionCycle = Array.isArray(candidate.mouse.actionCycle)
+      ? candidate.mouse.actionCycle
+      : [];
+    if (actionCycle.length === 0) {
+      issues.push($t("errors.mouseActionCycleEmpty"));
+    } else {
+      const seenActions = new Set<MouseAction>();
+      for (const action of actionCycle) {
+        if (!supportedMouseActionSet.has(action)) {
+          issues.push($t("errors.mouseActionUnsupported"));
+          break;
+        }
+        if (seenActions.has(action)) {
+          issues.push($t("errors.mouseActionCycleDuplicate"));
+          break;
+        }
+        seenActions.add(action);
+      }
+    }
+    const disabledActions = Array.isArray(candidate.mouse.disabledActions)
+      ? candidate.mouse.disabledActions
+      : [];
+    const seenDisabledActions = new Set<MouseAction>();
+    for (const action of disabledActions) {
+      if (!supportedMouseActionSet.has(action)) {
+        issues.push($t("errors.mouseActionUnsupported"));
+        break;
+      }
+      if (seenDisabledActions.has(action)) {
+        issues.push($t("errors.mouseActionCycleDuplicate"));
+        break;
+      }
+      seenDisabledActions.add(action);
+    }
+    if (
+      seenDisabledActions.size >= actionCycle.length &&
+      actionCycle.length > 0
+    ) {
+      issues.push($t("errors.mouseActionCycleEmpty"));
     }
     if (!Number.isFinite(candidate.mouse.moveDurationMs)) {
       issues.push($t("errors.mouseMoveDuration"));

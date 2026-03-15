@@ -12,6 +12,16 @@ export interface Point {
   y: number;
 }
 
+export type MouseAction =
+  | "left"
+  | "right"
+  | "middle"
+  | "moveOnly"
+  | "doubleLeft"
+  | "ctrlLeft"
+  | "cmdLeft"
+  | "shiftLeft";
+
 export interface GridStage {
   rows: number;
   cols: number;
@@ -63,6 +73,8 @@ export interface AppConfig {
     stepPx: number;
   };
   mouse: {
+    actionCycle: MouseAction[];
+    disabledActions: MouseAction[];
     smoothMove: boolean;
     moveDurationMs: number;
     moveStepMs: number;

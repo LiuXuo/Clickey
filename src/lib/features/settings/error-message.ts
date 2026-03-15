@@ -3,6 +3,12 @@ import type { TranslateFn, TranslationKey } from "$lib/i18n";
 const CODE_TO_KEY_MAP: Record<string, TranslationKey> = {
   ERR_LAYERS_EMPTY: "errors.layersRequired",
   ERR_NUDGE_STEP_INVALID: "errors.nudgeStep",
+  ERR_MOUSE_ACTION_CYCLE_EMPTY: "errors.mouseActionCycleEmpty",
+  ERR_MOUSE_ACTION_CYCLE_DUPLICATE: "errors.mouseActionCycleDuplicate",
+  ERR_MOUSE_ACTION_UNSUPPORTED: "errors.mouseActionUnsupported",
+  ERR_MOUSE_DISABLED_ACTION_DUPLICATE: "errors.mouseActionCycleDuplicate",
+  ERR_MOUSE_DISABLED_ACTION_UNSUPPORTED: "errors.mouseActionUnsupported",
+  ERR_MOUSE_ACTION_ALL_DISABLED: "errors.mouseActionCycleEmpty",
   ERR_MOUSE_MOVE_DURATION_INVALID: "errors.mouseMoveDuration",
   ERR_MOUSE_MOVE_STEP_INVALID: "errors.mouseMoveStep",
   ERR_MOUSE_DURATION_RANDOMNESS_INVALID: "errors.mouseDurationRandomness",
