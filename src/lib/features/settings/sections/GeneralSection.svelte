@@ -1,4 +1,5 @@
 ﻿<script lang="ts">
+  import type { SettingsThemePreference } from "$lib/core";
   import { t, type Locale } from "$lib/i18n";
   import SettingsCard from "$lib/features/settings/ui/SettingsCard.svelte";
   import SectionHeader from "$lib/features/settings/ui/SectionHeader.svelte";
@@ -9,6 +10,7 @@
 
   let {
     localeValue,
+    themeValue,
     isLoading,
     compactSelectClass,
     isImporting,
@@ -22,8 +24,10 @@
     onOpenConfigDir,
     onReset,
     onLocaleChange,
+    onThemeChange,
   } = $props<{
     localeValue: Locale;
+    themeValue: SettingsThemePreference;
     isLoading: boolean;
     compactSelectClass: string;
     isImporting: boolean;
@@ -37,12 +41,19 @@
     onOpenConfigDir: () => void;
     onReset: () => void;
     onLocaleChange: (next: Locale) => void;
+    onThemeChange: (next: SettingsThemePreference) => void;
   }>();
 
   function handleLocaleChange(event: Event) {
     const target = event.currentTarget as HTMLSelectElement;
     const next = target.value as Locale;
     onLocaleChange(next);
+  }
+
+  function handleThemeChange(event: Event) {
+    const target = event.currentTarget as HTMLSelectElement;
+    const next = target.value as SettingsThemePreference;
+    onThemeChange(next);
   }
 </script>
 
@@ -69,7 +80,31 @@
             <option value="en-US">{$t("language.en")}</option>
           </select>
           <span
-            class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-zinc-500"
+            class="pointer-events-none absolute inset-y-0 right-3 flex items-center settings-text-muted"
+          >
+            <AppIcon name="selectArrows" size={14} strokeWidth={1.8} />
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div>
+      <FieldLabel text={$t("theme.label")} icon="theme" forId="theme-select" />
+      <div class={`mt-2 gap-2 ${controlInputSpaceWrapClass}`}>
+        <div class="relative">
+          <select
+            id="theme-select"
+            class={compactSelectClass}
+            value={themeValue}
+            onchange={handleThemeChange}
+            disabled={isLoading}
+          >
+            <option value="system">{$t("theme.system")}</option>
+            <option value="light">{$t("theme.light")}</option>
+            <option value="dark">{$t("theme.dark")}</option>
+          </select>
+          <span
+            class="pointer-events-none absolute inset-y-0 right-3 flex items-center settings-text-muted"
           >
             <AppIcon name="selectArrows" size={14} strokeWidth={1.8} />
           </span>

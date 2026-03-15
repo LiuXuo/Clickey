@@ -149,15 +149,17 @@
 <SettingsCard id="mouse">
   <SectionHeader title={$t("mouse.title")} icon="mouse" />
 
-  <div class="mt-6 rounded-xl border border-zinc-200 bg-zinc-50/80 p-4">
+  <div class="settings-panel-muted mt-6 rounded-xl p-4">
     <div class="max-w-2xl">
       <p
-        class="inline-flex items-center gap-2 text-sm font-semibold text-zinc-900"
+        class="settings-text-primary inline-flex items-center gap-2 text-sm font-semibold"
       >
-        <AppIcon name="actionCycle" size={16} className="text-zinc-500" />
+        <AppIcon name="actionCycle" size={16} className="settings-text-muted" />
         {$t("mouse.actionCycle")}
       </p>
-      <p class="mt-1 text-sm text-zinc-500">{$t("mouse.actionCycleHint")}</p>
+      <p class="settings-text-muted mt-1 text-sm">
+        {$t("mouse.actionCycleHint")}
+      </p>
     </div>
 
     <div
@@ -178,20 +180,23 @@
           role="listitem"
           aria-label={actionLabel(item.id)}
           animate:flip={{ duration: flipDurationMs }}
-          class={`flex flex-none items-center gap-2 rounded-lg border px-3 py-2 transition ${
+          class={`settings-action-chip flex flex-none items-center gap-2 rounded-lg px-3 py-2 transition ${
             dragDisabled
               ? "cursor-default"
               : "cursor-grab active:cursor-grabbing"
-          } ${item.enabled ? "border-zinc-200 bg-white" : "border-zinc-200 bg-zinc-50"}`}
+          }`}
+          data-enabled={item.enabled}
         >
           <AppIcon
             name="dragHandle"
             size={14}
-            className={item.enabled ? "text-zinc-400" : "text-zinc-300"}
+            className={item.enabled
+              ? "settings-text-faint"
+              : "settings-text-muted"}
           />
           <p
             class={`${controlChipTextClass} ${
-              item.enabled ? "text-zinc-900" : "text-zinc-400"
+              item.enabled ? "settings-text-primary" : "settings-text-muted"
             }`}
           >
             {actionLabel(item.id)}
@@ -222,7 +227,7 @@
   <div class="mt-6">
     <label
       for="mouse-smooth-move"
-      class={`inline-flex items-center gap-2.5 text-sm font-medium text-zinc-700 ${
+      class={`settings-text-secondary inline-flex items-center gap-2.5 text-sm font-medium ${
         isLoading ? "opacity-60" : ""
       }`}
     >
@@ -231,7 +236,7 @@
           name="smoothMove"
           size={15}
           strokeWidth={2.1}
-          className="text-zinc-400"
+          className="settings-icon-muted"
         />
         <span>{$t("mouse.smoothMove")}</span>
       </span>

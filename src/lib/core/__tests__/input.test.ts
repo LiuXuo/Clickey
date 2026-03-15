@@ -7,7 +7,7 @@ function makeConfig(): AppConfig {
     app: {
       locale: "zh-CN",
       tray: { enabled: true },
-      settingsWindow: { openFromTray: true },
+      settingsWindow: { openFromTray: true, theme: "system" },
     },
     hotkeys: {
       activation: {

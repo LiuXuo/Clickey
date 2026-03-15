@@ -128,7 +128,12 @@
       onColumnKeysChange(next);
       return;
     }
-    if (event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1) {
+    if (
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey ||
+      event.key.length !== 1
+    ) {
       return;
     }
     if (/\s/.test(event.key)) {
@@ -183,7 +188,12 @@
       onRowKeysChange(next);
       return;
     }
-    if (event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1) {
+    if (
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey ||
+      event.key.length !== 1
+    ) {
       return;
     }
     if (/\s/.test(event.key)) {
@@ -302,15 +312,13 @@
   }
 </script>
 
-<div class="w-full rounded-lg border border-zinc-200 bg-zinc-50">
-  <table class="w-full table-fixed border-collapse text-[11px] text-zinc-700">
+<div class="settings-table-shell w-full rounded-lg">
+  <table class="settings-table w-full table-fixed border-collapse text-[11px]">
     <thead>
-      <tr class="bg-zinc-100 text-zinc-500">
-        <th class="border border-zinc-200 bg-zinc-100 px-1 py-1.5">
-          #
-        </th>
+      <tr>
+        <th class="px-1 py-1.5"> # </th>
         {#each safeColumnKeys as key, colIndex (`col-${colIndex}`)}
-          <th class="border border-zinc-200 p-1.5">
+          <th class="p-1.5">
             <input
               bind:this={columnRefs[colIndex]}
               id={`${idPrefix}-col-${colIndex}`}
@@ -336,8 +344,8 @@
     </thead>
     <tbody>
       {#each safeRowKeys as rowKey, rowIndex (`row-${rowIndex}`)}
-        <tr class="odd:bg-white even:bg-zinc-50">
-          <th class="border border-zinc-200 bg-inherit p-1.5 text-zinc-500">
+        <tr>
+          <th class="settings-text-muted bg-inherit p-1.5">
             <input
               bind:this={rowRefs[rowIndex]}
               id={`${idPrefix}-row-${rowIndex}`}
@@ -353,13 +361,14 @@
               oninput={(event) => handleRowInput(rowIndex, event)}
               onpaste={(event) => handleRowPaste(rowIndex, event)}
               oncompositionstart={handleRowCompositionStart}
-              oncompositionend={(event) => handleRowCompositionEnd(rowIndex, event)}
+              oncompositionend={(event) =>
+                handleRowCompositionEnd(rowIndex, event)}
               {disabled}
             />
           </th>
           {#each safeColumnKeys as columnKey, colIndex (`cell-${rowIndex}-${colIndex}`)}
-            <td class="border border-zinc-200 px-1 py-1.5 text-center">
-              <span class="font-mono text-zinc-800"
+            <td class="px-1 py-1.5 text-center">
+              <span class="settings-text-primary font-mono"
                 >{displayCell(columnKey, rowKey)}</span
               >
             </td>

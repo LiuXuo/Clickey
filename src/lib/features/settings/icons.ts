@@ -5,6 +5,7 @@ export type AppIconName =
   | "hotkeys"
   | "overlay"
   | "language"
+  | "theme"
   | "config"
   | "selectArrows"
   | "import"

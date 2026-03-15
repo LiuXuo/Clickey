@@ -53,7 +53,7 @@
   <div class="mt-6 flex flex-wrap items-center gap-x-10 gap-y-3">
     <label
       for="overlay-show-grid"
-      class={`inline-flex items-center gap-2.5 text-sm font-medium text-zinc-700 ${
+      class={`settings-text-secondary inline-flex items-center gap-2.5 text-sm font-medium ${
         isLoading ? "opacity-60" : ""
       }`}
     >
@@ -62,7 +62,7 @@
           name="showGrid"
           size={15}
           strokeWidth={2.1}
-          className="text-zinc-400"
+          className="settings-icon-muted"
         />
         <span>{$t("overlay.showGrid")}</span>
       </span>
@@ -81,7 +81,7 @@
 
     <label
       for="overlay-show-diagonals"
-      class={`inline-flex items-center gap-2.5 text-sm font-medium text-zinc-700 ${
+      class={`settings-text-secondary inline-flex items-center gap-2.5 text-sm font-medium ${
         isLoading ? "opacity-60" : ""
       }`}
     >
@@ -90,7 +90,7 @@
           name="showDiagonals"
           size={15}
           strokeWidth={2.1}
-          className="text-zinc-400"
+          className="settings-icon-muted"
         />
         <span>{$t("overlay.showDiagonals")}</span>
       </span>

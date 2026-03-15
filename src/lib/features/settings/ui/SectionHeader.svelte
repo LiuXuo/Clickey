@@ -11,9 +11,13 @@
 <div class="flex items-center justify-between gap-4">
   <div class="flex items-center gap-2">
     {#if icon}
-      <AppIcon name={icon} size={18} strokeWidth={2.2} className="text-zinc-500" />
+      <AppIcon
+        name={icon}
+        size={18}
+        strokeWidth={2.2}
+        className="settings-icon-muted"
+      />
     {/if}
-    <h2 class="text-lg font-semibold text-zinc-900">{title}</h2>
+    <h2 class="settings-text-primary text-lg font-semibold">{title}</h2>
   </div>
 </div>
-

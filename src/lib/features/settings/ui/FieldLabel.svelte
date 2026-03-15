@@ -17,7 +17,7 @@
   }>();
 
   const baseClass = $derived(
-    `inline-flex items-center gap-2 text-sm font-medium text-zinc-700 ${className}`,
+    `settings-text-secondary inline-flex items-center gap-2 text-sm font-medium ${className}`,
   );
 </script>
 
@@ -28,7 +28,7 @@
         name={icon}
         size={14}
         strokeWidth={2.1}
-        className="text-zinc-400"
+        className="settings-icon-muted"
       />
     {/if}
     <span>{text}</span>
@@ -40,7 +40,7 @@
         name={icon}
         size={14}
         strokeWidth={2.1}
-        className="text-zinc-400"
+        className="settings-icon-muted"
       />
     {/if}
     <span>{text}</span>
@@ -52,7 +52,7 @@
         name={icon}
         size={14}
         strokeWidth={2.1}
-        className="text-zinc-400"
+        className="settings-icon-muted"
       />
     {/if}
     <span>{text}</span>

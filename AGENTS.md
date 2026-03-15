@@ -81,6 +81,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
   combo 约束：阶段 1（列）固定 `1xN`，阶段 2（行）固定 `Nx1`
 - 热键编辑：activation + controls
 - 热键录制：`trigger` / `switchAction` / `nudgeUp/Down/Left/Right` 支持点击录制（Esc 取消、Backspace 清空）
+- 设置页主题：`跟随系统 / 浅色 / 深色`，仅作用于 Settings WebView
 - 鼠标行为配置：左/右/中/仅移动动作循环的启用与排序，以及平滑移动、按压时长、落点随机、速度随机、曲率/抖动、远距离提速与步进策略
 - Overlay 样式：alpha/line width/per-layer font size + color picker
 - 导入/导出：override JSON（仅包含与默认配置不同字段）
@@ -304,7 +305,8 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
       "enabled": true
     },
     "settingsWindow": {
-      "openFromTray": true
+      "openFromTray": true,
+      "theme": "system"
     }
   },
   "hotkeys": {
@@ -450,6 +452,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - Core Engine 只依赖配置与输入事件，不读取 OS。
 - **“设置页/托盘”也是配置入口的一部分**：Settings 只负责编辑配置并触发自动应用；不直接参与 Overlay 的事件循环。
 - 托盘菜单属于运行时 UI：文案必须与 `app.locale` 同步，交互与设置页行为保持一致。
+- `app.settingsWindow.theme` 仅作用于 Settings WebView；不得影响 Overlay 遮罩窗口的渲染与交互。
 - macOS 当前期望行为：应用默认以 agent app（`LSUIElement=1`）方式启动，仅设置页打开时显示 Dock 图标；关闭设置页（如 `Cmd+W`）后退回“仅托盘常驻”，真正退出（如 `Cmd+Q` / 托盘退出）时托盘也一并消失。
 - **层（`layers`）是定制化的单位**：Settings 直接编辑 `layers[]`；Overlay 只消费“当前运行时配置”。
 - **combo 层固定为轴向两段式**：`stage0=1xN`（阶段 1，列），`stage1=Nx1`（阶段 2，行）；不支持 `2x15/15x2` 这类双轴 stage。
@@ -507,6 +510,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - macOS Dock/托盘生命周期完成（设置页打开时显示 Dock；`Cmd+W` 改为隐藏到托盘；`Cmd+Q` / 托盘退出时真正结束）
 - macOS agent 模式启动完成（bundle `Info.plist` 合并 `LSUIElement=1`，settings 窗口默认不在启动时显示）
 - 鼠标动作顺序/禁用配置完成（`moveOnly` 默认启用；新增 `doubleLeft` / `ctrlLeft` / `cmdLeft` / `shiftLeft` 且默认禁用；Settings 支持统一排序与单独禁用）
+- 设置页主题完成（`app.settingsWindow.theme` 支持 `system/light/dark`，仅影响 Settings WebView，并完成样式 token 化）
 
 ---
 
@@ -556,3 +560,4 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-14：macOS 设置页窗口接入 Dock/托盘生命周期控制：settings 窗口默认 `visible=false`，bundle 合并 `src-tauri/Info.plist`（`LSUIElement=1`）以 agent app 模式启动；打开设置页时显示 Dock，关闭设置页（`Cmd+W` / 关闭按钮）改为隐藏窗口并退回托盘常驻，`Cmd+Q` / 托盘退出时真正结束应用。
 - 2026-03-15：鼠标动作系统收敛为 `mouse.actionCycle + mouse.disabledActions`：默认启用左/右/中/仅移动，默认禁用左键双击与 `Ctrl/Cmd/Shift + 左键`；Settings 动作编辑器改为统一排序+启用/禁用，并将排序实现从原生 HTML5 drag 切换为 `svelte-dnd-action`。
 - 2026-03-15：Settings 小图标切换为 `@lucide/svelte` 深路径导入，并保留 `AppIcon` 语义封装；继续把表单标签、热键录制器、颜色字段、图层操作、鼠标动作项与 toast 状态统一接入 Lucide，同时通过减法收敛录入框/颜色框/动作项图标与按钮字重、层操作按钮密度等细节，尽量在不增加认知负担的前提下提升扫读效率。
+- 2026-03-15：新增 `app.settingsWindow.theme`（`system/light/dark`）作为设置页专属主题配置；Settings UI 改为基于 CSS 变量的语义 token，主题切换仅作用于 Settings WebView，不影响 Overlay。

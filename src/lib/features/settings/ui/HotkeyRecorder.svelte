@@ -88,23 +88,20 @@
   <button
     {id}
     type="button"
-    class={`${recorderButtonClass} ${
-      isRecording
-        ? "border-zinc-900 text-zinc-900"
-        : "border-zinc-300 text-zinc-900 hover:border-zinc-400"
-    }`}
+    class={recorderButtonClass}
+    data-recording={isRecording}
     onclick={beginRecording}
     {disabled}
   >
     <span class="inline-flex items-center gap-2">
       {#if isRecording}
-        <span class="text-zinc-900"
-          >{$t("hotkeys.recording")}</span
-        >
+        <span class="settings-text-primary">{$t("hotkeys.recording")}</span>
       {:else if displayValue}
-        <span class="text-zinc-900">{spacedDisplayValue}</span>
+        <span class="settings-text-primary">{spacedDisplayValue}</span>
       {:else}
-        <span class="text-zinc-500">{$t("hotkeys.recorderPlaceholder")}</span>
+        <span class="settings-text-muted"
+          >{$t("hotkeys.recorderPlaceholder")}</span
+        >
       {/if}
     </span>
   </button>

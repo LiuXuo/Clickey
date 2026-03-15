@@ -15,16 +15,6 @@
     onDismiss: (id: number) => void;
   }>();
 
-  function toneClass(tone: ToastTone): string {
-    if (tone === "success") {
-      return "border-emerald-200 bg-emerald-50 text-emerald-800";
-    }
-    if (tone === "error") {
-      return "border-rose-200 bg-rose-50 text-rose-800";
-    }
-    return "border-zinc-200 bg-zinc-50 text-zinc-700";
-  }
-
   function toneIcon(tone: ToastTone): AppIconName {
     if (tone === "success") {
       return "success";
@@ -41,7 +31,8 @@
 >
   {#each toasts as toast (toast.id)}
     <div
-      class={`pointer-events-auto rounded-lg border px-3 py-2 text-sm shadow-md ${toneClass(toast.tone)}`}
+      class="settings-toast pointer-events-auto rounded-lg px-3 py-2 text-sm"
+      data-tone={toast.tone}
       role="status"
       aria-live="polite"
     >

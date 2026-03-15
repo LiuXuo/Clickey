@@ -41,6 +41,22 @@ pub struct TrayConfig {
 #[serde(rename_all = "camelCase")]
 pub struct SettingsWindowConfig {
     pub open_from_tray: bool,
+    #[serde(default)]
+    pub theme: SettingsWindowTheme,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
+#[serde(rename_all = "lowercase")]
+pub enum SettingsWindowTheme {
+    System,
+    Light,
+    Dark,
+}
+
+impl Default for SettingsWindowTheme {
+    fn default() -> Self {
+        Self::System
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

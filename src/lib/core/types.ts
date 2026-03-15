@@ -42,6 +42,7 @@ export interface ComboLayer {
 }
 
 export type Layer = SingleLayer | ComboLayer;
+export type SettingsThemePreference = "system" | "light" | "dark";
 
 export interface AppConfig {
   app: {
@@ -51,6 +52,7 @@ export interface AppConfig {
     };
     settingsWindow: {
       openFromTray: boolean;
+      theme: SettingsThemePreference;
     };
   };
   hotkeys: {

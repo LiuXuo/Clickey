@@ -4,8 +4,16 @@
   import { revealItemInDir } from "@tauri-apps/plugin-opener";
   import { onMount } from "svelte";
   import { initLocale, locale, setLocale, t, type Locale } from "$lib/i18n";
+  import {
+    resolveSettingsTheme,
+    type ResolvedSettingsTheme,
+  } from "$lib/features/settings/theme";
   import { getDefaultConfig } from "$lib/shared/default-config";
-  import type { AppConfig, MouseAction } from "$lib/core";
+  import type {
+    AppConfig,
+    MouseAction,
+    SettingsThemePreference,
+  } from "$lib/core";
   import SettingsShell, {
     type SettingsSectionItem,
   } from "$lib/features/settings/SettingsShell.svelte";
@@ -76,9 +84,17 @@
   const supportedMouseActionSet = new Set<MouseAction>(supportedMouseActions);
   const initialConfig = ensureLayerFontSizesInConfig(getDefaultConfig());
 
+  function detectSystemPrefersDark(): boolean {
+    if (typeof window === "undefined" || !("matchMedia" in window)) {
+      return false;
+    }
+    return window.matchMedia("(prefers-color-scheme: dark)").matches;
+  }
+
   type SectionId = "general" | "mouse" | "layers" | "hotkeys" | "overlay";
 
   let config = $state<AppConfig>(initialConfig);
+  let systemPrefersDark = $state(detectSystemPrefersDark());
   let isLoading = $state(true);
   let isApplying = $state(false);
   let isResetting = $state(false);
@@ -103,6 +119,10 @@
   type BackendErrorPayload = {
     code: string;
   };
+
+  let resolvedSettingsTheme = $derived<ResolvedSettingsTheme>(
+    resolveSettingsTheme(config.app.settingsWindow.theme, systemPrefersDark),
+  );
 
   const sections = $derived<SettingsSectionItem[]>([
     {
@@ -577,33 +597,33 @@
     if (actionCycle.length === 0) {
       issues.push($t("errors.mouseActionCycleEmpty"));
     } else {
-      const seenActions = new Set<MouseAction>();
+      const seenActions: Partial<Record<MouseAction, true>> = {};
       for (const action of actionCycle) {
         if (!supportedMouseActionSet.has(action)) {
           issues.push($t("errors.mouseActionUnsupported"));
           break;
         }
-        if (seenActions.has(action)) {
+        if (seenActions[action]) {
           issues.push($t("errors.mouseActionCycleDuplicate"));
           break;
         }
-        seenActions.add(action);
+        seenActions[action] = true;
       }
     }
     const disabledActions = Array.isArray(candidate.mouse.disabledActions)
       ? candidate.mouse.disabledActions
       : [];
-    const seenDisabledActions = new Set<MouseAction>();
+    const seenDisabledActions: Partial<Record<MouseAction, true>> = {};
     for (const action of disabledActions) {
       if (!supportedMouseActionSet.has(action)) {
         issues.push($t("errors.mouseActionUnsupported"));
         break;
       }
-      if (seenDisabledActions.has(action)) {
+      if (seenDisabledActions[action]) {
         issues.push($t("errors.mouseActionCycleDuplicate"));
         break;
       }
-      seenDisabledActions.add(action);
+      seenDisabledActions[action] = true;
     }
     if (
       seenDisabledActions.size >= actionCycle.length &&
@@ -888,6 +908,11 @@
     scheduleAutoApply();
   }
 
+  function onThemeChange(next: SettingsThemePreference) {
+    config.app.settingsWindow.theme = next;
+    scheduleAutoApply();
+  }
+
   function switchLayerMode(index: number, mode: "single" | "combo") {
     const layer = config.layers[index];
     if (!layer || layer.mode === mode) {
@@ -1148,12 +1173,18 @@
     initLocale();
     syncSectionFromHash();
     let unlistenBackendError: (() => void) | undefined;
+    const systemThemeMedia = window.matchMedia("(prefers-color-scheme: dark)");
 
     const onHashChange = () => {
       syncSectionFromHash();
     };
+    const onSystemThemeChange = (event: MediaQueryListEvent) => {
+      systemPrefersDark = event.matches;
+    };
 
+    systemPrefersDark = systemThemeMedia.matches;
     window.addEventListener("hashchange", onHashChange);
+    systemThemeMedia.addEventListener("change", onSystemThemeChange);
 
     void (async () => {
       unlistenBackendError = await listen<BackendErrorPayload>(
@@ -1184,12 +1215,16 @@
     return () => {
       clearAutoApplyTimer();
       window.removeEventListener("hashchange", onHashChange);
+      systemThemeMedia.removeEventListener("change", onSystemThemeChange);
       unlistenBackendError?.();
     };
   });
 </script>
 
-<main class="settings-scrollbar h-full overflow-y-auto px-4 py-4">
+<main
+  class="settings-theme settings-scrollbar h-full overflow-y-auto px-4 py-4"
+  data-theme={resolvedSettingsTheme}
+>
   <input
     bind:this={fileInput}
     type="file"
@@ -1204,6 +1239,7 @@
         <div class="mt-6" class:hidden={activeSection !== "general"}>
           <GeneralSection
             localeValue={$locale}
+            themeValue={config.app.settingsWindow.theme}
             {isLoading}
             {compactSelectClass}
             {isImporting}
@@ -1217,6 +1253,7 @@
             onOpenConfigDir={openConfigDirectory}
             onReset={resetConfig}
             {onLocaleChange}
+            {onThemeChange}
           />
         </div>
 

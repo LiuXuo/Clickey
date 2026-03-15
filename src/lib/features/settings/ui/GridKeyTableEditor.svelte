@@ -118,7 +118,12 @@
       return;
     }
 
-    if (event.ctrlKey || event.metaKey || event.altKey || event.key.length !== 1) {
+    if (
+      event.ctrlKey ||
+      event.metaKey ||
+      event.altKey ||
+      event.key.length !== 1
+    ) {
       return;
     }
 
@@ -209,14 +214,14 @@
   }
 </script>
 
-<div class="w-full rounded-lg border border-zinc-200 bg-zinc-50">
-  <table class="w-full table-fixed border-collapse text-[11px] text-zinc-700">
+<div class="settings-table-shell w-full rounded-lg">
+  <table class="settings-table w-full table-fixed border-collapse text-[11px]">
     <tbody>
       {#each Array.from({ length: safeRows }, (_unused, row) => row) as rowIndex (`row-${rowIndex}`)}
-        <tr class="odd:bg-white even:bg-zinc-50">
+        <tr>
           {#each Array.from({ length: safeCols }, (_unused, col) => col) as colIndex (`col-${colIndex}`)}
             {@const index = cellIndex(rowIndex, colIndex)}
-            <td class="border border-zinc-200 p-1.5">
+            <td class="p-1.5">
               <input
                 bind:this={inputRefs[index]}
                 id={`${idPrefix}-${index}`}

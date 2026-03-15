@@ -73,10 +73,8 @@
     return normalized;
   }
 
-  const actionIconButtonClass =
-    "inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition hover:bg-zinc-100 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-40";
-  const removeIconButtonClass =
-    "inline-flex h-7 w-7 items-center justify-center rounded-md text-zinc-500 transition hover:bg-rose-50 hover:text-rose-700 disabled:cursor-not-allowed disabled:opacity-40";
+  const actionIconButtonClass = "settings-icon-button";
+  const removeIconButtonClass = "settings-icon-button";
 </script>
 
 <SettingsCard id="layers">
@@ -84,10 +82,10 @@
 
   <div class="mt-6 space-y-5">
     {#each config.layers as layer, index (index)}
-      <div class="rounded-xl border border-zinc-200 bg-white/80 p-4 shadow-sm">
+      <div class="settings-panel rounded-xl p-4">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div class="min-w-0">
-            <p class="text-xs uppercase tracking-[0.24em] text-zinc-500">
+            <p class="settings-text-muted text-xs uppercase tracking-[0.24em]">
               {$t("layers.layerLabel", { index: index + 1 })}
             </p>
           </div>
@@ -115,6 +113,7 @@
             <button
               type="button"
               class={removeIconButtonClass}
+              data-tone="danger"
               onclick={() => onRemoveLayer(index)}
               disabled={isLoading || config.layers.length <= 1}
               aria-label={$t("layers.remove")}
@@ -149,7 +148,7 @@
                 <option value="combo">{$t("layers.type.combo")}</option>
               </select>
               <span
-                class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-zinc-500"
+                class="pointer-events-none absolute inset-y-0 right-3 flex items-center settings-text-muted"
               >
                 <AppIcon name="selectArrows" size={14} strokeWidth={1.8} />
               </span>
@@ -304,7 +303,7 @@
         disabled={isLoading}
       >
         <AppIcon name="addSingle" size={16} />
-        单层
+        {$t("layers.type.single")}
       </button>
       <button
         type="button"
@@ -312,8 +311,8 @@
         onclick={onAddComboLayer}
         disabled={isLoading}
       >
-        <AppIcon name="addSingle" size={16} />
-        组合
+        <AppIcon name="addCombo" size={16} />
+        {$t("layers.type.combo")}
       </button>
     </div>
   </div>

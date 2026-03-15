@@ -66,6 +66,7 @@ Clickey 的目标是提供一种高效、精确、可肌肉记忆的鼠标定位
 - 热键编辑：activation + controls
 - 鼠标行为：左/右/中/仅移动的启用与排序，以及平滑移动、按压时长、落点随机、曲线/抖动、远距离提速与步进策略
 - Overlay 样式：alpha/line width/per-layer font size + color picker
+- 设置页主题：`跟随系统 / 浅色 / 深色`，仅作用于 Settings WebView
 - 键位输入规则：仅空格分隔；`,` 是合法键位本体，不作为分隔符
 - 热键录制器：`trigger` / `switchAction` / `nudgeUp/Down/Left/Right` 支持“点击录制”，并在冲突时阻止自动生效
 - 配置导入/导出：override JSON（仅包含与默认配置不同的字段）
@@ -238,6 +239,7 @@ AHK 脚本保留价值仅限于：
 字段名约定（与 `AGENTS.md` 的配置模型一致）：
 
 - 语言：`app.locale`
+- 设置页主题：`app.settingsWindow.theme`（`system` / `light` / `dark`，仅影响 Settings）
 - 托盘显隐：`app.tray.enabled`
 - 激活热键：`hotkeys.activation.trigger`
 - 控制键：`hotkeys.controls.cancel` / `hotkeys.controls.undo` / `hotkeys.controls.directClick` / `hotkeys.controls.switchAction` / `hotkeys.controls.nextMonitor` / `hotkeys.controls.nudgeLeft` / `hotkeys.controls.nudgeRight` / `hotkeys.controls.nudgeUp` / `hotkeys.controls.nudgeDown`

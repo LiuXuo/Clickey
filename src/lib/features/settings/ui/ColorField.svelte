@@ -67,24 +67,22 @@
     <button
       {id}
       type="button"
-      class={`${colorTriggerClass} hover:border-zinc-400`}
+      class={colorTriggerClass}
       onclick={togglePicker}
       {disabled}
     >
       <span class="inline-flex items-center gap-2">
         <span
-          class="h-4 w-4 rounded border border-zinc-300"
+          class="settings-border h-4 w-4 rounded border"
           style={`background:${safeHex};`}
         ></span>
         <span>{value}</span>
       </span>
-      <span class="text-xs text-zinc-500">HEX</span>
+      <span class="settings-text-muted text-xs">HEX</span>
     </button>
 
     {#if isOpen}
-      <div
-        class="absolute z-30 mt-2 w-full rounded-xl border border-zinc-200 bg-white p-3 shadow-lg"
-      >
+      <div class="settings-panel absolute z-30 mt-2 w-full rounded-xl p-3">
         <div class="flex items-center gap-3">
           <div class="flex-1">
             <input

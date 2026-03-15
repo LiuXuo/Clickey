@@ -66,6 +66,7 @@
     hotkeys: Keyboard,
     overlay: ScanSearch,
     language: Languages,
+    theme: Palette,
     config: SlidersHorizontal,
     selectArrows: ChevronsUpDown,
     import: FileInput,

@@ -17,9 +17,11 @@
 </script>
 
 <div class={compact ? "space-y-1" : "space-y-2"}>
-  <label class="text-sm font-medium text-zinc-700" for={forId}>{label}</label>
+  <label class="settings-text-secondary text-sm font-medium" for={forId}
+    >{label}</label
+  >
   {#if description}
-    <p class="text-xs text-zinc-500">{description}</p>
+    <p class="settings-text-muted text-xs">{description}</p>
   {/if}
   {@render children?.()}
 </div>
