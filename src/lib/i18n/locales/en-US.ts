@@ -13,6 +13,7 @@ const en: Record<TranslationKey, string> = {
   "app.openConfigDir": "Open Directory",
   "app.confirm": "OK",
   "language.label": "Language",
+  "language.system": "Follow System",
   "language.zh": "简体中文",
   "language.en": "English",
   "theme.label": "Theme",

@@ -136,6 +136,13 @@ enum LocaleCode {
     EnUs,
 }
 
+#[derive(Clone, Copy)]
+enum LocalePreference {
+    System,
+    ZhCn,
+    EnUs,
+}
+
 struct TrayTexts {
     settings: &'static str,
     pause: &'static str,
@@ -373,22 +380,36 @@ fn get_state_config(state: &AppState) -> Result<AppConfig, String> {
         .map_err(|_| error_code(ERR_BACKEND_STATE_UNAVAILABLE))
 }
 
-fn parse_locale(value: &str) -> Option<LocaleCode> {
+fn parse_locale_preference(value: &str) -> Option<LocalePreference> {
     match value {
-        "zh-CN" => Some(LocaleCode::ZhCn),
-        "en-US" => Some(LocaleCode::EnUs),
+        "system" => Some(LocalePreference::System),
+        "zh-CN" => Some(LocalePreference::ZhCn),
+        "en-US" => Some(LocalePreference::EnUs),
         _ => None,
     }
 }
 
-fn normalize_locale(value: &str) -> LocaleCode {
-    parse_locale(value).unwrap_or(LocaleCode::ZhCn)
+fn normalize_locale_preference(value: &str) -> LocalePreference {
+    parse_locale_preference(value).unwrap_or(LocalePreference::System)
 }
 
-fn locale_value(locale: LocaleCode) -> &'static str {
-    match locale {
-        LocaleCode::ZhCn => "zh-CN",
-        LocaleCode::EnUs => "en-US",
+fn locale_preference_value(preference: LocalePreference) -> &'static str {
+    match preference {
+        LocalePreference::System => "system",
+        LocalePreference::ZhCn => "zh-CN",
+        LocalePreference::EnUs => "en-US",
+    }
+}
+
+fn is_chinese_locale_tag(value: &str) -> bool {
+    let normalized = value.trim().replace('_', "-").to_ascii_lowercase();
+    normalized == "zh" || normalized.starts_with("zh-")
+}
+
+fn resolve_system_locale() -> LocaleCode {
+    match sys_locale::get_locale() {
+        Some(locale) if is_chinese_locale_tag(&locale) => LocaleCode::ZhCn,
+        _ => LocaleCode::EnUs,
     }
 }
 
@@ -414,7 +435,11 @@ fn is_paused(state: &AppState) -> bool {
 }
 
 fn locale_from_config(config: &AppConfig) -> LocaleCode {
-    normalize_locale(&config.app.locale)
+    match normalize_locale_preference(&config.app.locale) {
+        LocalePreference::System => resolve_system_locale(),
+        LocalePreference::ZhCn => LocaleCode::ZhCn,
+        LocalePreference::EnUs => LocaleCode::EnUs,
+    }
 }
 
 fn show_settings_from_tray(app: &AppHandle, _state: &AppState) {
@@ -867,7 +892,8 @@ fn apply_runtime_config(
     state: &AppState,
     mut config: AppConfig,
 ) -> Result<AppConfig, String> {
-    config.app.locale = locale_value(locale_from_config(&config)).to_string();
+    config.app.locale =
+        locale_preference_value(normalize_locale_preference(&config.app.locale)).to_string();
     validate_config(&config)?;
     set_state_config(state, config.clone())?;
     let paused = is_paused(state);
@@ -915,7 +941,7 @@ fn reset_config(app: AppHandle, state: State<'_, AppState>) -> Result<AppConfig,
 #[tauri::command]
 fn set_locale(app: AppHandle, state: State<'_, AppState>, locale: String) -> Result<(), String> {
     let mut config = get_state_config(state.inner())?;
-    config.app.locale = locale_value(normalize_locale(&locale)).to_string();
+    config.app.locale = locale_preference_value(normalize_locale_preference(&locale)).to_string();
     set_state_config(state.inner(), config.clone())?;
     persist_config(&app, &config)?;
     refresh_tray(&app, state.inner());
@@ -2298,7 +2324,10 @@ fn parse_shortcut_or_panic(label: &str, value: &str) -> Shortcut {
 
 #[cfg(test)]
 mod tests {
-    use super::normalize_shortcut;
+    use super::{
+        is_chinese_locale_tag, locale_preference_value, normalize_locale_preference,
+        normalize_shortcut, LocalePreference,
+    };
 
     #[test]
     fn normalize_shortcut_maps_macos_private_function_keys() {
@@ -2312,5 +2341,24 @@ mod tests {
         let shortcut = String::from(char::from_u32(0xF71B).unwrap());
 
         assert_eq!(normalize_shortcut(&shortcut), "F24");
+    }
+
+    #[test]
+    fn locale_preference_defaults_to_system_for_unknown_values() {
+        assert!(matches!(
+            normalize_locale_preference("fr-FR"),
+            LocalePreference::System
+        ));
+        assert_eq!(
+            locale_preference_value(normalize_locale_preference("fr-FR")),
+            "system"
+        );
+    }
+
+    #[test]
+    fn chinese_locale_detection_handles_dash_and_underscore_tags() {
+        assert!(is_chinese_locale_tag("zh-CN"));
+        assert!(is_chinese_locale_tag("zh_TW"));
+        assert!(!is_chinese_locale_tag("en-US"));
     }
 }

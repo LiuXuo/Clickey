@@ -1,12 +1,18 @@
-﻿import { browser } from "$app/environment";
+import { browser } from "$app/environment";
+import type {
+  LocalePreference as LocalePreferenceValue,
+  ResolvedLocale,
+} from "$lib/core";
 import { derived, get, writable } from "svelte/store";
 import zh from "./locales/zh-CN";
 import en from "./locales/en-US";
 
-export type Locale = "zh-CN" | "en-US";
+export type Locale = ResolvedLocale;
+export type LocalePreference = LocalePreferenceValue;
 
 const STORAGE_KEY = "clickey.locale";
-export const DEFAULT_LOCALE: Locale = "zh-CN";
+export const DEFAULT_LOCALE_PREFERENCE: LocalePreference = "system";
+export const DEFAULT_LOCALE: Locale = "en-US";
 
 export type TranslationKey = keyof typeof zh;
 export type TranslationParams = Record<string, string | number>;
@@ -33,7 +39,45 @@ const formatter = (template: string, params?: TranslationParams) => {
   });
 };
 
-export const locale = writable<Locale>(DEFAULT_LOCALE);
+export function isLocalePreference(value: string): value is LocalePreference {
+  return value === "system" || value === "zh-CN" || value === "en-US";
+}
+
+function isChineseLocaleTag(value: string): boolean {
+  const normalized = value.trim().replace(/_/g, "-").toLowerCase();
+  return normalized === "zh" || normalized.startsWith("zh-");
+}
+
+export function resolveSystemLocale(
+  candidates?: readonly string[] | string | null,
+): Locale {
+  const localeCandidates = Array.isArray(candidates)
+    ? candidates
+    : typeof candidates === "string"
+      ? [candidates]
+      : browser
+        ? [navigator.language, ...(navigator.languages ?? [])]
+        : [];
+
+  return localeCandidates.some(
+    (candidate) =>
+      typeof candidate === "string" && isChineseLocaleTag(candidate),
+  )
+    ? "zh-CN"
+    : DEFAULT_LOCALE;
+}
+
+export function resolveLocalePreference(
+  preference: LocalePreference,
+  systemLocales?: readonly string[] | string | null,
+): Locale {
+  if (preference === "system") {
+    return resolveSystemLocale(systemLocales);
+  }
+  return preference;
+}
+
+export const locale = writable<Locale>(resolveSystemLocale());
 
 export const t = derived(locale, ($locale) => {
   return ((key: TranslationKey, params?: TranslationParams) => {
@@ -48,17 +92,23 @@ export const initLocale = () => {
     return;
   }
   const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored === "zh-CN" || stored === "en-US") {
-    locale.set(stored);
-  }
+  const preference = stored !== null && isLocalePreference(stored)
+    ? stored
+    : DEFAULT_LOCALE_PREFERENCE;
+  locale.set(resolveLocalePreference(preference));
   document.documentElement.lang = get(locale);
 };
 
 export const setLocale = (next: Locale) => {
   locale.set(next);
-  if (!browser) {
-    return;
+  if (browser) {
+    document.documentElement.lang = next;
   }
-  localStorage.setItem(STORAGE_KEY, next);
-  document.documentElement.lang = next;
+};
+
+export const setLocalePreference = (next: LocalePreference) => {
+  setLocale(resolveLocalePreference(next));
+  if (browser) {
+    localStorage.setItem(STORAGE_KEY, next);
+  }
 };

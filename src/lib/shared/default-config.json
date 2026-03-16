@@ -1,6 +1,6 @@
 {
   "app": {
-    "locale": "zh-CN",
+    "locale": "system",
     "tray": {
       "enabled": true
     },

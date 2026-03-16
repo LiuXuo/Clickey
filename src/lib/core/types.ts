@@ -12,6 +12,9 @@ export interface Point {
   y: number;
 }
 
+export type ResolvedLocale = "zh-CN" | "en-US";
+export type LocalePreference = "system" | ResolvedLocale;
+
 export type MouseAction =
   | "left"
   | "right"
@@ -46,7 +49,7 @@ export type SettingsThemePreference = "system" | "light" | "dark";
 
 export interface AppConfig {
   app: {
-    locale: "zh-CN" | "en-US";
+    locale: LocalePreference;
     tray: {
       enabled: boolean;
     };

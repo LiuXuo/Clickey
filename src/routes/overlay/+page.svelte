@@ -3,7 +3,7 @@
   import { getCurrentWindow } from "@tauri-apps/api/window";
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
-  import { locale, t } from "$lib/i18n";
+  import { resolveLocalePreference, setLocale, t } from "$lib/i18n";
   import type {
     OverlayActivatePayload,
     OverlayActionPayload,
@@ -311,7 +311,7 @@
       unlistenActivate = await listen<OverlayActivatePayload>(
         "overlay:activate",
         (event) => {
-          locale.set(event.payload.config.app.locale);
+          setLocale(resolveLocalePreference(event.payload.config.app.locale));
           config = event.payload.config;
           baseRegion = event.payload.region;
           runtime = createInitialState(

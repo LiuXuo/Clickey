@@ -3,7 +3,12 @@
   import { listen } from "@tauri-apps/api/event";
   import { revealItemInDir } from "@tauri-apps/plugin-opener";
   import { onMount } from "svelte";
-  import { initLocale, locale, setLocale, t, type Locale } from "$lib/i18n";
+  import {
+    initLocale,
+    setLocalePreference,
+    t,
+    type LocalePreference,
+  } from "$lib/i18n";
   import {
     resolveSettingsTheme,
     type ResolvedSettingsTheme,
@@ -811,9 +816,7 @@
       config = ensureLayerFontSizesInConfig(reset);
       lastValidationIssue = "";
       await refreshResetAvailability();
-      if (reset.app.locale === "zh-CN" || reset.app.locale === "en-US") {
-        setLocale(reset.app.locale);
-      }
+      setLocalePreference(reset.app.locale);
       pushToast("success", $t("status.reset"));
     } catch (err) {
       const message = resolveErrorMessage(err);
@@ -882,9 +885,7 @@
       config = ensureLayerFontSizesInConfig(imported);
       lastValidationIssue = "";
       await refreshResetAvailability();
-      if (imported.app.locale === "zh-CN" || imported.app.locale === "en-US") {
-        setLocale(imported.app.locale);
-      }
+      setLocalePreference(imported.app.locale);
       pushToast("success", $t("status.imported"));
     } catch (err) {
       const message = resolveErrorMessage(err);
@@ -894,8 +895,8 @@
     }
   }
 
-  function onLocaleChange(next: Locale) {
-    setLocale(next);
+  function onLocaleChange(next: LocalePreference) {
+    setLocalePreference(next);
     config.app.locale = next;
     void invoke("set_locale", { locale: next })
       .catch((err) => {
@@ -1201,9 +1202,7 @@
         config = ensureLayerFontSizesInConfig(loaded);
         lastValidationIssue = "";
         await refreshResetAvailability();
-        if (loaded.app.locale === "zh-CN" || loaded.app.locale === "en-US") {
-          setLocale(loaded.app.locale);
-        }
+        setLocalePreference(loaded.app.locale);
       } catch (err) {
         const message = resolveErrorMessage(err);
         pushToast("error", message);
@@ -1238,7 +1237,7 @@
       <SettingsShell {sections} {activeSection} onSelectSection={selectSection}>
         <div class="mt-6" class:hidden={activeSection !== "general"}>
           <GeneralSection
-            localeValue={$locale}
+            localeValue={config.app.locale}
             themeValue={config.app.settingsWindow.theme}
             {isLoading}
             {compactSelectClass}

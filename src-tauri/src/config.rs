@@ -344,7 +344,7 @@ fn default_overlay_font_layer_size_px() -> Vec<u32> {
 }
 
 fn default_locale() -> String {
-    "zh-CN".to_string()
+    "system".to_string()
 }
 
 #[cfg(target_os = "macos")]

@@ -71,7 +71,7 @@ Clickey 的目标是提供一种高效、精确、可肌肉记忆的鼠标定位
 - 热键录制器：`trigger` / `switchAction` / `nudgeUp/Down/Left/Right` 支持“点击录制”，并在冲突时阻止自动生效
 - 配置导入/导出：override JSON（仅包含与默认配置不同的字段）
 - 自动生效：配置改动在前端校验通过后自动应用并持久化（去抖执行）
-- i18n：`zh-CN` / `en-US`，切换后设置页即时生效
+- i18n：`system` / `zh-CN` / `en-US`；`system` 会跟随系统语言解析为当前支持的语言，切换后设置页即时生效
 - 托盘联动：
   - 左键单击托盘图标直接打开设置页
   - 右键菜单包含 `设置 / 暂停或启动 / 退出`
@@ -225,7 +225,7 @@ AHK 脚本保留价值仅限于：
 
 - **托盘左键**：直接打开设置页。
 - **托盘右键菜单**：`设置 / 暂停(或启动) / 退出`。
-- **菜单 i18n 联动**：菜单文本跟随当前语言（`zh-CN` / `en-US`）即时更新。
+- **菜单 i18n 联动**：菜单文本跟随当前解析语言（`zh-CN` / `en-US`）即时更新；当 `app.locale=system` 时会跟随系统语言。
 - **设置窗口兜底**：即使设置窗口被关闭销毁，托盘“设置”仍会自动重建并打开。
 
 可定制项（方向）：
@@ -238,7 +238,7 @@ AHK 脚本保留价值仅限于：
 
 字段名约定（与 `AGENTS.md` 的配置模型一致）：
 
-- 语言：`app.locale`
+- 语言：`app.locale`（`system` / `zh-CN` / `en-US`；`system` 会在运行时解析）
 - 设置页主题：`app.settingsWindow.theme`（`system` / `light` / `dark`，仅影响 Settings）
 - 托盘显隐：`app.tray.enabled`
 - 激活热键：`hotkeys.activation.trigger`

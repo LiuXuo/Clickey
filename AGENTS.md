@@ -296,12 +296,12 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 
 ## 6. 配置模型（当前实现基线）
 
-> 以下结构与当前实现对齐（以 `src/lib/shared/default-config.json` 为基线）。macOS 运行时会把 `hotkeys.activation.trigger` 的默认值覆写为 `Cmd+;`；其他平台保持 `Ctrl+;`。新增字段时必须同步更新默认配置、前端类型、Rust 结构体与 README/AGENT 文档。
+> 以下结构与当前实现对齐（以 `src/lib/shared/default-config.json` 为基线）。macOS 运行时会把 `hotkeys.activation.trigger` 的默认值覆写为 `Cmd+;`；其他平台保持 `Ctrl+;`。`app.locale` 的默认值为 `system`，运行时按系统语言解析为当前支持的语言（当前：`zh-CN` / `en-US`）。新增字段时必须同步更新默认配置、前端类型、Rust 结构体与 README/AGENT 文档。
 
 ```json
 {
   "app": {
-    "locale": "zh-CN",
+    "locale": "system",
     "tray": {
       "enabled": true
     },
@@ -452,8 +452,9 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - **配置是单一事实来源**（UI 只是配置编辑器）。
 - Core Engine 只依赖配置与输入事件，不读取 OS。
 - **“设置页/托盘”也是配置入口的一部分**：Settings 只负责编辑配置并触发自动应用；不直接参与 Overlay 的事件循环。
-- 托盘菜单属于运行时 UI：文案必须与 `app.locale` 同步，交互与设置页行为保持一致。
+- 托盘菜单属于运行时 UI：文案必须与 `app.locale` 解析后的运行时语言同步，交互与设置页行为保持一致。
 - `app.settingsWindow.theme` 仅作用于 Settings WebView；不得影响 Overlay 遮罩窗口的渲染与交互。
+- `app.locale` 是语言偏好值：允许 `system/zh-CN/en-US`；当为 `system` 时，由前后端各自按系统语言解析为当前支持的运行时语言（当前：`zh-CN` / `en-US`）。
 - macOS 当前期望行为：应用默认以 agent app（`LSUIElement=1`）方式启动，仅设置页打开时显示 Dock 图标；关闭设置页（如 `Cmd+W`）后退回“仅托盘常驻”，真正退出（如 `Cmd+Q` / 托盘退出）时托盘也一并消失。
 - **层（`layers`）是定制化的单位**：Settings 直接编辑 `layers[]`；Overlay 只消费“当前运行时配置”。
 - **combo 层固定为轴向两段式**：`stage0=1xN`（阶段 1，列），`stage1=Nx1`（阶段 2，行）；不支持 `2x15/15x2` 这类双轴 stage。
@@ -564,3 +565,4 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-15：新增 `app.settingsWindow.theme`（`system/light/dark`）作为设置页专属主题配置；Settings UI 改为基于 CSS 变量的语义 token，主题切换仅作用于 Settings WebView，不影响 Overlay。
 - 2026-03-15：收敛构建链路与告警清理：`scripts/tauri-build.mjs` 的 Tauri CLI 调用改为直接通过当前 Node 进程执行 `@tauri-apps/cli/tauri.js`，避免 Windows 上 `spawnSync npx.cmd` 的兼容性问题并保留 macOS 证书探测与 ad-hoc 回退逻辑；Rust 侧同时将默认配置的平台覆写抽成 helper，并把 macOS 辅助功能权限兜底改为按平台编译，避免非 macOS 上遗留未使用字段、常量与空实现。
 - 2026-03-15：修复 macOS 高位函数键录制：Settings 热键录制新增对 AppKit `NSF*FunctionKey` 私有字符的归一化，`F20` 可被正确录制并通过校验；同时将 macOS 全局热键上限明确收敛为 `F20`，`F21`~`F24` 在配置校验阶段直接返回稳定错误码。
+- 2026-03-16：语言配置改为 `app.locale = system/zh-CN/en-US` 三态偏好；默认值切到 `system`，Settings/Overlay/托盘统一按系统语言解析 `system`，未支持语言回退到 `en-US`。

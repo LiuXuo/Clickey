@@ -1,6 +1,6 @@
 ﻿<script lang="ts">
   import type { SettingsThemePreference } from "$lib/core";
-  import { t, type Locale } from "$lib/i18n";
+  import { t, type LocalePreference } from "$lib/i18n";
   import SettingsCard from "$lib/features/settings/ui/SettingsCard.svelte";
   import SectionHeader from "$lib/features/settings/ui/SectionHeader.svelte";
   import ActionBar from "$lib/features/settings/ui/ActionBar.svelte";
@@ -26,7 +26,7 @@
     onLocaleChange,
     onThemeChange,
   } = $props<{
-    localeValue: Locale;
+    localeValue: LocalePreference;
     themeValue: SettingsThemePreference;
     isLoading: boolean;
     compactSelectClass: string;
@@ -40,13 +40,13 @@
     onExport: () => void;
     onOpenConfigDir: () => void;
     onReset: () => void;
-    onLocaleChange: (next: Locale) => void;
+    onLocaleChange: (next: LocalePreference) => void;
     onThemeChange: (next: SettingsThemePreference) => void;
   }>();
 
   function handleLocaleChange(event: Event) {
     const target = event.currentTarget as HTMLSelectElement;
-    const next = target.value as Locale;
+    const next = target.value as LocalePreference;
     onLocaleChange(next);
   }
 
@@ -76,6 +76,7 @@
             onchange={handleLocaleChange}
             disabled={isLoading}
           >
+            <option value="system">{$t("language.system")}</option>
             <option value="zh-CN">{$t("language.zh")}</option>
             <option value="en-US">{$t("language.en")}</option>
           </select>

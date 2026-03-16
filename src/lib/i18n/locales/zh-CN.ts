@@ -9,6 +9,7 @@
   "app.openConfigDir": "打开目录",
   "app.confirm": "确定",
   "language.label": "语言",
+  "language.system": "跟随系统",
   "language.zh": "简体中文",
   "language.en": "English",
   "theme.label": "主题",
