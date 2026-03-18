@@ -11,6 +11,7 @@
   let {
     localeValue,
     themeValue,
+    launchOnLoginValue,
     openOnLaunchValue,
     isLoading,
     compactSelectClass,
@@ -26,10 +27,12 @@
     onReset,
     onLocaleChange,
     onThemeChange,
+    onLaunchOnLoginChange,
     onOpenOnLaunchChange,
   } = $props<{
     localeValue: LocalePreference;
     themeValue: SettingsThemePreference;
+    launchOnLoginValue: boolean;
     openOnLaunchValue: boolean;
     isLoading: boolean;
     compactSelectClass: string;
@@ -45,6 +48,7 @@
     onReset: () => void;
     onLocaleChange: (next: LocalePreference) => void;
     onThemeChange: (next: SettingsThemePreference) => void;
+    onLaunchOnLoginChange: (next: boolean) => void;
     onOpenOnLaunchChange: (next: boolean) => void;
   }>();
 
@@ -63,6 +67,11 @@
   function handleOpenOnLaunchChange(event: Event) {
     const target = event.currentTarget as HTMLInputElement;
     onOpenOnLaunchChange(target.checked);
+  }
+
+  function handleLaunchOnLoginChange(event: Event) {
+    const target = event.currentTarget as HTMLInputElement;
+    onLaunchOnLoginChange(target.checked);
   }
 </script>
 
@@ -147,10 +156,10 @@
         icon="startup"
         element="p"
       />
-      <div class={`mt-2 gap-2 ${controlInputSpaceWrapClass}`}>
+      <div class="mt-2 space-y-3">
         <label
           for="settings-open-on-launch"
-          class={`settings-text-secondary inline-flex items-center gap-3 text-sm font-medium ${
+          class={`settings-text-secondary flex w-full items-center gap-3 text-sm font-medium ${
             isLoading ? "opacity-60" : ""
           }`}
         >
@@ -164,6 +173,24 @@
           />
           <span class="settings-checkbox"></span>
           <span>{$t("general.openSettingsOnLaunch")}</span>
+        </label>
+
+        <label
+          for="launch-on-login"
+          class={`settings-text-secondary flex w-full items-center gap-3 text-sm font-medium ${
+            isLoading ? "opacity-60" : ""
+          }`}
+        >
+          <input
+            id="launch-on-login"
+            type="checkbox"
+            class="peer sr-only"
+            checked={launchOnLoginValue}
+            onchange={handleLaunchOnLoginChange}
+            disabled={isLoading}
+          />
+          <span class="settings-checkbox"></span>
+          <span>{$t("general.launchOnLogin")}</span>
         </label>
       </div>
     </div>

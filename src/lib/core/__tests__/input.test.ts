@@ -6,6 +6,7 @@ function makeConfig(): AppConfig {
   return {
     app: {
       locale: "zh-CN",
+      launchOnLogin: { enabled: false },
       tray: { enabled: true },
       settingsWindow: { openOnLaunch: true, theme: "system" },
     },

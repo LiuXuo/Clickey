@@ -27,6 +27,7 @@ use tauri::{
     AppHandle, Emitter, EventTarget, Manager, PhysicalPosition, PhysicalSize, Position, Size,
     State, WebviewUrl, WebviewWindowBuilder,
 };
+use tauri_plugin_autostart::ManagerExt as AutoLaunchExt;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Shortcut, ShortcutState};
 
 #[cfg(target_os = "macos")]
@@ -160,6 +161,7 @@ const TRAY_ICON_ID: &str = "main";
 const TRAY_MENU_SETTINGS_ID: &str = "tray-settings";
 const TRAY_MENU_TOGGLE_ID: &str = "tray-toggle-runtime";
 const TRAY_MENU_QUIT_ID: &str = "tray-quit";
+const AUTOSTART_ARG: &str = "--autostart";
 
 const ERR_CONFIG_DIR_UNAVAILABLE: &str = "ERR_CONFIG_DIR_UNAVAILABLE";
 const ERR_CONFIG_SERIALIZE_FAILED: &str = "ERR_CONFIG_SERIALIZE_FAILED";
@@ -218,6 +220,8 @@ const ERR_OVERRIDE_JSON_PARSE_FAILED: &str = "ERR_OVERRIDE_JSON_PARSE_FAILED";
 const ERR_OVERRIDE_JSON_NOT_OBJECT: &str = "ERR_OVERRIDE_JSON_NOT_OBJECT";
 const ERR_OVERRIDE_SCHEMA_INVALID: &str = "ERR_OVERRIDE_SCHEMA_INVALID";
 const ERR_STARTUP_ENTRY_UNAVAILABLE: &str = "ERR_STARTUP_ENTRY_UNAVAILABLE";
+const ERR_LAUNCH_ON_LOGIN_REQUIRES_TRAY: &str = "ERR_LAUNCH_ON_LOGIN_REQUIRES_TRAY";
+const ERR_LAUNCH_ON_LOGIN_SYNC_FAILED: &str = "ERR_LAUNCH_ON_LOGIN_SYNC_FAILED";
 const ERR_CLICK_ACTION_UNSUPPORTED: &str = "ERR_CLICK_ACTION_UNSUPPORTED";
 #[cfg(target_os = "macos")]
 const ERR_MAC_ACCESSIBILITY_REQUIRED: &str = "ERR_MAC_ACCESSIBILITY_REQUIRED";
@@ -370,6 +374,31 @@ fn set_state_config(state: &AppState, config: AppConfig) -> Result<(), String> {
             .map_err(|_| error_code(ERR_BACKEND_STATE_UNAVAILABLE))?;
         *ids_guard = ActivationHotkeyIds::from_config(&config);
     }
+    Ok(())
+}
+
+fn is_autostart_launch() -> bool {
+    std::env::args().any(|arg| arg == AUTOSTART_ARG)
+}
+
+fn sync_launch_on_login(app: &AppHandle, config: &AppConfig) -> Result<(), String> {
+    let autolaunch = app.autolaunch();
+    let is_enabled = autolaunch
+        .is_enabled()
+        .map_err(|_| error_code(ERR_LAUNCH_ON_LOGIN_SYNC_FAILED))?;
+
+    if config.app.launch_on_login.enabled {
+        if !is_enabled {
+            autolaunch
+                .enable()
+                .map_err(|_| error_code(ERR_LAUNCH_ON_LOGIN_SYNC_FAILED))?;
+        }
+    } else if is_enabled {
+        autolaunch
+            .disable()
+            .map_err(|_| error_code(ERR_LAUNCH_ON_LOGIN_SYNC_FAILED))?;
+    }
+
     Ok(())
 }
 
@@ -739,6 +768,9 @@ fn validate_config(config: &AppConfig) -> Result<(), String> {
     if !config.app.tray.enabled && !config.app.settings_window.open_on_launch {
         return Err(error_code(ERR_STARTUP_ENTRY_UNAVAILABLE));
     }
+    if config.app.launch_on_login.enabled && !config.app.tray.enabled {
+        return Err(error_code(ERR_LAUNCH_ON_LOGIN_REQUIRES_TRAY));
+    }
     if config.mouse.action_cycle.is_empty() {
         return Err(error_code(ERR_MOUSE_ACTION_CYCLE_EMPTY));
     }
@@ -899,6 +931,7 @@ fn apply_runtime_config(
     config.app.locale =
         locale_preference_value(normalize_locale_preference(&config.app.locale)).to_string();
     validate_config(&config)?;
+    sync_launch_on_login(app, &config)?;
     set_state_config(state, config.clone())?;
     let paused = is_paused(state);
     if paused {
@@ -1107,6 +1140,15 @@ pub fn run() {
             }
         })
         .build();
+    #[cfg(target_os = "macos")]
+    let autostart_plugin = tauri_plugin_autostart::Builder::new()
+        .arg(AUTOSTART_ARG)
+        .macos_launcher(tauri_plugin_autostart::MacosLauncher::LaunchAgent)
+        .build();
+    #[cfg(not(target_os = "macos"))]
+    let autostart_plugin = tauri_plugin_autostart::Builder::new()
+        .arg(AUTOSTART_ARG)
+        .build();
 
     tauri::Builder::default()
         .on_window_event(|window, event| {
@@ -1135,6 +1177,7 @@ pub fn run() {
             tray_menu_items: Mutex::new(None),
         })
         .plugin(tauri_plugin_opener::init())
+        .plugin(autostart_plugin)
         .plugin(global_shortcut_plugin)
         .invoke_handler(tauri::generate_handler![
             apply_config,
@@ -1149,6 +1192,7 @@ pub fn run() {
         ])
         .setup(|app| {
             let handle = app.handle();
+            let launched_from_autostart = is_autostart_launch();
             create_overlay_window(&handle)?;
             let state = app.state::<AppState>();
             let (mut config, mut should_persist) = load_config(&handle);
@@ -1169,6 +1213,9 @@ pub fn run() {
                 config = fallback;
                 should_persist = true;
             }
+            if let Err(err) = sync_launch_on_login(&handle, &config) {
+                println!("[startup] launch-on-login sync failed: {}", err);
+            }
             if should_persist {
                 let _ = persist_config(&handle, &config);
             }
@@ -1180,7 +1227,7 @@ pub fn run() {
                 app.set_dock_visibility(false);
                 let _ = app.hide();
             }
-            if config.app.settings_window.open_on_launch {
+            if config.app.settings_window.open_on_launch && !launched_from_autostart {
                 show_settings(&handle);
             }
             println!("[startup] activation hotkeys registered");

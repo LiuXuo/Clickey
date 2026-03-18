@@ -596,6 +596,9 @@
     if (candidate.nudge.stepPx <= 0) {
       issues.push($t("errors.nudgeStep"));
     }
+    if (candidate.app.launchOnLogin.enabled && !candidate.app.tray.enabled) {
+      issues.push($t("errors.launchOnLoginRequiresTray"));
+    }
     if (
       !candidate.app.tray.enabled &&
       !candidate.app.settingsWindow.openOnLaunch
@@ -917,6 +920,17 @@
 
   function onThemeChange(next: SettingsThemePreference) {
     config.app.settingsWindow.theme = next;
+    scheduleAutoApply();
+  }
+
+  function onLaunchOnLoginChange(next: boolean) {
+    config.app.launchOnLogin.enabled = next;
+    pushToast(
+      "info",
+      next
+        ? `${$t("status.launchOnLoginUpdated")} ${$t("general.launchOnLoginHint")}`
+        : $t("status.launchOnLoginUpdated"),
+    );
     scheduleAutoApply();
   }
 
@@ -1251,6 +1265,7 @@
           <GeneralSection
             localeValue={config.app.locale}
             themeValue={config.app.settingsWindow.theme}
+            launchOnLoginValue={config.app.launchOnLogin.enabled}
             openOnLaunchValue={config.app.settingsWindow.openOnLaunch}
             {isLoading}
             {compactSelectClass}
@@ -1266,6 +1281,7 @@
             onReset={resetConfig}
             {onLocaleChange}
             {onThemeChange}
+            {onLaunchOnLoginChange}
             {onOpenOnLaunchChange}
           />
         </div>

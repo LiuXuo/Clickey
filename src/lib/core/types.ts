@@ -50,6 +50,9 @@ export type SettingsThemePreference = "system" | "light" | "dark";
 export interface AppConfig {
   app: {
     locale: LocalePreference;
+    launchOnLogin: {
+      enabled: boolean;
+    };
     tray: {
       enabled: boolean;
     };

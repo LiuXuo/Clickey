@@ -24,11 +24,16 @@ const en: Record<TranslationKey, string> = {
   "status.imported": "Imported",
   "status.exported": "Exported",
   "status.openedConfigDir": "Opened directory",
+  "status.launchOnLoginUpdated":
+    "Launch-on-login changes take effect the next time you sign in.",
   "status.startupOpenOnLaunchUpdated":
     "Startup behavior changes take effect the next time the app launches.",
   "general.section": "General",
   "general.title": "General Settings",
   "general.startupLabel": "Startup",
+  "general.launchOnLogin": "Launch at startup",
+  "general.launchOnLoginHint":
+    "Auto-started launches stay in the tray and do not open Settings.",
   "general.openSettingsOnLaunch": "Open settings on launch",
   "general.configLabel": "Config",
   "layers.section": "Layers",
@@ -119,6 +124,8 @@ const en: Record<TranslationKey, string> = {
     "Hotkey conflict: {first} and {second} cannot be the same.",
   "errors.startupEntryUnavailable":
     "Keep the tray enabled when Open settings on launch is turned off.",
+  "errors.launchOnLoginRequiresTray":
+    "Keep the tray enabled when Launch at startup is turned on.",
   "errors.nudgeStep": "Nudge step must be > 0.",
   "errors.mouseActionCycleEmpty": "Enable at least one mouse action.",
   "errors.mouseActionCycleDuplicate":
@@ -165,6 +172,8 @@ const en: Record<TranslationKey, string> = {
     "Unable to locate the configuration directory.",
   "errors.backendConfigPersistFailed":
     "Failed to read/write config. Please check directory permissions.",
+  "errors.backendLaunchOnLoginSyncFailed":
+    "Unable to update launch on login. Check system permissions or app installation location and try again.",
   "errors.backendClickUnsupported":
     "The current click action is not supported yet.",
   "errors.backendMacAccessibilityRequired":

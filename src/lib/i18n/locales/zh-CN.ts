@@ -20,10 +20,13 @@
   "status.imported": "已导入",
   "status.exported": "已导出",
   "status.openedConfigDir": "已打开目录",
+  "status.launchOnLoginUpdated": "开机自启动更改将在下次登录系统时生效。",
   "status.startupOpenOnLaunchUpdated": "启动行为更改将在下次启动应用时生效。",
   "general.section": "通用",
   "general.title": "通用设置",
   "general.startupLabel": "启动",
+  "general.launchOnLogin": "开机自启动",
+  "general.launchOnLoginHint": "自动启动时将静默常驻托盘，不会弹出设置页。",
   "general.openSettingsOnLaunch": "启动时打开设置页",
   "general.configLabel": "配置",
   "layers.section": "层",
@@ -111,6 +114,8 @@
   "errors.hotkeyConflict": "热键冲突：{first} 与 {second} 不能相同。",
   "errors.startupEntryUnavailable":
     "关闭“启动时打开设置页”时，必须保留托盘入口。",
+  "errors.launchOnLoginRequiresTray":
+    "开启“开机自启动”时，必须保留托盘入口。",
   "errors.nudgeStep": "微调步长必须大于 0。",
   "errors.mouseActionCycleEmpty": "至少启用一个鼠标动作。",
   "errors.mouseActionCycleDuplicate": "鼠标动作循环中存在重复动作。",
@@ -152,6 +157,8 @@
   "errors.backendStateUnavailable": "应用状态暂不可用，请重启后重试。",
   "errors.backendConfigDirUnavailable": "无法定位配置目录。",
   "errors.backendConfigPersistFailed": "配置读写失败，请检查目录权限。",
+  "errors.backendLaunchOnLoginSyncFailed":
+    "无法更新开机自启动，请检查系统权限或安装位置后重试。",
   "errors.backendClickUnsupported": "当前点击动作暂不支持。",
   "errors.backendMacAccessibilityRequired":
     "macOS 需要为已安装的 Clickey.app 授予“辅助功能”权限后才能移动和点击鼠标。系统设置已打开，请在“隐私与安全性 > 辅助功能”里启用它；如果刚重装或重打包过，请删除旧授权后重新勾选。",

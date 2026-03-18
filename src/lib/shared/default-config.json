@@ -1,6 +1,9 @@
 {
   "app": {
     "locale": "system",
+    "launchOnLogin": {
+      "enabled": false
+    },
     "tray": {
       "enabled": true
     },
