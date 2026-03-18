@@ -81,6 +81,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
   combo 约束：阶段 1（列）固定 `1xN`，阶段 2（行）固定 `Nx1`
 - 热键编辑：activation + controls
 - 热键录制：`trigger` / `switchAction` / `nudgeUp/Down/Left/Right` 支持点击录制（Esc 取消、Backspace 清空）
+- 通用设置启动项：复选框控制“启动时打开设置页”（默认开启，变更在下次启动生效），预留同分组扩展“开机自启动”
 - 设置页主题：`跟随系统 / 浅色 / 深色`，仅作用于 Settings WebView
 - 鼠标行为配置：左/右/中/仅移动动作循环的启用与排序，以及平滑移动、按压时长、落点随机、速度随机、曲率/抖动、远距离提速与步进策略
 - Overlay 样式：alpha/line width/per-layer font size + color picker
@@ -306,7 +307,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
       "enabled": true
     },
     "settingsWindow": {
-      "openFromTray": true,
+      "openOnLaunch": true,
       "theme": "system"
     }
   },
@@ -453,9 +454,10 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - Core Engine 只依赖配置与输入事件，不读取 OS。
 - **“设置页/托盘”也是配置入口的一部分**：Settings 只负责编辑配置并触发自动应用；不直接参与 Overlay 的事件循环。
 - 托盘菜单属于运行时 UI：文案必须与 `app.locale` 解析后的运行时语言同步，交互与设置页行为保持一致。
+- `app.settingsWindow.openOnLaunch` 只影响“应用启动时是否自动显示 Settings”；变更在下次启动生效；若关闭该项则必须保留托盘入口，避免应用无可见入口。
 - `app.settingsWindow.theme` 仅作用于 Settings WebView；不得影响 Overlay 遮罩窗口的渲染与交互。
 - `app.locale` 是语言偏好值：允许 `system/zh-CN/en-US`；当为 `system` 时，由前后端各自按系统语言解析为当前支持的运行时语言（当前：`zh-CN` / `en-US`）。
-- macOS 当前期望行为：应用默认以 agent app（`LSUIElement=1`）方式启动，仅设置页打开时显示 Dock 图标；关闭设置页（如 `Cmd+W`）后退回“仅托盘常驻”，真正退出（如 `Cmd+Q` / 托盘退出）时托盘也一并消失。
+- macOS 当前期望行为：应用以 agent app（`LSUIElement=1`）方式运行；启动时是否自动打开 Settings 由 `app.settingsWindow.openOnLaunch` 控制（默认 `true`）；Settings 可见时显示 Dock 图标，关闭设置页（如 `Cmd+W`）后退回“仅托盘常驻”，真正退出（如 `Cmd+Q` / 托盘退出）时托盘也一并消失。
 - **层（`layers`）是定制化的单位**：Settings 直接编辑 `layers[]`；Overlay 只消费“当前运行时配置”。
 - **combo 层固定为轴向两段式**：`stage0=1xN`（阶段 1，列），`stage1=Nx1`（阶段 2，行）；不支持 `2x15/15x2` 这类双轴 stage。
 - **键位输入仅按空白分隔**：`,` 是合法键位本体，不作为分隔符。
@@ -510,9 +512,10 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - macOS 辅助功能权限兜底完成（安装态缺权限时自动打开设置页与系统辅助功能面板，并提示重新授权）
 - macOS 打包签名入口完成（自动探测本机证书并支持 `APPLE_SIGNING_IDENTITY` 覆盖；无证书时显式 ad-hoc）
 - macOS Dock/托盘生命周期完成（设置页打开时显示 Dock；`Cmd+W` 改为隐藏到托盘；`Cmd+Q` / 托盘退出时真正结束）
-- macOS agent 模式启动完成（bundle `Info.plist` 合并 `LSUIElement=1`，settings 窗口默认不在启动时显示）
+- macOS agent 模式启动完成（bundle `Info.plist` 合并 `LSUIElement=1`，Settings 启动显隐由 `app.settingsWindow.openOnLaunch` 控制）
 - 鼠标动作顺序/禁用配置完成（`moveOnly` 默认启用；新增 `doubleLeft` / `ctrlLeft` / `cmdLeft` / `shiftLeft` 且默认禁用；Settings 支持统一排序与单独禁用）
 - 设置页主题完成（`app.settingsWindow.theme` 支持 `system/light/dark`，仅影响 Settings WebView，并完成样式 token 化）
+- 设置页启动行为配置完成（通用设置新增“启动时打开设置页”复选框；默认开启；关闭后改为静默到托盘）
 
 ---
 
@@ -566,3 +569,4 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-15：收敛构建链路与告警清理：`scripts/tauri-build.mjs` 的 Tauri CLI 调用改为直接通过当前 Node 进程执行 `@tauri-apps/cli/tauri.js`，避免 Windows 上 `spawnSync npx.cmd` 的兼容性问题并保留 macOS 证书探测与 ad-hoc 回退逻辑；Rust 侧同时将默认配置的平台覆写抽成 helper，并把 macOS 辅助功能权限兜底改为按平台编译，避免非 macOS 上遗留未使用字段、常量与空实现。
 - 2026-03-15：修复 macOS 高位函数键录制：Settings 热键录制新增对 AppKit `NSF*FunctionKey` 私有字符的归一化，`F20` 可被正确录制并通过校验；同时将 macOS 全局热键上限明确收敛为 `F20`，`F21`~`F24` 在配置校验阶段直接返回稳定错误码。
 - 2026-03-16：语言配置改为 `app.locale = system/zh-CN/en-US` 三态偏好；默认值切到 `system`，Settings/Overlay/托盘统一按系统语言解析 `system`，未支持语言回退到 `en-US`。
+- 2026-03-18：新增 `app.settingsWindow.openOnLaunch` 启动行为配置；通用设置新增“启动时打开设置页”复选框并调整为配置后的独立启动项（默认开启，变更在下次启动生效）；启动链路改为读取 `openOnLaunch`，开启时启动后自动显示 Settings、关闭时静默常驻托盘，并新增前后端校验禁止与 `app.tray.enabled=false` 组合成“无可见入口”状态。

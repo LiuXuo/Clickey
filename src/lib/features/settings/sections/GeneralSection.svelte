@@ -11,6 +11,7 @@
   let {
     localeValue,
     themeValue,
+    openOnLaunchValue,
     isLoading,
     compactSelectClass,
     isImporting,
@@ -25,9 +26,11 @@
     onReset,
     onLocaleChange,
     onThemeChange,
+    onOpenOnLaunchChange,
   } = $props<{
     localeValue: LocalePreference;
     themeValue: SettingsThemePreference;
+    openOnLaunchValue: boolean;
     isLoading: boolean;
     compactSelectClass: string;
     isImporting: boolean;
@@ -42,6 +45,7 @@
     onReset: () => void;
     onLocaleChange: (next: LocalePreference) => void;
     onThemeChange: (next: SettingsThemePreference) => void;
+    onOpenOnLaunchChange: (next: boolean) => void;
   }>();
 
   function handleLocaleChange(event: Event) {
@@ -54,6 +58,11 @@
     const target = event.currentTarget as HTMLSelectElement;
     const next = target.value as SettingsThemePreference;
     onThemeChange(next);
+  }
+
+  function handleOpenOnLaunchChange(event: Event) {
+    const target = event.currentTarget as HTMLInputElement;
+    onOpenOnLaunchChange(target.checked);
   }
 </script>
 
@@ -129,6 +138,33 @@
           {onOpenConfigDir}
           {onReset}
         />
+      </div>
+    </div>
+
+    <div>
+      <FieldLabel
+        text={$t("general.startupLabel")}
+        icon="startup"
+        element="p"
+      />
+      <div class={`mt-2 gap-2 ${controlInputSpaceWrapClass}`}>
+        <label
+          for="settings-open-on-launch"
+          class={`settings-text-secondary inline-flex items-center gap-3 text-sm font-medium ${
+            isLoading ? "opacity-60" : ""
+          }`}
+        >
+          <input
+            id="settings-open-on-launch"
+            type="checkbox"
+            class="peer sr-only"
+            checked={openOnLaunchValue}
+            onchange={handleOpenOnLaunchChange}
+            disabled={isLoading}
+          />
+          <span class="settings-checkbox"></span>
+          <span>{$t("general.openSettingsOnLaunch")}</span>
+        </label>
       </div>
     </div>
   </div>

@@ -217,6 +217,7 @@ const ERR_COMBO_AXIS_CONSTRAINT: &str = "ERR_COMBO_AXIS_CONSTRAINT";
 const ERR_OVERRIDE_JSON_PARSE_FAILED: &str = "ERR_OVERRIDE_JSON_PARSE_FAILED";
 const ERR_OVERRIDE_JSON_NOT_OBJECT: &str = "ERR_OVERRIDE_JSON_NOT_OBJECT";
 const ERR_OVERRIDE_SCHEMA_INVALID: &str = "ERR_OVERRIDE_SCHEMA_INVALID";
+const ERR_STARTUP_ENTRY_UNAVAILABLE: &str = "ERR_STARTUP_ENTRY_UNAVAILABLE";
 const ERR_CLICK_ACTION_UNSUPPORTED: &str = "ERR_CLICK_ACTION_UNSUPPORTED";
 #[cfg(target_os = "macos")]
 const ERR_MAC_ACCESSIBILITY_REQUIRED: &str = "ERR_MAC_ACCESSIBILITY_REQUIRED";
@@ -735,6 +736,9 @@ fn validate_config(config: &AppConfig) -> Result<(), String> {
     if config.nudge.step_px == 0 {
         return Err(error_code(ERR_NUDGE_STEP_INVALID));
     }
+    if !config.app.tray.enabled && !config.app.settings_window.open_on_launch {
+        return Err(error_code(ERR_STARTUP_ENTRY_UNAVAILABLE));
+    }
     if config.mouse.action_cycle.is_empty() {
         return Err(error_code(ERR_MOUSE_ACTION_CYCLE_EMPTY));
     }
@@ -1175,6 +1179,9 @@ pub fn run() {
                 app.set_activation_policy(ActivationPolicy::Accessory);
                 app.set_dock_visibility(false);
                 let _ = app.hide();
+            }
+            if config.app.settings_window.open_on_launch {
+                show_settings(&handle);
             }
             println!("[startup] activation hotkeys registered");
             Ok(())

@@ -309,6 +309,43 @@ body {
     opacity: 0.5;
   }
 
+  .settings-checkbox {
+    @apply relative inline-flex h-4 w-4 shrink-0 items-center justify-center rounded-[4px] transition;
+    border: 1px solid var(--settings-border-strong);
+    background: var(--settings-surface);
+    box-shadow: 0 1px 2px var(--settings-shadow-soft);
+  }
+
+  .settings-checkbox::after {
+    content: "";
+    width: 0.28rem;
+    height: 0.55rem;
+    border-right: 2px solid transparent;
+    border-bottom: 2px solid transparent;
+    opacity: 0;
+    transform: translateY(-0.06rem) rotate(45deg);
+    transition: opacity 120ms ease;
+  }
+
+  .peer:checked + .settings-checkbox {
+    border-color: var(--settings-accent);
+    background: var(--settings-accent);
+  }
+
+  .peer:checked + .settings-checkbox::after {
+    border-color: var(--settings-text-contrast);
+    opacity: 1;
+  }
+
+  .peer:focus-visible + .settings-checkbox {
+    box-shadow: 0 0 0 4px var(--settings-accent-ring);
+    outline: none;
+  }
+
+  .peer:disabled + .settings-checkbox {
+    opacity: 0.5;
+  }
+
   .settings-key-cell {
     @apply h-8 min-w-0 w-full rounded-md px-0 text-center font-mono text-sm transition;
     border: 1px solid var(--settings-border);

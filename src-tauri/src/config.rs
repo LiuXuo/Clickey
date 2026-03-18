@@ -40,7 +40,8 @@ pub struct TrayConfig {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct SettingsWindowConfig {
-    pub open_from_tray: bool,
+    #[serde(default = "default_settings_window_open_on_launch")]
+    pub open_on_launch: bool,
     #[serde(default)]
     pub theme: SettingsWindowTheme,
 }
@@ -345,6 +346,10 @@ fn default_overlay_font_layer_size_px() -> Vec<u32> {
 
 fn default_locale() -> String {
     "system".to_string()
+}
+
+fn default_settings_window_open_on_launch() -> bool {
+    true
 }
 
 #[cfg(target_os = "macos")]

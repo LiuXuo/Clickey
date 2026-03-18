@@ -20,8 +20,11 @@
   "status.imported": "已导入",
   "status.exported": "已导出",
   "status.openedConfigDir": "已打开目录",
+  "status.startupOpenOnLaunchUpdated": "启动行为更改将在下次启动应用时生效。",
   "general.section": "通用",
   "general.title": "通用设置",
+  "general.startupLabel": "启动",
+  "general.openSettingsOnLaunch": "启动时打开设置页",
   "general.configLabel": "配置",
   "layers.section": "层",
   "layers.title": "层编辑",
@@ -106,6 +109,8 @@
   "errors.comboAxisConstraintSimple":
     "第 {index} 层组合必须是阶段 1 = 1xN，阶段 2 = Nx1。",
   "errors.hotkeyConflict": "热键冲突：{first} 与 {second} 不能相同。",
+  "errors.startupEntryUnavailable":
+    "关闭“启动时打开设置页”时，必须保留托盘入口。",
   "errors.nudgeStep": "微调步长必须大于 0。",
   "errors.mouseActionCycleEmpty": "至少启用一个鼠标动作。",
   "errors.mouseActionCycleDuplicate": "鼠标动作循环中存在重复动作。",

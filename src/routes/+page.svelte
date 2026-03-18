@@ -596,6 +596,12 @@
     if (candidate.nudge.stepPx <= 0) {
       issues.push($t("errors.nudgeStep"));
     }
+    if (
+      !candidate.app.tray.enabled &&
+      !candidate.app.settingsWindow.openOnLaunch
+    ) {
+      issues.push($t("errors.startupEntryUnavailable"));
+    }
     const actionCycle = Array.isArray(candidate.mouse.actionCycle)
       ? candidate.mouse.actionCycle
       : [];
@@ -911,6 +917,12 @@
 
   function onThemeChange(next: SettingsThemePreference) {
     config.app.settingsWindow.theme = next;
+    scheduleAutoApply();
+  }
+
+  function onOpenOnLaunchChange(next: boolean) {
+    config.app.settingsWindow.openOnLaunch = next;
+    pushToast("info", $t("status.startupOpenOnLaunchUpdated"));
     scheduleAutoApply();
   }
 
@@ -1239,6 +1251,7 @@
           <GeneralSection
             localeValue={config.app.locale}
             themeValue={config.app.settingsWindow.theme}
+            openOnLaunchValue={config.app.settingsWindow.openOnLaunch}
             {isLoading}
             {compactSelectClass}
             {isImporting}
@@ -1253,6 +1266,7 @@
             onReset={resetConfig}
             {onLocaleChange}
             {onThemeChange}
+            {onOpenOnLaunchChange}
           />
         </div>
 

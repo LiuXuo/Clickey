@@ -4,6 +4,7 @@ export type AppIconName =
   | "layers"
   | "hotkeys"
   | "overlay"
+  | "startup"
   | "language"
   | "theme"
   | "config"

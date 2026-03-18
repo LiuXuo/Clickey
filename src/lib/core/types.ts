@@ -54,7 +54,7 @@ export interface AppConfig {
       enabled: boolean;
     };
     settingsWindow: {
-      openFromTray: boolean;
+      openOnLaunch: boolean;
       theme: SettingsThemePreference;
     };
   };

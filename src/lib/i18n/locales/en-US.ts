@@ -24,8 +24,12 @@ const en: Record<TranslationKey, string> = {
   "status.imported": "Imported",
   "status.exported": "Exported",
   "status.openedConfigDir": "Opened directory",
+  "status.startupOpenOnLaunchUpdated":
+    "Startup behavior changes take effect the next time the app launches.",
   "general.section": "General",
   "general.title": "General Settings",
+  "general.startupLabel": "Startup",
+  "general.openSettingsOnLaunch": "Open settings on launch",
   "general.configLabel": "Config",
   "layers.section": "Layers",
   "layers.title": "Layer Editor",
@@ -113,6 +117,8 @@ const en: Record<TranslationKey, string> = {
     "Layer {index} combo must be stage 1 = 1xN, stage 2 = Nx1.",
   "errors.hotkeyConflict":
     "Hotkey conflict: {first} and {second} cannot be the same.",
+  "errors.startupEntryUnavailable":
+    "Keep the tray enabled when Open settings on launch is turned off.",
   "errors.nudgeStep": "Nudge step must be > 0.",
   "errors.mouseActionCycleEmpty": "Enable at least one mouse action.",
   "errors.mouseActionCycleDuplicate":

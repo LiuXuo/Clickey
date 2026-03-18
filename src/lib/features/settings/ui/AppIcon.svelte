@@ -38,6 +38,7 @@
   import Pilcrow from "@lucide/svelte/icons/pilcrow";
   import Pipette from "@lucide/svelte/icons/pipette";
   import RotateCcw from "@lucide/svelte/icons/rotate-ccw";
+  import Rocket from "@lucide/svelte/icons/rocket";
   import Rows3 from "@lucide/svelte/icons/rows-3";
   import ScanLine from "@lucide/svelte/icons/scan-line";
   import Settings2 from "@lucide/svelte/icons/settings-2";
@@ -66,6 +67,7 @@
     layers: Layers3,
     hotkeys: Keyboard,
     overlay: Focus,
+    startup: Rocket,
     language: Languages,
     theme: Palette,
     config: SlidersHorizontal,
