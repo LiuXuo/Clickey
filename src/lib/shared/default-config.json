@@ -4,9 +4,6 @@
     "launchOnLogin": {
       "enabled": false
     },
-    "tray": {
-      "enabled": true
-    },
     "settingsWindow": {
       "openOnLaunch": true,
       "theme": "system"

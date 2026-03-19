@@ -29,19 +29,12 @@ pub struct AppSection {
     pub locale: String,
     #[serde(default)]
     pub launch_on_login: LaunchOnLoginConfig,
-    pub tray: TrayConfig,
     pub settings_window: SettingsWindowConfig,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct LaunchOnLoginConfig {
-    pub enabled: bool,
-}
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub struct TrayConfig {
     pub enabled: bool,
 }
 

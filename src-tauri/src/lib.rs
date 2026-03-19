@@ -219,8 +219,6 @@ const ERR_COMBO_AXIS_CONSTRAINT: &str = "ERR_COMBO_AXIS_CONSTRAINT";
 const ERR_OVERRIDE_JSON_PARSE_FAILED: &str = "ERR_OVERRIDE_JSON_PARSE_FAILED";
 const ERR_OVERRIDE_JSON_NOT_OBJECT: &str = "ERR_OVERRIDE_JSON_NOT_OBJECT";
 const ERR_OVERRIDE_SCHEMA_INVALID: &str = "ERR_OVERRIDE_SCHEMA_INVALID";
-const ERR_STARTUP_ENTRY_UNAVAILABLE: &str = "ERR_STARTUP_ENTRY_UNAVAILABLE";
-const ERR_LAUNCH_ON_LOGIN_REQUIRES_TRAY: &str = "ERR_LAUNCH_ON_LOGIN_REQUIRES_TRAY";
 const ERR_LAUNCH_ON_LOGIN_SYNC_FAILED: &str = "ERR_LAUNCH_ON_LOGIN_SYNC_FAILED";
 const ERR_CLICK_ACTION_UNSUPPORTED: &str = "ERR_CLICK_ACTION_UNSUPPORTED";
 #[cfg(target_os = "macos")]
@@ -510,7 +508,7 @@ fn refresh_tray(app: &AppHandle, state: &AppState) {
     let paused = is_paused(state);
 
     if let Some(tray) = app.tray_by_id(TRAY_ICON_ID) {
-        let _ = tray.set_visible(config.app.tray.enabled);
+        let _ = tray.set_visible(true);
     }
 
     if let Ok(guard) = state.tray_menu_items.lock() {
@@ -765,12 +763,6 @@ fn validate_config(config: &AppConfig) -> Result<(), String> {
     if config.nudge.step_px == 0 {
         return Err(error_code(ERR_NUDGE_STEP_INVALID));
     }
-    if !config.app.tray.enabled && !config.app.settings_window.open_on_launch {
-        return Err(error_code(ERR_STARTUP_ENTRY_UNAVAILABLE));
-    }
-    if config.app.launch_on_login.enabled && !config.app.tray.enabled {
-        return Err(error_code(ERR_LAUNCH_ON_LOGIN_REQUIRES_TRAY));
-    }
     if config.mouse.action_cycle.is_empty() {
         return Err(error_code(ERR_MOUSE_ACTION_CYCLE_EMPTY));
     }
@@ -801,77 +793,79 @@ fn validate_config(config: &AppConfig) -> Result<(), String> {
     if enabled_count == 0 {
         return Err(error_code(ERR_MOUSE_ACTION_ALL_DISABLED));
     }
-    if config.mouse.move_duration_ms == 0 {
-        return Err(error_code(ERR_MOUSE_MOVE_DURATION_INVALID));
-    }
-    if config.mouse.move_step_ms == 0 {
-        return Err(error_code(ERR_MOUSE_MOVE_STEP_INVALID));
-    }
-    if !config.mouse.duration_randomness.is_finite()
-        || config.mouse.duration_randomness < 0.0
-        || config.mouse.duration_randomness >= 1.0
-    {
-        return Err(error_code(ERR_MOUSE_DURATION_RANDOMNESS_INVALID));
-    }
-    if !config.mouse.step_randomness.is_finite()
-        || config.mouse.step_randomness < 0.0
-        || config.mouse.step_randomness >= 1.0
-    {
-        return Err(error_code(ERR_MOUSE_STEP_RANDOMNESS_INVALID));
-    }
-    if !config.mouse.distance_boost_px.is_finite() || config.mouse.distance_boost_px <= 0.0 {
-        return Err(error_code(ERR_MOUSE_DISTANCE_BOOST_INVALID));
-    }
-    if !config.mouse.duration_distance_boost.is_finite()
-        || config.mouse.duration_distance_boost < 0.0
-        || config.mouse.duration_distance_boost >= 1.0
-    {
-        return Err(error_code(ERR_MOUSE_DURATION_DISTANCE_BOOST_INVALID));
-    }
-    if !config.mouse.step_distance_boost.is_finite()
-        || config.mouse.step_distance_boost < 0.0
-        || config.mouse.step_distance_boost >= 1.0
-    {
-        return Err(error_code(ERR_MOUSE_STEP_DISTANCE_BOOST_INVALID));
-    }
-    if !config.mouse.curve_along_ratio.is_finite()
-        || config.mouse.curve_along_ratio < 0.0
-        || config.mouse.curve_along_ratio > 1.0
-    {
-        return Err(error_code(ERR_MOUSE_CURVE_ALONG_RATIO_INVALID));
-    }
-    if !config.mouse.curve_spread_ratio.is_finite()
-        || config.mouse.curve_spread_ratio < 0.0
-        || config.mouse.curve_spread_ratio > 1.0
-    {
-        return Err(error_code(ERR_MOUSE_CURVE_SPREAD_RATIO_INVALID));
-    }
-    if !config.mouse.jitter_ratio.is_finite()
-        || config.mouse.jitter_ratio < 0.0
-        || config.mouse.jitter_ratio > 0.2
-    {
-        return Err(error_code(ERR_MOUSE_JITTER_RATIO_INVALID));
-    }
-    if !config.mouse.adaptive_stride_base_px.is_finite()
-        || config.mouse.adaptive_stride_base_px <= 0.0
-    {
-        return Err(error_code(ERR_MOUSE_ADAPTIVE_STRIDE_BASE_INVALID));
-    }
-    if !config.mouse.adaptive_stride_distance_ratio.is_finite()
-        || config.mouse.adaptive_stride_distance_ratio < 0.0
-    {
-        return Err(error_code(ERR_MOUSE_ADAPTIVE_STRIDE_DISTANCE_RATIO_INVALID));
-    }
-    if !config.mouse.adaptive_stride_max_px.is_finite()
-        || config.mouse.adaptive_stride_max_px < config.mouse.adaptive_stride_base_px
-    {
-        return Err(error_code(ERR_MOUSE_ADAPTIVE_STRIDE_MAX_INVALID));
-    }
-    if config.mouse.max_steps < 2 {
-        return Err(error_code(ERR_MOUSE_MAX_STEPS_INVALID));
-    }
-    if config.mouse.max_step_sleep_ms == 0 {
-        return Err(error_code(ERR_MOUSE_MAX_STEP_SLEEP_INVALID));
+    if smooth_move_tuning_enabled(&config.mouse) {
+        if config.mouse.move_duration_ms == 0 {
+            return Err(error_code(ERR_MOUSE_MOVE_DURATION_INVALID));
+        }
+        if config.mouse.move_step_ms == 0 {
+            return Err(error_code(ERR_MOUSE_MOVE_STEP_INVALID));
+        }
+        if !config.mouse.duration_randomness.is_finite()
+            || config.mouse.duration_randomness < 0.0
+            || config.mouse.duration_randomness >= 1.0
+        {
+            return Err(error_code(ERR_MOUSE_DURATION_RANDOMNESS_INVALID));
+        }
+        if !config.mouse.step_randomness.is_finite()
+            || config.mouse.step_randomness < 0.0
+            || config.mouse.step_randomness >= 1.0
+        {
+            return Err(error_code(ERR_MOUSE_STEP_RANDOMNESS_INVALID));
+        }
+        if !config.mouse.distance_boost_px.is_finite() || config.mouse.distance_boost_px <= 0.0 {
+            return Err(error_code(ERR_MOUSE_DISTANCE_BOOST_INVALID));
+        }
+        if !config.mouse.duration_distance_boost.is_finite()
+            || config.mouse.duration_distance_boost < 0.0
+            || config.mouse.duration_distance_boost >= 1.0
+        {
+            return Err(error_code(ERR_MOUSE_DURATION_DISTANCE_BOOST_INVALID));
+        }
+        if !config.mouse.step_distance_boost.is_finite()
+            || config.mouse.step_distance_boost < 0.0
+            || config.mouse.step_distance_boost >= 1.0
+        {
+            return Err(error_code(ERR_MOUSE_STEP_DISTANCE_BOOST_INVALID));
+        }
+        if !config.mouse.curve_along_ratio.is_finite()
+            || config.mouse.curve_along_ratio < 0.0
+            || config.mouse.curve_along_ratio > 1.0
+        {
+            return Err(error_code(ERR_MOUSE_CURVE_ALONG_RATIO_INVALID));
+        }
+        if !config.mouse.curve_spread_ratio.is_finite()
+            || config.mouse.curve_spread_ratio < 0.0
+            || config.mouse.curve_spread_ratio > 1.0
+        {
+            return Err(error_code(ERR_MOUSE_CURVE_SPREAD_RATIO_INVALID));
+        }
+        if !config.mouse.jitter_ratio.is_finite()
+            || config.mouse.jitter_ratio < 0.0
+            || config.mouse.jitter_ratio > 0.2
+        {
+            return Err(error_code(ERR_MOUSE_JITTER_RATIO_INVALID));
+        }
+        if !config.mouse.adaptive_stride_base_px.is_finite()
+            || config.mouse.adaptive_stride_base_px <= 0.0
+        {
+            return Err(error_code(ERR_MOUSE_ADAPTIVE_STRIDE_BASE_INVALID));
+        }
+        if !config.mouse.adaptive_stride_distance_ratio.is_finite()
+            || config.mouse.adaptive_stride_distance_ratio < 0.0
+        {
+            return Err(error_code(ERR_MOUSE_ADAPTIVE_STRIDE_DISTANCE_RATIO_INVALID));
+        }
+        if !config.mouse.adaptive_stride_max_px.is_finite()
+            || config.mouse.adaptive_stride_max_px < config.mouse.adaptive_stride_base_px
+        {
+            return Err(error_code(ERR_MOUSE_ADAPTIVE_STRIDE_MAX_INVALID));
+        }
+        if config.mouse.max_steps < 2 {
+            return Err(error_code(ERR_MOUSE_MAX_STEPS_INVALID));
+        }
+        if config.mouse.max_step_sleep_ms == 0 {
+            return Err(error_code(ERR_MOUSE_MAX_STEP_SLEEP_INVALID));
+        }
     }
 
     if config.overlay.line_width_px == 0 {
@@ -1305,7 +1299,7 @@ fn register_tray(app: &AppHandle, state: &AppState) -> tauri::Result<()> {
     }
 
     let tray = builder.build(app)?;
-    tray.set_visible(config.app.tray.enabled)?;
+    tray.set_visible(true)?;
     Ok(())
 }
 
@@ -1656,6 +1650,7 @@ fn hide_overlay(app: &AppHandle, state: &AppState) {
 fn perform_click(app: &AppHandle, payload: &NativeClickPayload) -> Result<(), String> {
     let config = get_state_config(app.state::<AppState>().inner())?;
     let mouse_cfg = config.mouse;
+    let press_duration_ms = effective_press_duration_ms(&mouse_cfg);
 
     let mut enigo = Enigo::new();
     let base_x = payload.x.round() as i32;
@@ -1673,37 +1668,49 @@ fn perform_click(app: &AppHandle, payload: &NativeClickPayload) -> Result<(), St
 
     match payload.button {
         ClickAction::Left => {
-            click_mouse_button(&mut enigo, MouseButton::Left, mouse_cfg.press_duration_ms);
+            click_mouse_button(&mut enigo, MouseButton::Left, press_duration_ms);
             Ok(())
         }
         ClickAction::Right => {
-            click_mouse_button(&mut enigo, MouseButton::Right, mouse_cfg.press_duration_ms);
+            click_mouse_button(&mut enigo, MouseButton::Right, press_duration_ms);
             Ok(())
         }
         ClickAction::Middle => {
-            click_mouse_button(&mut enigo, MouseButton::Middle, mouse_cfg.press_duration_ms);
+            click_mouse_button(&mut enigo, MouseButton::Middle, press_duration_ms);
             Ok(())
         }
         ClickAction::DoubleLeft => {
-            click_mouse_button(&mut enigo, MouseButton::Left, mouse_cfg.press_duration_ms);
+            click_mouse_button(&mut enigo, MouseButton::Left, press_duration_ms);
             std::thread::sleep(Duration::from_millis(DOUBLE_CLICK_GAP_MS));
-            click_mouse_button(&mut enigo, MouseButton::Left, mouse_cfg.press_duration_ms);
+            click_mouse_button(&mut enigo, MouseButton::Left, press_duration_ms);
             Ok(())
         }
         ClickAction::CtrlLeft => {
-            click_left_with_modifier(&mut enigo, Key::Control, mouse_cfg.press_duration_ms);
+            click_left_with_modifier(&mut enigo, Key::Control, press_duration_ms);
             Ok(())
         }
         ClickAction::CmdLeft => {
-            click_left_with_modifier(&mut enigo, Key::Meta, mouse_cfg.press_duration_ms);
+            click_left_with_modifier(&mut enigo, Key::Meta, press_duration_ms);
             Ok(())
         }
         ClickAction::ShiftLeft => {
-            click_left_with_modifier(&mut enigo, Key::Shift, mouse_cfg.press_duration_ms);
+            click_left_with_modifier(&mut enigo, Key::Shift, press_duration_ms);
             Ok(())
         }
         ClickAction::MoveOnly => Ok(()),
         ClickAction::Drag => Err(error_code(ERR_CLICK_ACTION_UNSUPPORTED)),
+    }
+}
+
+fn smooth_move_tuning_enabled(cfg: &MouseConfig) -> bool {
+    cfg.smooth_move
+}
+
+fn effective_press_duration_ms(cfg: &MouseConfig) -> u32 {
+    if smooth_move_tuning_enabled(cfg) {
+        cfg.press_duration_ms
+    } else {
+        0
     }
 }
 
@@ -1713,6 +1720,10 @@ fn resolve_landing_point(
     button: &ClickAction,
     cfg: &MouseConfig,
 ) -> (i32, i32) {
+    if !smooth_move_tuning_enabled(cfg) {
+        return (base_x, base_y);
+    }
+
     if !matches!(
         button,
         ClickAction::Left
@@ -2379,9 +2390,11 @@ fn parse_shortcut_or_panic(label: &str, value: &str) -> Shortcut {
 #[cfg(test)]
 mod tests {
     use super::{
-        is_chinese_locale_tag, locale_preference_value, normalize_locale_preference,
-        normalize_shortcut, LocalePreference,
+        effective_press_duration_ms, is_chinese_locale_tag, locale_preference_value,
+        normalize_locale_preference, normalize_shortcut, resolve_landing_point, validate_config,
+        LocalePreference,
     };
+    use crate::config::{AppConfig, ClickAction, MouseConfig};
 
     #[test]
     fn normalize_shortcut_maps_macos_private_function_keys() {
@@ -2414,5 +2427,42 @@ mod tests {
         assert!(is_chinese_locale_tag("zh-CN"));
         assert!(is_chinese_locale_tag("zh_TW"));
         assert!(!is_chinese_locale_tag("en-US"));
+    }
+
+    #[test]
+    fn smooth_move_disabled_skips_mouse_tuning_validation() {
+        let mut config = AppConfig::default();
+        config.mouse.smooth_move = false;
+        config.mouse.move_duration_ms = 0;
+        config.mouse.move_step_ms = 0;
+        config.mouse.duration_randomness = f64::NAN;
+        config.mouse.step_randomness = f64::NAN;
+        config.mouse.distance_boost_px = 0.0;
+        config.mouse.duration_distance_boost = 2.0;
+        config.mouse.step_distance_boost = 2.0;
+        config.mouse.curve_along_ratio = 2.0;
+        config.mouse.curve_spread_ratio = 2.0;
+        config.mouse.jitter_ratio = 1.0;
+        config.mouse.adaptive_stride_base_px = 0.0;
+        config.mouse.adaptive_stride_distance_ratio = -1.0;
+        config.mouse.adaptive_stride_max_px = 0.0;
+        config.mouse.max_steps = 0;
+        config.mouse.max_step_sleep_ms = 0;
+
+        assert!(validate_config(&config).is_ok());
+    }
+
+    #[test]
+    fn smooth_move_disabled_skips_random_landing_and_press_duration() {
+        let mut mouse = MouseConfig::default();
+        mouse.smooth_move = false;
+        mouse.landing_radius_px = 99;
+        mouse.press_duration_ms = 24;
+
+        assert_eq!(
+            resolve_landing_point(320, 240, &ClickAction::Left, &mouse),
+            (320, 240)
+        );
+        assert_eq!(effective_press_duration_ms(&mouse), 0);
     }
 }

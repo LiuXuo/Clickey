@@ -64,7 +64,7 @@ Clickey 的目标是提供一种高效、精确、可肌肉记忆的鼠标定位
 - Layer 编辑：增删 / 排序 / mode 切换（single/combo）/ rows/cols/keys 修改 / auto-fit  
   combo 固定约束：阶段 1（列）=`1xN`，阶段 2（行）=`Nx1`
 - 热键编辑：activation + controls
-- 鼠标行为：左/右/中/仅移动的启用与排序，以及平滑移动、按压时长、落点随机、曲线/抖动、远距离提速与步进策略
+- 鼠标行为：左/右/中/仅移动的启用与排序，以及平滑移动、按压时长、落点随机、曲线/抖动、远距离提速与步进策略；当关闭“指针平滑移动”时，这组隐藏参数整体不参与执行与校验
 - Overlay 样式：alpha/line width/per-layer font size + color picker
 - 设置页主题：`跟随系统 / 浅色 / 深色`，仅作用于 Settings WebView
 - 键位输入规则：仅空格分隔；`,` 是合法键位本体，不作为分隔符
@@ -235,7 +235,7 @@ AHK 脚本保留价值仅限于：
 - **交互热键**：单一激活热键（`hotkeys.activation.trigger`）与控制键（`cancel/undo/directClick/switchAction/nextMonitor/nudgeUp/nudgeDown/nudgeLeft/nudgeRight`）。
 - **分层与网格（`layers`）**：基于单一默认配置直接编辑层；每层可定义行列数（`rows x cols`）与模式（`single` / `combo`）。
 - **按键映射**：每个（子）步骤都有自己的 `keys` 列表，决定 `keyIndex → row/col` 的映射。
-- **鼠标策略（`mouse`）**：动作顺序（`actionCycle`）、禁用动作（`disabledActions`）、平滑移动、落点随机、曲率/抖动、时长与步进随机、远距离提速、自适应步长与步数上限。
+- **鼠标策略（`mouse`）**：动作顺序（`actionCycle`）、禁用动作（`disabledActions`）、平滑移动、落点随机、曲率/抖动、时长与步进随机、远距离提速、自适应步长与步数上限；当 `smoothMove=false` 时，下方隐藏字段整体不参与执行与校验。
 - **遮罩外观**：透明度、线条颜色/粗细、文字颜色/字号（支持按层设置）等。
 
 字段名约定（与 `AGENTS.md` 的配置模型一致）：
@@ -244,10 +244,9 @@ AHK 脚本保留价值仅限于：
 - 开机自启动：`app.launchOnLogin.enabled`（`true` 时登录系统后静默常驻托盘；`false` 时不注册系统登录项）
 - 手动启动行为：`app.settingsWindow.openOnLaunch`（`true` 时手动启动应用后自动打开 Settings；`false` 时手动启动后静默常驻托盘）
 - 设置页主题：`app.settingsWindow.theme`（`system` / `light` / `dark`，仅影响 Settings）
-- 托盘显隐：`app.tray.enabled`
 - 激活热键：`hotkeys.activation.trigger`
 - 控制键：`hotkeys.controls.cancel` / `hotkeys.controls.undo` / `hotkeys.controls.directClick` / `hotkeys.controls.switchAction` / `hotkeys.controls.nextMonitor` / `hotkeys.controls.nudgeLeft` / `hotkeys.controls.nudgeRight` / `hotkeys.controls.nudgeUp` / `hotkeys.controls.nudgeDown`
-- 鼠标策略：`mouse.*`（`actionCycle` / `disabledActions` / `smoothMove` / `moveDurationMs` / `moveStepMs` / `pressDurationMs` / `landingRadiusPx` / `durationRandomness` / `stepRandomness` / `distanceBoostPx` / `durationDistanceBoost` / `stepDistanceBoost` / `curveAlongRatio` / `curveSpreadRatio` / `jitterRatio` / `adaptiveStrideBasePx` / `adaptiveStrideDistanceRatio` / `adaptiveStrideMaxPx` / `extraStepsMax` / `maxSteps` / `maxStepSleepMs`）
+- 鼠标策略：`mouse.*`（`actionCycle` / `disabledActions` / `smoothMove` / `moveDurationMs` / `moveStepMs` / `pressDurationMs` / `landingRadiusPx` / `durationRandomness` / `stepRandomness` / `distanceBoostPx` / `durationDistanceBoost` / `stepDistanceBoost` / `curveAlongRatio` / `curveSpreadRatio` / `jitterRatio` / `adaptiveStrideBasePx` / `adaptiveStrideDistanceRatio` / `adaptiveStrideMaxPx` / `extraStepsMax` / `maxSteps` / `maxStepSleepMs`）；当 `smoothMove=false` 时，从 `moveDurationMs` 起的隐藏字段不参与执行与校验
 - 分层列表：`layers[]`
 - 遮罩外观：`overlay.*`
 - 覆盖配置文件：`settings.override.json`（仅记录与默认配置差异，支持导入/导出）

@@ -239,6 +239,12 @@
           className="settings-icon-muted"
         />
         <span>{$t("mouse.smoothMove")}</span>
+        <span
+          class="settings-text-muted inline-flex h-4 w-4 items-center justify-center rounded-full transition hover:opacity-100"
+          title={$t("mouse.smoothMoveHelp")}
+        >
+          <AppIcon name="help" size={14} strokeWidth={2.1} />
+        </span>
       </span>
       <span class="relative inline-flex items-center">
         <input

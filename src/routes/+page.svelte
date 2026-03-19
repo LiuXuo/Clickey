@@ -596,15 +596,6 @@
     if (candidate.nudge.stepPx <= 0) {
       issues.push($t("errors.nudgeStep"));
     }
-    if (candidate.app.launchOnLogin.enabled && !candidate.app.tray.enabled) {
-      issues.push($t("errors.launchOnLoginRequiresTray"));
-    }
-    if (
-      !candidate.app.tray.enabled &&
-      !candidate.app.settingsWindow.openOnLaunch
-    ) {
-      issues.push($t("errors.startupEntryUnavailable"));
-    }
     const actionCycle = Array.isArray(candidate.mouse.actionCycle)
       ? candidate.mouse.actionCycle
       : [];
@@ -645,118 +636,120 @@
     ) {
       issues.push($t("errors.mouseActionCycleEmpty"));
     }
-    if (!Number.isFinite(candidate.mouse.moveDurationMs)) {
-      issues.push($t("errors.mouseMoveDuration"));
-    } else if (candidate.mouse.moveDurationMs <= 0) {
-      issues.push($t("errors.mouseMoveDuration"));
-    }
-    if (!Number.isFinite(candidate.mouse.moveStepMs)) {
-      issues.push($t("errors.mouseMoveStep"));
-    } else if (candidate.mouse.moveStepMs <= 0) {
-      issues.push($t("errors.mouseMoveStep"));
-    }
-    if (!Number.isFinite(candidate.mouse.pressDurationMs)) {
-      issues.push($t("errors.mousePressDuration"));
-    } else if (candidate.mouse.pressDurationMs < 0) {
-      issues.push($t("errors.mousePressDuration"));
-    }
-    if (!Number.isFinite(candidate.mouse.landingRadiusPx)) {
-      issues.push($t("errors.mouseLandingRadius"));
-    } else if (candidate.mouse.landingRadiusPx < 0) {
-      issues.push($t("errors.mouseLandingRadius"));
-    }
-    if (!Number.isFinite(candidate.mouse.durationRandomness)) {
-      issues.push($t("errors.mouseDurationRandomness"));
-    } else if (
-      candidate.mouse.durationRandomness < 0 ||
-      candidate.mouse.durationRandomness >= 1
-    ) {
-      issues.push($t("errors.mouseDurationRandomness"));
-    }
-    if (!Number.isFinite(candidate.mouse.stepRandomness)) {
-      issues.push($t("errors.mouseStepRandomness"));
-    } else if (
-      candidate.mouse.stepRandomness < 0 ||
-      candidate.mouse.stepRandomness >= 1
-    ) {
-      issues.push($t("errors.mouseStepRandomness"));
-    }
-    if (!Number.isFinite(candidate.mouse.distanceBoostPx)) {
-      issues.push($t("errors.mouseDistanceBoostPx"));
-    } else if (candidate.mouse.distanceBoostPx <= 0) {
-      issues.push($t("errors.mouseDistanceBoostPx"));
-    }
-    if (!Number.isFinite(candidate.mouse.durationDistanceBoost)) {
-      issues.push($t("errors.mouseDurationDistanceBoost"));
-    } else if (
-      candidate.mouse.durationDistanceBoost < 0 ||
-      candidate.mouse.durationDistanceBoost >= 1
-    ) {
-      issues.push($t("errors.mouseDurationDistanceBoost"));
-    }
-    if (!Number.isFinite(candidate.mouse.stepDistanceBoost)) {
-      issues.push($t("errors.mouseStepDistanceBoost"));
-    } else if (
-      candidate.mouse.stepDistanceBoost < 0 ||
-      candidate.mouse.stepDistanceBoost >= 1
-    ) {
-      issues.push($t("errors.mouseStepDistanceBoost"));
-    }
-    if (!Number.isFinite(candidate.mouse.curveAlongRatio)) {
-      issues.push($t("errors.mouseCurveAlongRatio"));
-    } else if (
-      candidate.mouse.curveAlongRatio < 0 ||
-      candidate.mouse.curveAlongRatio > 1
-    ) {
-      issues.push($t("errors.mouseCurveAlongRatio"));
-    }
-    if (!Number.isFinite(candidate.mouse.curveSpreadRatio)) {
-      issues.push($t("errors.mouseCurveSpreadRatio"));
-    } else if (
-      candidate.mouse.curveSpreadRatio < 0 ||
-      candidate.mouse.curveSpreadRatio > 1
-    ) {
-      issues.push($t("errors.mouseCurveSpreadRatio"));
-    }
-    if (!Number.isFinite(candidate.mouse.jitterRatio)) {
-      issues.push($t("errors.mouseJitterRatio"));
-    } else if (
-      candidate.mouse.jitterRatio < 0 ||
-      candidate.mouse.jitterRatio > 0.2
-    ) {
-      issues.push($t("errors.mouseJitterRatio"));
-    }
-    if (!Number.isFinite(candidate.mouse.adaptiveStrideBasePx)) {
-      issues.push($t("errors.mouseAdaptiveStrideBase"));
-    } else if (candidate.mouse.adaptiveStrideBasePx <= 0) {
-      issues.push($t("errors.mouseAdaptiveStrideBase"));
-    }
-    if (!Number.isFinite(candidate.mouse.adaptiveStrideDistanceRatio)) {
-      issues.push($t("errors.mouseAdaptiveStrideDistanceRatio"));
-    } else if (candidate.mouse.adaptiveStrideDistanceRatio < 0) {
-      issues.push($t("errors.mouseAdaptiveStrideDistanceRatio"));
-    }
-    if (!Number.isFinite(candidate.mouse.adaptiveStrideMaxPx)) {
-      issues.push($t("errors.mouseAdaptiveStrideMax"));
-    } else if (
-      candidate.mouse.adaptiveStrideMaxPx < candidate.mouse.adaptiveStrideBasePx
-    ) {
-      issues.push($t("errors.mouseAdaptiveStrideMax"));
-    }
-    if (!Number.isFinite(candidate.mouse.extraStepsMax)) {
-      issues.push($t("errors.mouseExtraStepsMax"));
-    } else if (candidate.mouse.extraStepsMax < 0) {
-      issues.push($t("errors.mouseExtraStepsMax"));
-    }
-    if (!Number.isFinite(candidate.mouse.maxSteps)) {
-      issues.push($t("errors.mouseMaxSteps"));
-    } else if (candidate.mouse.maxSteps < 2) {
-      issues.push($t("errors.mouseMaxSteps"));
-    }
-    if (!Number.isFinite(candidate.mouse.maxStepSleepMs)) {
-      issues.push($t("errors.mouseMaxStepSleepMs"));
-    } else if (candidate.mouse.maxStepSleepMs <= 0) {
-      issues.push($t("errors.mouseMaxStepSleepMs"));
+    if (candidate.mouse.smoothMove) {
+      if (!Number.isFinite(candidate.mouse.moveDurationMs)) {
+        issues.push($t("errors.mouseMoveDuration"));
+      } else if (candidate.mouse.moveDurationMs <= 0) {
+        issues.push($t("errors.mouseMoveDuration"));
+      }
+      if (!Number.isFinite(candidate.mouse.moveStepMs)) {
+        issues.push($t("errors.mouseMoveStep"));
+      } else if (candidate.mouse.moveStepMs <= 0) {
+        issues.push($t("errors.mouseMoveStep"));
+      }
+      if (!Number.isFinite(candidate.mouse.pressDurationMs)) {
+        issues.push($t("errors.mousePressDuration"));
+      } else if (candidate.mouse.pressDurationMs < 0) {
+        issues.push($t("errors.mousePressDuration"));
+      }
+      if (!Number.isFinite(candidate.mouse.landingRadiusPx)) {
+        issues.push($t("errors.mouseLandingRadius"));
+      } else if (candidate.mouse.landingRadiusPx < 0) {
+        issues.push($t("errors.mouseLandingRadius"));
+      }
+      if (!Number.isFinite(candidate.mouse.durationRandomness)) {
+        issues.push($t("errors.mouseDurationRandomness"));
+      } else if (
+        candidate.mouse.durationRandomness < 0 ||
+        candidate.mouse.durationRandomness >= 1
+      ) {
+        issues.push($t("errors.mouseDurationRandomness"));
+      }
+      if (!Number.isFinite(candidate.mouse.stepRandomness)) {
+        issues.push($t("errors.mouseStepRandomness"));
+      } else if (
+        candidate.mouse.stepRandomness < 0 ||
+        candidate.mouse.stepRandomness >= 1
+      ) {
+        issues.push($t("errors.mouseStepRandomness"));
+      }
+      if (!Number.isFinite(candidate.mouse.distanceBoostPx)) {
+        issues.push($t("errors.mouseDistanceBoostPx"));
+      } else if (candidate.mouse.distanceBoostPx <= 0) {
+        issues.push($t("errors.mouseDistanceBoostPx"));
+      }
+      if (!Number.isFinite(candidate.mouse.durationDistanceBoost)) {
+        issues.push($t("errors.mouseDurationDistanceBoost"));
+      } else if (
+        candidate.mouse.durationDistanceBoost < 0 ||
+        candidate.mouse.durationDistanceBoost >= 1
+      ) {
+        issues.push($t("errors.mouseDurationDistanceBoost"));
+      }
+      if (!Number.isFinite(candidate.mouse.stepDistanceBoost)) {
+        issues.push($t("errors.mouseStepDistanceBoost"));
+      } else if (
+        candidate.mouse.stepDistanceBoost < 0 ||
+        candidate.mouse.stepDistanceBoost >= 1
+      ) {
+        issues.push($t("errors.mouseStepDistanceBoost"));
+      }
+      if (!Number.isFinite(candidate.mouse.curveAlongRatio)) {
+        issues.push($t("errors.mouseCurveAlongRatio"));
+      } else if (
+        candidate.mouse.curveAlongRatio < 0 ||
+        candidate.mouse.curveAlongRatio > 1
+      ) {
+        issues.push($t("errors.mouseCurveAlongRatio"));
+      }
+      if (!Number.isFinite(candidate.mouse.curveSpreadRatio)) {
+        issues.push($t("errors.mouseCurveSpreadRatio"));
+      } else if (
+        candidate.mouse.curveSpreadRatio < 0 ||
+        candidate.mouse.curveSpreadRatio > 1
+      ) {
+        issues.push($t("errors.mouseCurveSpreadRatio"));
+      }
+      if (!Number.isFinite(candidate.mouse.jitterRatio)) {
+        issues.push($t("errors.mouseJitterRatio"));
+      } else if (
+        candidate.mouse.jitterRatio < 0 ||
+        candidate.mouse.jitterRatio > 0.2
+      ) {
+        issues.push($t("errors.mouseJitterRatio"));
+      }
+      if (!Number.isFinite(candidate.mouse.adaptiveStrideBasePx)) {
+        issues.push($t("errors.mouseAdaptiveStrideBase"));
+      } else if (candidate.mouse.adaptiveStrideBasePx <= 0) {
+        issues.push($t("errors.mouseAdaptiveStrideBase"));
+      }
+      if (!Number.isFinite(candidate.mouse.adaptiveStrideDistanceRatio)) {
+        issues.push($t("errors.mouseAdaptiveStrideDistanceRatio"));
+      } else if (candidate.mouse.adaptiveStrideDistanceRatio < 0) {
+        issues.push($t("errors.mouseAdaptiveStrideDistanceRatio"));
+      }
+      if (!Number.isFinite(candidate.mouse.adaptiveStrideMaxPx)) {
+        issues.push($t("errors.mouseAdaptiveStrideMax"));
+      } else if (
+        candidate.mouse.adaptiveStrideMaxPx < candidate.mouse.adaptiveStrideBasePx
+      ) {
+        issues.push($t("errors.mouseAdaptiveStrideMax"));
+      }
+      if (!Number.isFinite(candidate.mouse.extraStepsMax)) {
+        issues.push($t("errors.mouseExtraStepsMax"));
+      } else if (candidate.mouse.extraStepsMax < 0) {
+        issues.push($t("errors.mouseExtraStepsMax"));
+      }
+      if (!Number.isFinite(candidate.mouse.maxSteps)) {
+        issues.push($t("errors.mouseMaxSteps"));
+      } else if (candidate.mouse.maxSteps < 2) {
+        issues.push($t("errors.mouseMaxSteps"));
+      }
+      if (!Number.isFinite(candidate.mouse.maxStepSleepMs)) {
+        issues.push($t("errors.mouseMaxStepSleepMs"));
+      } else if (candidate.mouse.maxStepSleepMs <= 0) {
+        issues.push($t("errors.mouseMaxStepSleepMs"));
+      }
     }
     if (candidate.overlay.lineWidthPx <= 0) {
       issues.push($t("errors.overlayLineWidth"));

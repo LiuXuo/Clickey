@@ -53,9 +53,6 @@ export interface AppConfig {
     launchOnLogin: {
       enabled: boolean;
     };
-    tray: {
-      enabled: boolean;
-    };
     settingsWindow: {
       openOnLaunch: boolean;
       theme: SettingsThemePreference;

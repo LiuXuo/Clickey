@@ -68,6 +68,7 @@
   "mouse.actionCycle": "动作循环",
   "mouse.actionCycleHint": "按住并拖动可以调整顺序，点击开关可以启用/禁用。",
   "mouse.smoothMove": "指针平滑移动",
+  "mouse.smoothMoveHelp": "模拟更接近真实鼠标的移动与点击以降低风控风险",
   "mouse.moveDurationMs": "基础移动时长 (ms)",
   "mouse.moveStepMs": "基础步进间隔 (ms)",
   "mouse.pressDurationMs": "点击按下时长 (ms)",
@@ -112,10 +113,6 @@
   "errors.comboAxisConstraintSimple":
     "第 {index} 层组合必须是阶段 1 = 1xN，阶段 2 = Nx1。",
   "errors.hotkeyConflict": "热键冲突：{first} 与 {second} 不能相同。",
-  "errors.startupEntryUnavailable":
-    "关闭“启动时打开设置页”时，必须保留托盘入口。",
-  "errors.launchOnLoginRequiresTray":
-    "开启“开机自启动”时，必须保留托盘入口。",
   "errors.nudgeStep": "微调步长必须大于 0。",
   "errors.mouseActionCycleEmpty": "至少启用一个鼠标动作。",
   "errors.mouseActionCycleDuplicate": "鼠标动作循环中存在重复动作。",

@@ -76,6 +76,8 @@ const en: Record<TranslationKey, string> = {
   "mouse.actionCycleHint":
     "Press and drag to reorder. Click the switch to enable or disable.",
   "mouse.smoothMove": "Smooth pointer movement",
+  "mouse.smoothMoveHelp":
+    "Simulates more human like pointer movement and clicks to help reduce automation risk",
   "mouse.moveDurationMs": "Base move duration (ms)",
   "mouse.moveStepMs": "Base step interval (ms)",
   "mouse.pressDurationMs": "Press duration (ms)",
@@ -122,10 +124,6 @@ const en: Record<TranslationKey, string> = {
     "Layer {index} combo must be stage 1 = 1xN, stage 2 = Nx1.",
   "errors.hotkeyConflict":
     "Hotkey conflict: {first} and {second} cannot be the same.",
-  "errors.startupEntryUnavailable":
-    "Keep the tray enabled when Open settings on launch is turned off.",
-  "errors.launchOnLoginRequiresTray":
-    "Keep the tray enabled when Launch at startup is turned on.",
   "errors.nudgeStep": "Nudge step must be > 0.",
   "errors.mouseActionCycleEmpty": "Enable at least one mouse action.",
   "errors.mouseActionCycleDuplicate":
