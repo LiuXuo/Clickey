@@ -576,3 +576,4 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-18：新增 `app.launchOnLogin.enabled` 开机自启动配置；默认关闭，启用后通过 `tauri-plugin-autostart` 同步系统登录项，并向应用传入 `--autostart` 启动参数；自动启动场景始终静默常驻托盘，不受 `app.settingsWindow.openOnLaunch` 影响，同时新增前后端校验要求保留托盘入口。
 - 2026-03-19：收敛 `mouse.smoothMove` 语义：Settings 中从 `moveDurationMs` 起的隐藏字段在 `smoothMove=false` 时整体不参与执行与校验；Native 同步停用随机落点与自定义按压时长，避免“界面已隐藏但运行仍生效”。
 - 2026-03-19：移除 `app.tray.enabled` 配置项；托盘入口改为运行时固定开启，不再作为 Settings/override JSON 的可配置字段，同时删除前后端围绕“禁用托盘”建立的校验与文案。
+- 2026-03-20：修复 macOS 缩放分辨率下的点击坐标错配：保留 Core/Overlay 使用 Tauri monitor physical 坐标，Native 点击前按命中的 monitor `scale_factor` 将 physical clickPoint 转回 Enigo/CGEvent 使用的 mouse-space 坐标，解决外接高分屏在非原生分辨率下的点击偏移问题。

@@ -1185,7 +1185,7 @@ pub fn run() {
             close_overlay
         ])
         .setup(|app| {
-            let handle = app.handle();
+            let handle = app.handle().clone();
             let launched_from_autostart = is_autostart_launch();
             create_overlay_window(&handle)?;
             let state = app.state::<AppState>();
@@ -1431,6 +1431,49 @@ fn create_overlay_window(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+fn monitor_contains_point(monitor: &tauri::Monitor, x: i32, y: i32) -> bool {
+    let pos = monitor.position();
+    let size = monitor.size();
+    let max_x = pos.x.saturating_add(size.width as i32);
+    let max_y = pos.y.saturating_add(size.height as i32);
+    x >= pos.x && x < max_x && y >= pos.y && y < max_y
+}
+
+fn monitor_for_physical_point<'a>(
+    monitors: &'a [tauri::Monitor],
+    x: i32,
+    y: i32,
+) -> Option<&'a tauri::Monitor> {
+    monitors
+        .iter()
+        .find(|monitor| monitor_contains_point(monitor, x, y))
+}
+
+#[cfg(target_os = "macos")]
+fn macos_mouse_space_point(app: &AppHandle, x: f64, y: f64) -> (f64, f64) {
+    let point_x = x.round() as i32;
+    let point_y = y.round() as i32;
+    let monitors = available_monitors(app);
+    if let Some(monitor) = monitor_for_physical_point(&monitors, point_x, point_y) {
+        let scale = monitor.scale_factor().max(1.0);
+        let pos = monitor.position();
+        let local_x = x - pos.x as f64;
+        let local_y = y - pos.y as f64;
+        let logical_origin_x = pos.x as f64 / scale;
+        let logical_origin_y = pos.y as f64 / scale;
+        let logical_x = logical_origin_x + (local_x / scale);
+        let logical_y = logical_origin_y + (local_y / scale);
+        return (logical_x, logical_y);
+    }
+
+    (x, y)
+}
+
+#[cfg(not(target_os = "macos"))]
+fn macos_mouse_space_point(_app: &AppHandle, x: f64, y: f64) -> (f64, f64) {
+    (x, y)
+}
+
 fn show_overlay_window(app: &AppHandle, region: &Region) {
     if let Some(window) = app.get_webview_window("overlay") {
         let target_pos = PhysicalPosition::new(region.x as i32, region.y as i32);
@@ -1653,8 +1696,10 @@ fn perform_click(app: &AppHandle, payload: &NativeClickPayload) -> Result<(), St
     let press_duration_ms = effective_press_duration_ms(&mouse_cfg);
 
     let mut enigo = Enigo::new();
-    let base_x = payload.x.round() as i32;
-    let base_y = payload.y.round() as i32;
+    let (requested_mouse_x, requested_mouse_y) =
+        macos_mouse_space_point(&app, payload.x, payload.y);
+    let base_x = requested_mouse_x.round() as i32;
+    let base_y = requested_mouse_y.round() as i32;
     let (target_x, target_y) = resolve_landing_point(base_x, base_y, &payload.button, &mouse_cfg);
     println!(
         "[native] landing action={:?} x={} y={} offset_x={} offset_y={}",
