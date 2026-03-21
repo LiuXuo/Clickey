@@ -86,6 +86,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 设置页主题：`跟随系统 / 浅色 / 深色`，仅作用于 Settings WebView
 - 鼠标行为配置：左/右/中/仅移动动作循环的启用与排序，以及平滑移动、按压时长、落点随机、速度随机、曲率/抖动、远距离提速与步进策略；关闭“指针平滑移动”时，这组隐藏参数整体不参与执行与校验
 - Overlay 样式：alpha/line width/per-layer font size + color picker
+- Playground 练习：Settings 内纯前端气泡点击训练区，复用 Core Engine 状态机与当前“最近一次成功应用”的配置，不调用 Native 点击或全局热键
 - 导入/导出：override JSON（仅包含与默认配置不同字段）
 - 自动生效/Reset：配置改动在校验通过后自动应用并持久化；Reset 恢复默认配置（写入 AppConfig/settings.override.json）
 
@@ -125,8 +126,8 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
    - 只根据 Runtime State 渲染：网格线、标签、高亮、层级提示
    - 不抢焦点、不读键盘、不修改状态
 3. **Settings UI（Svelte，普通 WebView）**
-   - 提供配置编辑器（表单/layers/导入导出）
-   - 只产出“配置变更事件”，不直接调用鼠标/热键等系统能力
+   - 提供配置编辑器（表单/layers/导入导出）与本地 onboarding playground
+   - playground 可复用 Core 纯逻辑做教学/练习，但不直接调用鼠标/热键等系统能力
 4. **Native Layer（Rust）**
    - 只做系统能力：监听全局热键、读屏幕/DPI/多显示器、执行鼠标移动与点击
    - 不实现网格裁剪/状态机业务逻辑
@@ -520,6 +521,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 设置页主题完成（`app.settingsWindow.theme` 支持 `system/light/dark`，仅影响 Settings WebView，并完成样式 token 化）
 - 设置页启动行为配置完成（通用设置新增“启动时打开设置页”复选框；默认开启；关闭后改为静默到托盘）
 - 开机自启动配置完成（`app.launchOnLogin.enabled` 默认关闭；启用后登录系统时静默常驻托盘，并通过 `tauri-plugin-autostart` 同步系统登录项）
+- Settings 气泡点击 playground 完成（纯前端本地练习；复用 Core Engine 与最近一次成功应用的配置；支持命中/撤销/直达/统计）
 
 ---
 
@@ -582,3 +584,4 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-21：托盘左键交互补充为 toggle：Settings 已显示时再次左键点击托盘会隐藏窗口回到托盘常驻，避免只能打开不能收起。
 - 2026-03-21：Overlay 启动显示器选择改为“鼠标当前所在显示器”，不再固定从主显示器开始，文档中的“当前显示器”定义同步收敛。
 - 2026-03-21：前后端统一补齐运行时冲突校验：阻止热键与 layer 键位复用、阻止 override JSON 导入重复 layer 键位，并为后端返回新增稳定错误码。
+- 2026-03-21：Settings 新增气泡点击 playground：训练区只运行在 Settings WebView 内，复用 Core Engine 生成可解目标与推进状态；永远读取“最近一次成功应用”的配置，避免未通过校验的草稿污染练习。

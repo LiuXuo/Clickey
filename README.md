@@ -67,6 +67,7 @@ Clickey 的目标是提供一种高效、精确、可肌肉记忆的鼠标定位
 - 鼠标行为：左/右/中/仅移动的启用与排序，以及平滑移动、按压时长、落点随机、曲线/抖动、远距离提速与步进策略；当关闭“指针平滑移动”时，这组隐藏参数整体不参与执行与校验
 - Overlay 样式：alpha/line width/per-layer font size + color picker
 - 设置页主题：`跟随系统 / 浅色 / 深色`，仅作用于 Settings WebView
+- Playground 练习：Settings 内置一个纯前端气泡点击训练区，复用当前已应用配置做本地模拟，方便用户快速熟悉分层缩放、撤销与直达点击
 - 键位输入规则：仅空格分隔；`,` 是合法键位本体，不作为分隔符
 - 热键录制器：`trigger` / `switchAction` / `nudgeUp/Down/Left/Right` 支持“点击录制”，并在冲突时阻止自动生效
 - 配置导入/导出：override JSON（仅包含与默认配置不同的字段）

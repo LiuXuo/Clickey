@@ -26,6 +26,7 @@
   import MouseSection from "$lib/features/settings/sections/MouseSection.svelte";
   import LayersSection from "$lib/features/settings/sections/LayersSection.svelte";
   import HotkeysSection from "$lib/features/settings/sections/HotkeysSection.svelte";
+  import PlaygroundSection from "$lib/features/settings/sections/PlaygroundSection.svelte";
   import OverlaySection from "$lib/features/settings/sections/OverlaySection.svelte";
   import ToastStack, {
     type ToastItem,
@@ -90,7 +91,11 @@
     "shiftLeft",
   ];
   const supportedMouseActionSet = new Set<MouseAction>(supportedMouseActions);
-  const initialConfig = ensureLayerFontSizesInConfig(getDefaultConfig());
+  const defaultConfig = ensureLayerFontSizesInConfig(getDefaultConfig());
+
+  function cloneConfig(candidate: AppConfig): AppConfig {
+    return JSON.parse(JSON.stringify(candidate)) as AppConfig;
+  }
 
   function detectSystemPrefersDark(): boolean {
     if (typeof window === "undefined" || !("matchMedia" in window)) {
@@ -99,9 +104,16 @@
     return window.matchMedia("(prefers-color-scheme: dark)").matches;
   }
 
-  type SectionId = "general" | "mouse" | "layers" | "hotkeys" | "overlay";
+  type SectionId =
+    | "general"
+    | "playground"
+    | "mouse"
+    | "layers"
+    | "hotkeys"
+    | "overlay";
 
-  let config = $state<AppConfig>(initialConfig);
+  let config = $state<AppConfig>(cloneConfig(defaultConfig));
+  let appliedConfig = $state<AppConfig>(cloneConfig(defaultConfig));
   let systemPrefersDark = $state(detectSystemPrefersDark());
   let isLoading = $state(true);
   let isApplying = $state(false);
@@ -157,6 +169,11 @@
       id: "mouse",
       label: $t("mouse.section"),
       icon: "mouse",
+    },
+    {
+      id: "playground",
+      label: $t("playground.section"),
+      icon: "record",
     },
   ]);
 
@@ -344,7 +361,7 @@
   }
 
   function getDefaultSingleLayer() {
-    const candidate = initialConfig.layers.find(
+    const candidate = defaultConfig.layers.find(
       (layer) => layer.mode === "single",
     );
     if (candidate && candidate.mode === "single") {
@@ -358,7 +375,7 @@
   }
 
   function getDefaultComboLayer() {
-    const candidate = initialConfig.layers.find(
+    const candidate = defaultConfig.layers.find(
       (layer) => layer.mode === "combo",
     );
     if (candidate && candidate.mode === "combo") {
@@ -857,6 +874,7 @@
 
     try {
       await invoke("apply_config", { config });
+      appliedConfig = cloneConfig(config);
       await refreshResetAvailability();
     } catch (err) {
       const message = resolveErrorMessage(err);
@@ -880,6 +898,7 @@
     try {
       const reset = await invoke<AppConfig>("reset_config");
       config = ensureLayerFontSizesInConfig(reset);
+      appliedConfig = cloneConfig(config);
       lastValidationIssue = "";
       await refreshResetAvailability();
       setLocalePreference(reset.app.locale);
@@ -949,6 +968,7 @@
         json,
       });
       config = ensureLayerFontSizesInConfig(imported);
+      appliedConfig = cloneConfig(config);
       lastValidationIssue = "";
       await refreshResetAvailability();
       setLocalePreference(imported.app.locale);
@@ -1223,6 +1243,7 @@
   function isSectionId(value: string): value is SectionId {
     return (
       value === "general" ||
+      value === "playground" ||
       value === "mouse" ||
       value === "layers" ||
       value === "hotkeys" ||
@@ -1283,6 +1304,7 @@
       try {
         const loaded = await invoke<AppConfig>("get_config");
         config = ensureLayerFontSizesInConfig(loaded);
+        appliedConfig = cloneConfig(config);
         lastValidationIssue = "";
         await refreshResetAvailability();
         setLocalePreference(loaded.app.locale);
@@ -1340,6 +1362,14 @@
             {onThemeChange}
             {onLaunchOnLoginChange}
             {onOpenOnLaunchChange}
+          />
+        </div>
+
+        <div class:hidden={activeSection !== "playground"}>
+          <PlaygroundSection
+            {appliedConfig}
+            {isLoading}
+            isActive={activeSection === "playground"}
           />
         </div>
 
