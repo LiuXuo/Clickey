@@ -15,6 +15,7 @@ use std::{
     time::{Duration, SystemTime, UNIX_EPOCH},
 };
 use tauri::{
+    image::Image,
     menu::Menu,
     menu::MenuItem,
     tray::{
@@ -161,6 +162,8 @@ const TRAY_ICON_ID: &str = "main";
 const TRAY_MENU_SETTINGS_ID: &str = "tray-settings";
 const TRAY_MENU_TOGGLE_ID: &str = "tray-toggle-runtime";
 const TRAY_MENU_QUIT_ID: &str = "tray-quit";
+const TRAY_ICON_ACTIVE_PNG: &[u8] = include_bytes!("../icons/tray-active.png");
+const TRAY_ICON_PAUSED_PNG: &[u8] = include_bytes!("../icons/tray-paused.png");
 const AUTOSTART_ARG: &str = "--autostart";
 
 const ERR_CONFIG_DIR_UNAVAILABLE: &str = "ERR_CONFIG_DIR_UNAVAILABLE";
@@ -488,6 +491,13 @@ fn locale_from_config(config: &AppConfig) -> LocaleCode {
 }
 
 fn show_settings_from_tray(app: &AppHandle, _state: &AppState) {
+    if let Some(window) = app.get_webview_window("settings") {
+        if window.is_visible().unwrap_or(false) {
+            hide_settings(app);
+            return;
+        }
+    }
+
     show_settings(app);
 }
 
@@ -519,6 +529,22 @@ fn hide_settings(app: &AppHandle) {
     let _ = app.hide();
 }
 
+fn tray_icon_image(paused: bool) -> Option<Image<'static>> {
+    let bytes = if paused {
+        TRAY_ICON_PAUSED_PNG
+    } else {
+        TRAY_ICON_ACTIVE_PNG
+    };
+
+    match Image::from_bytes(bytes) {
+        Ok(image) => Some(image.to_owned()),
+        Err(err) => {
+            println!("[tray] failed to decode tray icon: {}", err);
+            None
+        }
+    }
+}
+
 fn refresh_tray(app: &AppHandle, state: &AppState) {
     let config = get_state_config(state).unwrap_or_else(|_| default_config());
     let texts = tray_texts(locale_from_config(&config));
@@ -526,6 +552,11 @@ fn refresh_tray(app: &AppHandle, state: &AppState) {
 
     if let Some(tray) = app.tray_by_id(TRAY_ICON_ID) {
         let _ = tray.set_visible(true);
+        if let Some(icon) = tray_icon_image(paused) {
+            let _ = tray.set_icon(Some(icon));
+            #[cfg(target_os = "macos")]
+            let _ = tray.set_icon_as_template(true);
+        }
     }
 
     if let Ok(guard) = state.tray_menu_items.lock() {
@@ -1447,12 +1478,19 @@ fn register_tray(app: &AppHandle, state: &AppState) -> tauri::Result<()> {
             }
         });
 
-    if let Some(icon) = app.default_window_icon() {
-        builder = builder.icon(icon.clone());
+    #[cfg(target_os = "macos")]
+    {
+        builder = builder.icon_as_template(true);
+    }
+
+    if let Some(icon) = tray_icon_image(paused) {
+        builder = builder.icon(icon);
     }
 
     let tray = builder.build(app)?;
     tray.set_visible(true)?;
+    #[cfg(target_os = "macos")]
+    let _ = tray.set_icon_as_template(true);
     Ok(())
 }
 
