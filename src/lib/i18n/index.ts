@@ -92,9 +92,10 @@ export const initLocale = () => {
     return;
   }
   const stored = localStorage.getItem(STORAGE_KEY);
-  const preference = stored !== null && isLocalePreference(stored)
-    ? stored
-    : DEFAULT_LOCALE_PREFERENCE;
+  const preference =
+    stored !== null && isLocalePreference(stored)
+      ? stored
+      : DEFAULT_LOCALE_PREFERENCE;
   locale.set(resolveLocalePreference(preference));
   document.documentElement.lang = get(locale);
 };

@@ -35,7 +35,10 @@
     controlInputWithMarginClass,
     controlSelectClass,
   } from "$lib/features/settings/ui/control-classes";
-  import { canonicalizeHotkey } from "$lib/features/settings/hotkey-utils";
+  import {
+    canonicalizeHotkey,
+    formatHotkeyDisplay,
+  } from "$lib/features/settings/hotkey-utils";
   import { toLocalizedErrorMessage } from "$lib/features/settings/error-message";
 
   const fieldClass = controlInputWithMarginClass;
@@ -460,6 +463,51 @@
     ];
   }
 
+  function normalizeLayerRuntimeKey(value: string): string {
+    const canonical = canonicalizeHotkey(value);
+    if (canonical) {
+      return canonical;
+    }
+    return value.trim().toLowerCase();
+  }
+
+  function displayLayerRuntimeKey(value: string): string {
+    const formatted = formatHotkeyDisplay(value);
+    if (formatted) {
+      return formatted;
+    }
+    return value.trim();
+  }
+
+  function collectLayerRuntimeKeys(candidate: AppConfig) {
+    const entries: Array<{
+      layerIndex: number;
+      key: string;
+      identity: string;
+    }> = [];
+
+    candidate.layers.forEach((layer, layerIndex) => {
+      const rawKeys =
+        layer.mode === "single"
+          ? layer.keys
+          : [...layer.stage0.keys, ...layer.stage1.keys];
+
+      rawKeys.forEach((key) => {
+        const identity = normalizeLayerRuntimeKey(key);
+        if (!identity) {
+          return;
+        }
+        entries.push({
+          layerIndex,
+          key: displayLayerRuntimeKey(key),
+          identity,
+        });
+      });
+    });
+
+    return entries;
+  }
+
   function validateConfig(candidate: AppConfig): string[] {
     const issues: string[] = [];
 
@@ -575,6 +623,7 @@
     });
 
     const seenHotkeys: Record<string, string> = {};
+    const layerRuntimeKeys = collectLayerRuntimeKeys(candidate);
     for (const entry of getHotkeyEntries(candidate)) {
       const canonical = canonicalizeHotkey(entry.value);
       if (!canonical) {
@@ -591,6 +640,20 @@
         break;
       }
       seenHotkeys[canonical] = entry.label;
+
+      const layerConflict = layerRuntimeKeys.find(
+        (layerEntry) => layerEntry.identity === canonical,
+      );
+      if (layerConflict) {
+        issues.push(
+          $t("errors.hotkeyLayerConflict", {
+            field: entry.label,
+            index: layerConflict.layerIndex + 1,
+            key: layerConflict.key,
+          }),
+        );
+        break;
+      }
     }
 
     if (candidate.nudge.stepPx <= 0) {
@@ -731,7 +794,8 @@
       if (!Number.isFinite(candidate.mouse.adaptiveStrideMaxPx)) {
         issues.push($t("errors.mouseAdaptiveStrideMax"));
       } else if (
-        candidate.mouse.adaptiveStrideMaxPx < candidate.mouse.adaptiveStrideBasePx
+        candidate.mouse.adaptiveStrideMaxPx <
+        candidate.mouse.adaptiveStrideBasePx
       ) {
         issues.push($t("errors.mouseAdaptiveStrideMax"));
       }

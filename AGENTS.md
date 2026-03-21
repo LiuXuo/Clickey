@@ -41,7 +41,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 
 ### 1.2 坐标系与多显示器（当前实现）
 
-- 当前实现初始 Region 取当前显示器（`Monitor` 信息），多屏可用 `hotkeys.controls.nextMonitor`（默认 `Tab`）轮换。
+- 当前实现初始 Region 取当前显示器（按鼠标当前所在显示器的 `Monitor` 信息判定），多屏可用 `hotkeys.controls.nextMonitor`（默认 `Tab`）轮换。
 - v1.x 使用 VirtualScreen（`SysGet` 76~79）作为初始 Region（历史参考）。
 - 所有裁剪都发生在“屏幕像素坐标”的 Region 上。
 - v3.1 的几何按原始像素绘制，字体按 DPI 缩放，减少多屏 DPI 偏移。
@@ -247,7 +247,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 输入（概念）：
 
 - `AppConfig`：包含 `layers[]`、`hotkeys.controls`、`nudge.stepPx`
-- `initialRegion`：由 Native 提供的当前显示器 Region（像素坐标）
+- `initialRegion`：由 Native 提供的当前显示器 Region（像素坐标；当前显示器按鼠标当前所在显示器判定）
 - `key`：单次按键（已被 Native 转为字符串）
 
 输出（概念）：
@@ -577,3 +577,5 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-19：收敛 `mouse.smoothMove` 语义：Settings 中从 `moveDurationMs` 起的隐藏字段在 `smoothMove=false` 时整体不参与执行与校验；Native 同步停用随机落点与自定义按压时长，避免“界面已隐藏但运行仍生效”。
 - 2026-03-19：移除 `app.tray.enabled` 配置项；托盘入口改为运行时固定开启，不再作为 Settings/override JSON 的可配置字段，同时删除前后端围绕“禁用托盘”建立的校验与文案。
 - 2026-03-20：修复 macOS 缩放分辨率下的点击坐标错配：保留 Core/Overlay 使用 Tauri monitor physical 坐标，Native 点击前按命中的 monitor `scale_factor` 将 physical clickPoint 转回 Enigo/CGEvent 使用的 mouse-space 坐标，解决外接高分屏在非原生分辨率下的点击偏移问题。
+- 2026-03-21：Overlay 启动显示器选择改为“鼠标当前所在显示器”，不再固定从主显示器开始，文档中的“当前显示器”定义同步收敛。
+- 2026-03-21：前后端统一补齐运行时冲突校验：阻止热键与 layer 键位复用、阻止 override JSON 导入重复 layer 键位，并为后端返回新增稳定错误码。

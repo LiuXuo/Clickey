@@ -215,12 +215,17 @@ const ERR_LAYER_STAGE1_KEYS_EXPECTED: &str = "ERR_LAYER_STAGE1_KEYS_EXPECTED";
 const ERR_LAYER_KEYS_EMPTY: &str = "ERR_LAYER_KEYS_EMPTY";
 const ERR_LAYER_STAGE0_KEYS_EMPTY: &str = "ERR_LAYER_STAGE0_KEYS_EMPTY";
 const ERR_LAYER_STAGE1_KEYS_EMPTY: &str = "ERR_LAYER_STAGE1_KEYS_EMPTY";
+const ERR_LAYER_KEYS_DUPLICATE: &str = "ERR_LAYER_KEYS_DUPLICATE";
+const ERR_LAYER_STAGE0_KEYS_DUPLICATE: &str = "ERR_LAYER_STAGE0_KEYS_DUPLICATE";
+const ERR_LAYER_STAGE1_KEYS_DUPLICATE: &str = "ERR_LAYER_STAGE1_KEYS_DUPLICATE";
 const ERR_COMBO_AXIS_CONSTRAINT: &str = "ERR_COMBO_AXIS_CONSTRAINT";
 const ERR_OVERRIDE_JSON_PARSE_FAILED: &str = "ERR_OVERRIDE_JSON_PARSE_FAILED";
 const ERR_OVERRIDE_JSON_NOT_OBJECT: &str = "ERR_OVERRIDE_JSON_NOT_OBJECT";
 const ERR_OVERRIDE_SCHEMA_INVALID: &str = "ERR_OVERRIDE_SCHEMA_INVALID";
 const ERR_LAUNCH_ON_LOGIN_SYNC_FAILED: &str = "ERR_LAUNCH_ON_LOGIN_SYNC_FAILED";
 const ERR_CLICK_ACTION_UNSUPPORTED: &str = "ERR_CLICK_ACTION_UNSUPPORTED";
+const ERR_HOTKEY_CONFLICT: &str = "ERR_HOTKEY_CONFLICT";
+const ERR_HOTKEY_LAYER_KEY_CONFLICT: &str = "ERR_HOTKEY_LAYER_KEY_CONFLICT";
 #[cfg(target_os = "macos")]
 const ERR_MAC_ACCESSIBILITY_REQUIRED: &str = "ERR_MAC_ACCESSIBILITY_REQUIRED";
 
@@ -234,6 +239,18 @@ fn error_with_layer(code: &str, layer_index: usize) -> String {
 
 fn error_with_layer_expected(code: &str, layer_index: usize, expected: usize) -> String {
     format!("{code}:{layer_index}:{expected}")
+}
+
+fn error_with_layer_keys(code: &str, layer_index: usize, keys: &[String]) -> String {
+    format!("{code}:{layer_index}:{}", keys.join(" "))
+}
+
+fn error_with_hotkey_fields(code: &str, first: &str, second: &str) -> String {
+    format!("{code}:{first}:{second}")
+}
+
+fn error_with_hotkey_layer_key(code: &str, field: &str, layer_index: usize, key: &str) -> String {
+    format!("{code}:{field}:{layer_index}:{key}")
 }
 
 fn config_path(app: &AppHandle) -> Result<PathBuf, String> {
@@ -582,6 +599,18 @@ fn validate_keys(
             _ => error_with_layer(ERR_LAYER_KEYS_EMPTY, layer_index),
         });
     }
+    let duplicates = collect_duplicate_keys(keys);
+    if !duplicates.is_empty() {
+        return Err(match stage {
+            Some(0) => {
+                error_with_layer_keys(ERR_LAYER_STAGE0_KEYS_DUPLICATE, layer_index, &duplicates)
+            }
+            Some(1) => {
+                error_with_layer_keys(ERR_LAYER_STAGE1_KEYS_DUPLICATE, layer_index, &duplicates)
+            }
+            _ => error_with_layer_keys(ERR_LAYER_KEYS_DUPLICATE, layer_index, &duplicates),
+        });
+    }
     Ok(())
 }
 
@@ -718,6 +747,97 @@ fn next_cycle_action_in_order(current: ClickAction, cycle: &[ClickAction]) -> Cl
         Some(index) => cycle[(index + 1) % cycle.len()].clone(),
         None => cycle[0].clone(),
     }
+}
+
+fn normalize_runtime_key(value: &str) -> String {
+    let lower = value.trim().to_ascii_lowercase();
+    match lower.as_str() {
+        "escape" | "esc" => "esc".to_string(),
+        "backspace" => "backspace".to_string(),
+        "space" | "spacebar" => "space".to_string(),
+        "arrowleft" => "left".to_string(),
+        "arrowright" => "right".to_string(),
+        "arrowup" => "up".to_string(),
+        "arrowdown" => "down".to_string(),
+        _ => lower,
+    }
+}
+
+fn display_runtime_key(value: &str) -> String {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return String::new();
+    }
+    normalize_runtime_key(trimmed)
+}
+
+fn key_identity(value: &str) -> Option<String> {
+    let trimmed = value.trim();
+    if trimmed.is_empty() {
+        return None;
+    }
+    if let Some(shortcut) = resolve_shortcut(trimmed) {
+        return Some(format!("shortcut:{}", shortcut.id()));
+    }
+    Some(format!("key:{}", normalize_runtime_key(trimmed)))
+}
+
+fn collect_duplicate_keys(keys: &[String]) -> Vec<String> {
+    let mut seen = HashSet::new();
+    let mut duplicate_ids = HashSet::new();
+    let mut duplicates = Vec::new();
+
+    for key in keys {
+        let Some(identity) = key_identity(key) else {
+            continue;
+        };
+
+        if !seen.insert(identity.clone()) && duplicate_ids.insert(identity) {
+            duplicates.push(display_runtime_key(key));
+        }
+    }
+
+    duplicates
+}
+
+fn hotkey_entries(config: &AppConfig) -> Vec<(&'static str, &str)> {
+    vec![
+        ("trigger", config.hotkeys.activation.trigger.as_str()),
+        (
+            "switchAction",
+            config.hotkeys.controls.switch_action.as_str(),
+        ),
+        ("cancel", config.hotkeys.controls.cancel.as_str()),
+        ("undo", config.hotkeys.controls.undo.as_str()),
+        ("directClick", config.hotkeys.controls.direct_click.as_str()),
+        ("nextMonitor", config.hotkeys.controls.next_monitor.as_str()),
+        ("nudgeLeft", config.hotkeys.controls.nudge_left.as_str()),
+        ("nudgeRight", config.hotkeys.controls.nudge_right.as_str()),
+        ("nudgeUp", config.hotkeys.controls.nudge_up.as_str()),
+        ("nudgeDown", config.hotkeys.controls.nudge_down.as_str()),
+    ]
+}
+
+fn collect_layer_key_entries(config: &AppConfig) -> Vec<(usize, String, String)> {
+    let mut entries = Vec::new();
+
+    for (layer_index, layer) in config.layers.iter().enumerate() {
+        let iter: Box<dyn Iterator<Item = &String> + '_> = match layer {
+            Layer::Single { keys, .. } => Box::new(keys.iter()),
+            Layer::Combo { stage0, stage1 } => {
+                Box::new(stage0.keys.iter().chain(stage1.keys.iter()))
+            }
+        };
+
+        for key in iter {
+            let Some(identity) = key_identity(key) else {
+                continue;
+            };
+            entries.push((layer_index, display_runtime_key(key), identity));
+        }
+    }
+
+    entries
 }
 
 fn validate_config(config: &AppConfig) -> Result<(), String> {
@@ -911,6 +1031,39 @@ fn validate_config(config: &AppConfig) -> Result<(), String> {
                 let expected1 = (stage1.rows as usize) * (stage1.cols as usize);
                 validate_keys(&stage1.keys, expected1, layer_index, Some(1))?;
             }
+        }
+    }
+
+    let hotkeys = hotkey_entries(config);
+    let mut seen_hotkeys: HashMap<String, &'static str> = HashMap::new();
+    for (field, value) in &hotkeys {
+        let Some(identity) = key_identity(value) else {
+            continue;
+        };
+        if let Some(previous) = seen_hotkeys.insert(identity, field) {
+            return Err(error_with_hotkey_fields(
+                ERR_HOTKEY_CONFLICT,
+                previous,
+                field,
+            ));
+        }
+    }
+
+    let layer_key_entries = collect_layer_key_entries(config);
+    for (field, value) in hotkeys {
+        let Some(identity) = key_identity(value) else {
+            continue;
+        };
+        if let Some((layer_index, key_display, _)) = layer_key_entries
+            .iter()
+            .find(|(_, _, layer_identity)| *layer_identity == identity)
+        {
+            return Err(error_with_hotkey_layer_key(
+                ERR_HOTKEY_LAYER_KEY_CONFLICT,
+                field,
+                *layer_index,
+                key_display,
+            ));
         }
     }
 
@@ -1554,11 +1707,23 @@ fn set_start_monitor_index(
     if monitors.is_empty() {
         return 0;
     }
-    let index = primary_monitor_index(app, monitors);
+    let index =
+        cursor_monitor_index(app, monitors).unwrap_or_else(|| primary_monitor_index(app, monitors));
     if let Ok(mut guard) = state.monitor_index.lock() {
         *guard = index;
     }
     index
+}
+
+fn cursor_monitor_index(app: &AppHandle, monitors: &[tauri::Monitor]) -> Option<usize> {
+    let cursor = app.cursor_position().ok()?;
+    let x = cursor.x.round() as i32;
+    let y = cursor.y.round() as i32;
+    monitors
+        .iter()
+        .enumerate()
+        .find(|(_, monitor)| monitor_contains_point(monitor, x, y))
+        .map(|(index, _)| index)
 }
 
 fn next_monitor_region(app: &AppHandle, state: &AppState) -> Region {
@@ -2439,7 +2604,7 @@ mod tests {
         normalize_locale_preference, normalize_shortcut, resolve_landing_point, validate_config,
         LocalePreference,
     };
-    use crate::config::{AppConfig, ClickAction, MouseConfig};
+    use crate::config::{AppConfig, ClickAction, Layer, MouseConfig};
 
     #[test]
     fn normalize_shortcut_maps_macos_private_function_keys() {
@@ -2509,5 +2674,39 @@ mod tests {
             (320, 240)
         );
         assert_eq!(effective_press_duration_ms(&mouse), 0);
+    }
+
+    #[test]
+    fn validate_config_rejects_duplicate_layer_keys() {
+        let mut config = AppConfig::default();
+        let Layer::Single { keys, .. } = &mut config.layers[1] else {
+            panic!("expected default second layer to be single");
+        };
+        keys[1] = keys[0].clone();
+
+        let error = validate_config(&config).expect_err("expected duplicate key validation");
+        assert!(error.starts_with("ERR_LAYER_KEYS_DUPLICATE:1:"));
+    }
+
+    #[test]
+    fn validate_config_rejects_duplicate_hotkeys() {
+        let mut config = AppConfig::default();
+        config.hotkeys.controls.undo = config.hotkeys.controls.cancel.clone();
+
+        assert_eq!(
+            validate_config(&config),
+            Err("ERR_HOTKEY_CONFLICT:cancel:undo".to_string())
+        );
+    }
+
+    #[test]
+    fn validate_config_rejects_hotkey_layer_conflicts() {
+        let mut config = AppConfig::default();
+        config.hotkeys.activation.trigger = "Q".to_string();
+
+        assert_eq!(
+            validate_config(&config),
+            Err("ERR_HOTKEY_LAYER_KEY_CONFLICT:trigger:0:q".to_string())
+        );
     }
 }

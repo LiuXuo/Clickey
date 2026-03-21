@@ -57,6 +57,19 @@ const HOTKEY_CODE_TO_LABEL_KEY: Record<string, TranslationKey> = {
   ERR_HOTKEY_INVALID_NUDGE_DOWN: "hotkeys.nudgeDown",
 };
 
+const HOTKEY_FIELD_TO_LABEL_KEY: Record<string, TranslationKey> = {
+  trigger: "hotkeys.trigger",
+  switchAction: "hotkeys.switchAction",
+  cancel: "hotkeys.cancel",
+  undo: "hotkeys.undo",
+  directClick: "hotkeys.directClick",
+  nextMonitor: "hotkeys.nextMonitor",
+  nudgeLeft: "hotkeys.nudgeLeft",
+  nudgeRight: "hotkeys.nudgeRight",
+  nudgeUp: "hotkeys.nudgeUp",
+  nudgeDown: "hotkeys.nudgeDown",
+};
+
 function unwrapError(error: unknown): string {
   if (error instanceof Error) {
     return error.message;
@@ -109,7 +122,7 @@ export function toLocalizedErrorMessage(
     return translate("errors.backendUnknown");
   }
 
-  const [base, layer, expected] = code.split(":");
+  const [base, part1, part2, ...rest] = code.split(":");
 
   const directKey = CODE_TO_KEY_MAP[base];
   if (directKey) {
@@ -123,66 +136,105 @@ export function toLocalizedErrorMessage(
     });
   }
 
+  if (base === "ERR_HOTKEY_CONFLICT") {
+    const firstLabelKey = HOTKEY_FIELD_TO_LABEL_KEY[part1 ?? ""];
+    const secondLabelKey = HOTKEY_FIELD_TO_LABEL_KEY[part2 ?? ""];
+    return translate("errors.hotkeyConflict", {
+      first: firstLabelKey ? translate(firstLabelKey) : (part1 ?? ""),
+      second: secondLabelKey ? translate(secondLabelKey) : (part2 ?? ""),
+    });
+  }
+
+  if (base === "ERR_HOTKEY_LAYER_KEY_CONFLICT") {
+    const fieldLabelKey = HOTKEY_FIELD_TO_LABEL_KEY[part1 ?? ""];
+    return translate("errors.hotkeyLayerConflict", {
+      field: fieldLabelKey ? translate(fieldLabelKey) : (part1 ?? ""),
+      index: layerDisplayIndex(part2),
+      key: rest.join(":"),
+    });
+  }
+
   if (base === "ERR_LAYER_GRID_INVALID") {
     return translate("errors.layerGridInvalidSimple", {
-      index: layerDisplayIndex(layer),
+      index: layerDisplayIndex(part1),
     });
   }
 
   if (base === "ERR_LAYER_STAGE0_GRID_INVALID") {
     return translate("errors.stage0GridInvalidSimple", {
-      index: layerDisplayIndex(layer),
+      index: layerDisplayIndex(part1),
     });
   }
 
   if (base === "ERR_LAYER_STAGE1_GRID_INVALID") {
     return translate("errors.stage1GridInvalidSimple", {
-      index: layerDisplayIndex(layer),
+      index: layerDisplayIndex(part1),
     });
   }
 
   if (base === "ERR_LAYER_KEYS_EXPECTED") {
     return translate("errors.layerExpectedKeysSimple", {
-      index: layerDisplayIndex(layer),
-      expected: expectedValue(expected),
+      index: layerDisplayIndex(part1),
+      expected: expectedValue(part2),
     });
   }
 
   if (base === "ERR_LAYER_STAGE0_KEYS_EXPECTED") {
     return translate("errors.stage0ExpectedKeysSimple", {
-      index: layerDisplayIndex(layer),
-      expected: expectedValue(expected),
+      index: layerDisplayIndex(part1),
+      expected: expectedValue(part2),
     });
   }
 
   if (base === "ERR_LAYER_STAGE1_KEYS_EXPECTED") {
     return translate("errors.stage1ExpectedKeysSimple", {
-      index: layerDisplayIndex(layer),
-      expected: expectedValue(expected),
+      index: layerDisplayIndex(part1),
+      expected: expectedValue(part2),
     });
   }
 
   if (base === "ERR_LAYER_KEYS_EMPTY") {
     return translate("errors.layerEmptyKeysSimple", {
-      index: layerDisplayIndex(layer),
+      index: layerDisplayIndex(part1),
     });
   }
 
   if (base === "ERR_LAYER_STAGE0_KEYS_EMPTY") {
     return translate("errors.stage0EmptyKeysSimple", {
-      index: layerDisplayIndex(layer),
+      index: layerDisplayIndex(part1),
     });
   }
 
   if (base === "ERR_LAYER_STAGE1_KEYS_EMPTY") {
     return translate("errors.stage1EmptyKeysSimple", {
-      index: layerDisplayIndex(layer),
+      index: layerDisplayIndex(part1),
+    });
+  }
+
+  if (base === "ERR_LAYER_KEYS_DUPLICATE") {
+    return translate("errors.layerDuplicateKeysSimple", {
+      index: layerDisplayIndex(part1),
+      keys: [part2, ...rest].filter(Boolean).join(":"),
+    });
+  }
+
+  if (base === "ERR_LAYER_STAGE0_KEYS_DUPLICATE") {
+    return translate("errors.stage0DuplicateKeysSimple", {
+      index: layerDisplayIndex(part1),
+      keys: [part2, ...rest].filter(Boolean).join(":"),
+    });
+  }
+
+  if (base === "ERR_LAYER_STAGE1_KEYS_DUPLICATE") {
+    return translate("errors.stage1DuplicateKeysSimple", {
+      index: layerDisplayIndex(part1),
+      keys: [part2, ...rest].filter(Boolean).join(":"),
     });
   }
 
   if (base === "ERR_COMBO_AXIS_CONSTRAINT") {
     return translate("errors.comboAxisConstraintSimple", {
-      index: layerDisplayIndex(layer),
+      index: layerDisplayIndex(part1),
     });
   }
 

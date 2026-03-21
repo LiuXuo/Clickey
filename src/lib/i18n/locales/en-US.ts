@@ -124,6 +124,8 @@ const en: Record<TranslationKey, string> = {
     "Layer {index} combo must be stage 1 = 1xN, stage 2 = Nx1.",
   "errors.hotkeyConflict":
     "Hotkey conflict: {first} and {second} cannot be the same.",
+  "errors.hotkeyLayerConflict":
+    'Hotkey conflict: {field} cannot reuse layer {index} key "{key}".',
   "errors.nudgeStep": "Nudge step must be > 0.",
   "errors.mouseActionCycleEmpty": "Enable at least one mouse action.",
   "errors.mouseActionCycleDuplicate":

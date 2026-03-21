@@ -113,6 +113,8 @@
   "errors.comboAxisConstraintSimple":
     "第 {index} 层组合必须是阶段 1 = 1xN，阶段 2 = Nx1。",
   "errors.hotkeyConflict": "热键冲突：{first} 与 {second} 不能相同。",
+  "errors.hotkeyLayerConflict":
+    "热键冲突：{field} 不能复用第 {index} 层的键位“{key}”。",
   "errors.nudgeStep": "微调步长必须大于 0。",
   "errors.mouseActionCycleEmpty": "至少启用一个鼠标动作。",
   "errors.mouseActionCycleDuplicate": "鼠标动作循环中存在重复动作。",
