@@ -195,6 +195,7 @@ fn default_mouse_action_cycle() -> Vec<ClickAction> {
         ClickAction::Right,
         ClickAction::Middle,
         ClickAction::MoveOnly,
+        ClickAction::Drag,
         ClickAction::DoubleLeft,
         ClickAction::CtrlLeft,
         ClickAction::CmdLeft,

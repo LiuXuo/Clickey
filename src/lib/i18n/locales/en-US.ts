@@ -127,6 +127,8 @@ const en: Record<TranslationKey, string> = {
   "overlay.action.cmdLeft": "Cmd + Left Click",
   "overlay.action.shiftLeft": "Shift + Left Click",
   "overlay.action.drag": "Drag",
+  "overlay.drag.phaseStart": "Drag · Start",
+  "overlay.drag.phaseEnd": "Drag · End",
   "errors.removeLayerConfirm": "Remove layer {index}?",
   "errors.layersRequired": "At least one layer is required.",
   "errors.comboAxisConstraintSimple":

@@ -117,6 +117,8 @@
   "overlay.action.cmdLeft": "Cmd+左键",
   "overlay.action.shiftLeft": "Shift+左键",
   "overlay.action.drag": "拖动",
+  "overlay.drag.phaseStart": "拖动 · 起点",
+  "overlay.drag.phaseEnd": "拖动 · 终点",
   "errors.removeLayerConfirm": "删除第 {index} 层？",
   "errors.layersRequired": "至少需要一层。",
   "errors.comboAxisConstraintSimple":

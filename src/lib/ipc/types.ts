@@ -1,11 +1,16 @@
-﻿import type { AppConfig, MouseAction, Region } from "$lib/core";
+import type { AppConfig, MouseAction, Point, Region } from "$lib/core";
 
-export type ClickAction = MouseAction | "drag";
+export type ClickAction = MouseAction;
+
+export interface OverlayDragPayload {
+  startPoint: Point;
+}
 
 export interface OverlayActivatePayload {
   region: Region;
   config: AppConfig;
   clickAction: ClickAction;
+  drag?: OverlayDragPayload | null;
 }
 
 export interface NativeKeyPayload {

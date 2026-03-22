@@ -20,6 +20,7 @@ export type MouseAction =
   | "right"
   | "middle"
   | "moveOnly"
+  | "drag"
   | "doubleLeft"
   | "ctrlLeft"
   | "cmdLeft"

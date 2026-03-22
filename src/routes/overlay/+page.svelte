@@ -10,17 +10,32 @@
     NativeKeyPayload,
     ClickAction,
   } from "$lib/ipc/types";
-  import { applyKey, createInitialState, getCurrentStep } from "$lib/core";
-  import type { AppConfig, CurrentStep, Region, RuntimeState } from "$lib/core";
+  import {
+    applyKey,
+    createInitialState,
+    getCurrentStep,
+    normalizeKeyCode,
+  } from "$lib/core";
+  import type {
+    AppConfig,
+    CurrentStep,
+    Point,
+    Region,
+    RuntimeState,
+  } from "$lib/core";
 
   let config = $state<AppConfig | null>(null);
   let runtime = $state<RuntimeState | null>(null);
   let baseRegion = $state<Region | null>(null);
   let clickAction = $state<ClickAction | null>(null);
+  let dragStartPoint = $state<Point | null>(null);
   let actionHintVisible = $state(false);
   let canvas: HTMLCanvasElement | null = null;
   const currentWindow = getCurrentWindow();
   let actionHintTimer: ReturnType<typeof setTimeout> | null = null;
+  type NativeClickCommandResult = {
+    continueOverlay?: boolean;
+  };
 
   function withAlpha(color: string, alpha: number, fallback: string): string {
     if (!color.startsWith("#")) {
@@ -54,6 +69,12 @@
     return first ?? "left";
   }
 
+  function dragPhaseLabel(startPoint: Point | null): string {
+    return startPoint
+      ? $t("overlay.drag.phaseEnd")
+      : $t("overlay.drag.phaseStart");
+  }
+
   function actionLabel(action: ClickAction | null): string {
     switch (action) {
       case "left":
@@ -73,7 +94,7 @@
       case "shiftLeft":
         return $t("overlay.action.shiftLeft");
       case "drag":
-        return $t("overlay.action.drag");
+        return dragPhaseLabel(dragStartPoint);
       default:
         return actionLabel(defaultAction(config));
     }
@@ -90,10 +111,11 @@
   function showActionHint() {
     actionHintVisible = true;
     clearActionHintTimer();
+    const timeoutMs = clickAction === "drag" ? 1400 : 1000;
     actionHintTimer = setTimeout(() => {
       actionHintVisible = false;
       actionHintTimer = null;
-    }, 1000);
+    }, timeoutMs);
   }
 
   function actionHintStyle(config: AppConfig | null): string {
@@ -166,6 +188,22 @@
     return Math.round(candidate);
   }
 
+  function shouldReturnToDragStart(key: string): boolean {
+    if (
+      !config ||
+      !runtime ||
+      clickAction !== "drag" ||
+      !dragStartPoint ||
+      runtime.history.length > 0
+    ) {
+      return false;
+    }
+
+    return (
+      normalizeKeyCode(key) === normalizeKeyCode(config.hotkeys.controls.undo)
+    );
+  }
+
   function draw() {
     if (!canvas) {
       return;
@@ -201,6 +239,8 @@
     const regionY = runtime.region.y / scale + offsetY;
     const regionW = runtime.region.width / scale;
     const regionH = runtime.region.height / scale;
+    const regionCenterX = regionX + regionW / 2;
+    const regionCenterY = regionY + regionH / 2;
 
     // Mask the whole screen so grid/text read clearly
     ctx.fillStyle = `${config.overlay.maskColor}${Math.round(
@@ -249,6 +289,52 @@
       ctx.stroke();
     }
 
+    if (clickAction === "drag" && dragStartPoint) {
+      const startX = dragStartPoint.x / scale + offsetX;
+      const startY = dragStartPoint.y / scale + offsetY;
+
+      ctx.save();
+      ctx.setLineDash([8, 6]);
+      ctx.lineWidth = Math.max(1.5, config.overlay.lineWidthPx + 0.5);
+      ctx.strokeStyle = withAlpha(
+        config.overlay.lineColor,
+        0.72,
+        "rgba(255, 255, 255, 0.72)",
+      );
+      ctx.beginPath();
+      ctx.moveTo(startX, startY);
+      ctx.lineTo(regionCenterX, regionCenterY);
+      ctx.stroke();
+      ctx.setLineDash([]);
+
+      ctx.fillStyle = withAlpha(
+        config.overlay.textColor,
+        0.92,
+        "rgba(255, 255, 255, 0.92)",
+      );
+      ctx.strokeStyle = withAlpha(
+        config.overlay.maskColor,
+        0.62,
+        "rgba(0, 0, 0, 0.62)",
+      );
+      ctx.lineWidth = 2;
+
+      ctx.beginPath();
+      ctx.arc(startX, startY, 6, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+
+      ctx.beginPath();
+      ctx.arc(regionCenterX, regionCenterY, 5, 0, Math.PI * 2);
+      ctx.strokeStyle = withAlpha(
+        config.overlay.lineColor,
+        0.9,
+        "rgba(255, 255, 255, 0.9)",
+      );
+      ctx.stroke();
+      ctx.restore();
+    }
+
     ctx.fillStyle = config.overlay.textColor;
     const fontSizePx = resolveLayerFontSize(config, runtime);
     ctx.font = `600 ${fontSizePx}px ${config.overlay.font.family}`;
@@ -274,24 +360,36 @@
       return;
     }
 
+    if (shouldReturnToDragStart(key)) {
+      await invoke("drag_session_back");
+      return;
+    }
+
     const result = applyKey(config, runtime, key);
     runtime = result.state;
     draw();
 
     if (result.clickPoint) {
       const action = clickAction ?? defaultAction(config);
+      let continueOverlay = false;
       try {
-        await invoke("native_click", {
-          payload: {
-            x: result.clickPoint.x,
-            y: result.clickPoint.y,
-            button: action,
+        const response = await invoke<NativeClickCommandResult>(
+          "native_click",
+          {
+            payload: {
+              x: result.clickPoint.x,
+              y: result.clickPoint.y,
+              button: action,
+            },
           },
-        });
+        );
+        continueOverlay = response?.continueOverlay === true;
       } catch {
         await invoke("close_overlay");
       } finally {
-        await currentWindow.hide();
+        if (!continueOverlay) {
+          await currentWindow.hide();
+        }
       }
       return;
     }
@@ -314,6 +412,7 @@
           setLocale(resolveLocalePreference(event.payload.config.app.locale));
           config = event.payload.config;
           baseRegion = event.payload.region;
+          dragStartPoint = event.payload.drag?.startPoint ?? null;
           runtime = createInitialState(
             event.payload.config,
             event.payload.region,
@@ -329,6 +428,9 @@
         "overlay:action",
         (event) => {
           clickAction = event.payload.clickAction;
+          if (event.payload.clickAction !== "drag") {
+            dragStartPoint = null;
+          }
           showActionHint();
         },
       );

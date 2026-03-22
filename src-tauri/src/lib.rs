@@ -51,10 +51,25 @@ struct Region {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct Point {
+    x: f64,
+    y: f64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct OverlayDragPayload {
+    start_point: Point,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct OverlayActivatePayload {
     region: Region,
     config: AppConfig,
     click_action: ClickAction,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    drag: Option<OverlayDragPayload>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -63,6 +78,12 @@ struct NativeClickPayload {
     x: f64,
     y: f64,
     button: ClickAction,
+}
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(rename_all = "camelCase")]
+struct NativeClickResult {
+    continue_overlay: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -90,6 +111,11 @@ struct NudgeRepeat {
     stop: Arc<AtomicBool>,
 }
 
+#[derive(Debug, Clone)]
+struct DragSession {
+    start_point: Point,
+}
+
 #[derive(Debug, Default, Clone)]
 struct ActivationHotkeyIds {
     trigger: Option<u32>,
@@ -115,6 +141,7 @@ struct AppState {
     overlay_key_map: Mutex<HashMap<u32, String>>,
     overlay_active: Mutex<bool>,
     overlay_click_action: Mutex<Option<ClickAction>>,
+    drag_session: Mutex<Option<DragSession>>,
     monitor_index: Mutex<usize>,
     nudge_repeat: Mutex<Option<NudgeRepeat>>,
     #[cfg(target_os = "macos")]
@@ -665,6 +692,7 @@ fn is_supported_overlay_click_action(action: &ClickAction) -> bool {
             | ClickAction::Right
             | ClickAction::Middle
             | ClickAction::MoveOnly
+            | ClickAction::Drag
             | ClickAction::DoubleLeft
             | ClickAction::CtrlLeft
             | ClickAction::CmdLeft
@@ -678,6 +706,7 @@ fn canonical_mouse_actions() -> Vec<ClickAction> {
         ClickAction::Right,
         ClickAction::Middle,
         ClickAction::MoveOnly,
+        ClickAction::Drag,
         ClickAction::DoubleLeft,
         ClickAction::CtrlLeft,
         ClickAction::CmdLeft,
@@ -1196,16 +1225,32 @@ fn import_override_json(
 }
 
 #[tauri::command]
-fn native_click(app: AppHandle, payload: NativeClickPayload) -> Result<(), String> {
+fn native_click(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    payload: NativeClickPayload,
+) -> Result<NativeClickResult, String> {
     println!(
         "[native] click action={:?} requested_x={} requested_y={}",
         payload.button, payload.x, payload.y
     );
-    ensure_mouse_control_ready(&app, app.state::<AppState>().inner())?;
-    perform_click(&app, &payload)?;
-    hide_overlay(&app, app.state::<AppState>().inner());
+    ensure_mouse_control_ready(&app, state.inner())?;
 
-    Ok(())
+    if payload.button == ClickAction::Drag {
+        return handle_drag_click(&app, state.inner(), &payload);
+    }
+
+    perform_click(&app, &payload)?;
+    hide_overlay(&app, state.inner());
+
+    Ok(NativeClickResult {
+        continue_overlay: false,
+    })
+}
+
+#[tauri::command]
+fn drag_session_back(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+    restart_drag_session(&app, state.inner())
 }
 
 #[tauri::command]
@@ -1347,6 +1392,7 @@ pub fn run() {
             overlay_key_map: Mutex::new(HashMap::new()),
             overlay_active: Mutex::new(false),
             overlay_click_action: Mutex::new(None),
+            drag_session: Mutex::new(None),
             monitor_index: Mutex::new(0),
             nudge_repeat: Mutex::new(None),
             #[cfg(target_os = "macos")]
@@ -1366,6 +1412,7 @@ pub fn run() {
             export_override_json,
             import_override_json,
             native_click,
+            drag_session_back,
             close_overlay
         ])
         .setup(|app| {
@@ -1630,6 +1677,7 @@ fn monitor_contains_point(monitor: &tauri::Monitor, x: i32, y: i32) -> bool {
     x >= pos.x && x < max_x && y >= pos.y && y < max_y
 }
 
+#[cfg(target_os = "macos")]
 fn monitor_for_physical_point<'a>(
     monitors: &'a [tauri::Monitor],
     x: i32,
@@ -1781,6 +1829,63 @@ fn next_monitor_region(app: &AppHandle, state: &AppState) -> Region {
     monitor_region(&monitors[next_index])
 }
 
+fn current_monitor_region(app: &AppHandle, state: &AppState) -> Region {
+    let monitors = available_monitors(app);
+    if monitors.is_empty() {
+        return compute_virtual_region(app);
+    }
+
+    let index = state
+        .monitor_index
+        .lock()
+        .map(|guard| (*guard).min(monitors.len().saturating_sub(1)))
+        .unwrap_or(0);
+    monitor_region(&monitors[index])
+}
+
+fn current_drag_payload(state: &AppState) -> Option<OverlayDragPayload> {
+    state
+        .drag_session
+        .lock()
+        .ok()
+        .and_then(|guard| guard.as_ref().cloned())
+        .map(|session| OverlayDragPayload {
+            start_point: session.start_point,
+        })
+}
+
+fn clear_drag_session(state: &AppState) {
+    if let Ok(mut guard) = state.drag_session.lock() {
+        *guard = None;
+    }
+}
+
+fn emit_overlay_activate(
+    app: &AppHandle,
+    state: &AppState,
+    region: Region,
+    config: AppConfig,
+    action: ClickAction,
+) {
+    show_overlay_window(app, &region);
+
+    let payload = OverlayActivatePayload {
+        region,
+        config,
+        click_action: action.clone(),
+        drag: current_drag_payload(state),
+    };
+    let _ = app.emit_to(
+        EventTarget::webview_window("overlay"),
+        "overlay:activate",
+        payload,
+    );
+
+    if let Ok(mut stored_action) = state.overlay_click_action.lock() {
+        *stored_action = Some(action);
+    };
+}
+
 fn switch_monitor(app: &AppHandle) {
     let state = app.state::<AppState>();
     let region = next_monitor_region(app, state.inner());
@@ -1802,22 +1907,7 @@ fn switch_monitor(app: &AppHandle) {
         region.x, region.y, region.width, region.height
     );
 
-    show_overlay_window(app, &region);
-
-    let payload = OverlayActivatePayload {
-        region,
-        config,
-        click_action: action.clone(),
-    };
-    let _ = app.emit_to(
-        EventTarget::webview_window("overlay"),
-        "overlay:activate",
-        payload,
-    );
-
-    if let Ok(mut stored_action) = state.inner().overlay_click_action.lock() {
-        *stored_action = Some(action);
-    };
+    emit_overlay_activate(app, state.inner(), region, config, action);
 }
 
 fn trigger_overlay(app: &AppHandle) {
@@ -1838,33 +1928,19 @@ fn trigger_overlay(app: &AppHandle) {
     } else {
         monitor_region(&monitors[index])
     };
+    clear_drag_session(state.inner());
     let action = resolved_overlay_click_action(&config, None);
 
     if let Ok(mut active) = state.overlay_active.lock() {
         *active = true;
-    }
-    if let Ok(mut stored_action) = state.overlay_click_action.lock() {
-        *stored_action = Some(action.clone());
     }
     println!(
         "[overlay] show action={:?} region=({}, {}, {}, {})",
         action, region.x, region.y, region.width, region.height
     );
 
-    show_overlay_window(app, &region);
-
     let config_for_keys = config.clone();
-    let payload = OverlayActivatePayload {
-        region,
-        config,
-        click_action: action,
-    };
-
-    let _ = app.emit_to(
-        EventTarget::webview_window("overlay"),
-        "overlay:activate",
-        payload,
-    );
+    emit_overlay_activate(app, state.inner(), region, config, action);
 
     let app_handle = app.clone();
     std::thread::spawn(move || {
@@ -1890,7 +1966,73 @@ fn hide_overlay(app: &AppHandle, state: &AppState) {
     if let Ok(mut action) = state.overlay_click_action.lock() {
         *action = None;
     }
+    clear_drag_session(state);
     println!("[overlay] hidden");
+}
+
+fn restart_drag_session(app: &AppHandle, state: &AppState) -> Result<(), String> {
+    clear_drag_session(state);
+    let config = get_state_config(state)?;
+    let region = current_monitor_region(app, state);
+    println!(
+        "[drag] restart selection region=({}, {}, {}, {})",
+        region.x, region.y, region.width, region.height
+    );
+    emit_overlay_activate(app, state, region, config, ClickAction::Drag);
+    Ok(())
+}
+
+fn handle_drag_click(
+    app: &AppHandle,
+    state: &AppState,
+    payload: &NativeClickPayload,
+) -> Result<NativeClickResult, String> {
+    let config = get_state_config(state)?;
+    let current_session = state
+        .drag_session
+        .lock()
+        .map_err(|_| error_code(ERR_BACKEND_STATE_UNAVAILABLE))?
+        .clone();
+
+    if let Some(session) = current_session {
+        let end_point = Point {
+            x: payload.x,
+            y: payload.y,
+        };
+        println!(
+            "[drag] complete start=({}, {}) end=({}, {})",
+            session.start_point.x, session.start_point.y, end_point.x, end_point.y
+        );
+        perform_drag(app, &session.start_point, &end_point)?;
+        hide_overlay(app, state);
+        return Ok(NativeClickResult {
+            continue_overlay: false,
+        });
+    }
+
+    let start_point = Point {
+        x: payload.x,
+        y: payload.y,
+    };
+    {
+        let mut guard = state
+            .drag_session
+            .lock()
+            .map_err(|_| error_code(ERR_BACKEND_STATE_UNAVAILABLE))?;
+        *guard = Some(DragSession {
+            start_point: start_point.clone(),
+        });
+    }
+    let region = current_monitor_region(app, state);
+    println!(
+        "[drag] start point=({}, {}) region=({}, {}, {}, {})",
+        start_point.x, start_point.y, region.x, region.y, region.width, region.height
+    );
+    emit_overlay_activate(app, state, region, config, ClickAction::Drag);
+
+    Ok(NativeClickResult {
+        continue_overlay: true,
+    })
 }
 
 fn perform_click(app: &AppHandle, payload: &NativeClickPayload) -> Result<(), String> {
@@ -1948,6 +2090,36 @@ fn perform_click(app: &AppHandle, payload: &NativeClickPayload) -> Result<(), St
         ClickAction::MoveOnly => Ok(()),
         ClickAction::Drag => Err(error_code(ERR_CLICK_ACTION_UNSUPPORTED)),
     }
+}
+
+fn perform_drag(app: &AppHandle, start_point: &Point, end_point: &Point) -> Result<(), String> {
+    let config = get_state_config(app.state::<AppState>().inner())?;
+    let mouse_cfg = config.mouse;
+    let press_duration_ms = effective_press_duration_ms(&mouse_cfg);
+    let mut enigo = Enigo::new();
+    let (start_mouse_x, start_mouse_y) = macos_mouse_space_point(app, start_point.x, start_point.y);
+    let (end_mouse_x, end_mouse_y) = macos_mouse_space_point(app, end_point.x, end_point.y);
+    let start_x = start_mouse_x.round() as i32;
+    let start_y = start_mouse_y.round() as i32;
+    let end_x = end_mouse_x.round() as i32;
+    let end_y = end_mouse_y.round() as i32;
+
+    println!(
+        "[native] drag start_x={} start_y={} end_x={} end_y={}",
+        start_x, start_y, end_x, end_y
+    );
+
+    move_mouse_to_target(&mut enigo, start_x, start_y, &mouse_cfg);
+    enigo.mouse_down(MouseButton::Left);
+    if press_duration_ms > 0 {
+        std::thread::sleep(Duration::from_millis(press_duration_ms as u64));
+    }
+    move_mouse_to_target(&mut enigo, end_x, end_y, &mouse_cfg);
+    if press_duration_ms > 0 {
+        std::thread::sleep(Duration::from_millis(press_duration_ms as u64));
+    }
+    enigo.mouse_up(MouseButton::Left);
+    Ok(())
 }
 
 fn smooth_move_tuning_enabled(cfg: &MouseConfig) -> bool {
@@ -2428,6 +2600,16 @@ fn hotkey_matches(value: &str, configured_key: &str) -> bool {
 }
 
 fn cycle_overlay_click_action(app: &AppHandle, state: &AppState) {
+    let drag_session_active = state
+        .drag_session
+        .lock()
+        .map(|guard| guard.is_some())
+        .unwrap_or(false);
+    if drag_session_active {
+        println!("[overlay] action switch ignored while drag session is active");
+        return;
+    }
+
     let config = state
         .config
         .lock()

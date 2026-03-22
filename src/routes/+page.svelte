@@ -85,6 +85,7 @@
     "right",
     "middle",
     "moveOnly",
+    "drag",
     "doubleLeft",
     "ctrlLeft",
     "cmdLeft",

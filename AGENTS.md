@@ -32,10 +32,11 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 ### 1.1 通用交互（以当前默认配置为准）
 
 - 激活：`hotkeys.activation.trigger`（macOS 默认 `Cmd+;`，其他平台默认 `Ctrl+;`，进入 Overlay 时按“`mouse.actionCycle` 顺序里第一个未被 `mouse.disabledActions` 禁用的动作”作为初始动作；默认是左键）
-- 切换动作：`hotkeys.controls.switchAction`（默认 `Enter`，按 `mouse.actionCycle` 顺序在“未禁用动作”之间循环；默认顺序：左键 -> 右键 -> 中键 -> 仅移动；左键双击 / Ctrl+左键 / Cmd+左键 / Shift+左键默认禁用）
+- 切换动作：`hotkeys.controls.switchAction`（默认 `Enter`，按 `mouse.actionCycle` 顺序在“未禁用动作”之间循环；默认顺序：左键 -> 右键 -> 中键 -> 仅移动 -> 拖动；左键双击 / Ctrl+左键 / Cmd+左键 / Shift+左键默认禁用）
 - 取消：`Esc`（直接退出，不点击）
 - 回退：`Backspace`（撤销最近一次按键，恢复上一次 Region）
 - 直达：`Space`（直接执行当前 Region 中心点动作，跳过后续层级）
+- 拖动：切到 `drag` 后分两段执行；第一次确定起点，第二次确定终点；阶段 2 保留 `Esc` 取消、`Tab` 切屏与 Arrow 微调；若阶段 2 尚未裁剪就按 `Backspace`，回到起点选择
 - 切换显示器：`hotkeys.controls.nextMonitor`（默认 `Tab`，多屏时）
 - 区域微调：`hotkeys.controls.nudgeUp/Down/Left/Right`（默认 Arrow 四键，步长来自 `nudge.stepPx`，所有层/阶段均可触发）
 
@@ -339,6 +340,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
       "right",
       "middle",
       "moveOnly",
+      "drag",
       "doubleLeft",
       "ctrlLeft",
       "cmdLeft",
@@ -466,7 +468,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - **combo 层固定为轴向两段式**：`stage0=1xN`（阶段 1，列），`stage1=Nx1`（阶段 2，行）；不支持 `2x15/15x2` 这类双轴 stage。
 - **键位输入仅按空白分隔**：`,` 是合法键位本体，不作为分隔符。
 - **鼠标策略（`mouse.*`）也是运行时配置的一部分**：不得在 Rust 中硬编码轨迹参数；行为必须由配置驱动并可通过 Settings 调整；当 `mouse.smoothMove=false` 时，从 `moveDurationMs` 起的隐藏字段整体不参与执行与校验。
-- **动作顺序（`mouse.actionCycle`）与禁用集合（`mouse.disabledActions`）也是运行时配置的一部分**：`actionCycle` 决定整体顺序，Overlay 只在其中选择“未被禁用的动作”参与切换；允许 `left/right/middle/moveOnly/doubleLeft/ctrlLeft/cmdLeft/shiftLeft`，且至少保留一个未禁用动作。
+- **动作顺序（`mouse.actionCycle`）与禁用集合（`mouse.disabledActions`）也是运行时配置的一部分**：`actionCycle` 决定整体顺序，Overlay 只在其中选择“未被禁用的动作”参与切换；允许 `left/right/middle/moveOnly/drag/doubleLeft/ctrlLeft/cmdLeft/shiftLeft`，且至少保留一个未禁用动作；其中 `drag` 为“两段式左键拖动”，先选起点再选终点。
 - **持久化采用 override JSON**：仅写入与默认配置不同字段（`AppConfig/settings.override.json`），支持导入/导出同结构 JSON。
 
 ---
@@ -518,6 +520,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - macOS Dock/托盘生命周期完成（设置页打开时显示 Dock；`Cmd+W` 改为隐藏到托盘；`Cmd+Q` / 托盘退出时真正结束）
 - macOS agent 模式启动完成（bundle `Info.plist` 合并 `LSUIElement=1`，Settings 启动显隐由 `app.settingsWindow.openOnLaunch` 控制）
 - 鼠标动作顺序/禁用配置完成（`moveOnly` 默认启用；新增 `doubleLeft` / `ctrlLeft` / `cmdLeft` / `shiftLeft` 且默认禁用；Settings 支持统一排序与单独禁用）
+- 两段式拖动动作完成（`drag` 接入 `mouse.actionCycle` / `mouse.disabledActions`；Overlay 支持起点/终点两阶段提示与连线预览；Native 执行左键拖动）
 - 设置页主题完成（`app.settingsWindow.theme` 支持 `system/light/dark`，仅影响 Settings WebView，并完成样式 token 化）
 - 设置页启动行为配置完成（通用设置新增“启动时打开设置页”复选框；默认开启；关闭后改为静默到托盘）
 - 开机自启动配置完成（`app.launchOnLogin.enabled` 默认关闭；启用后登录系统时静默常驻托盘，并通过 `tauri-plugin-autostart` 同步系统登录项）
@@ -570,6 +573,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-14：macOS 新增安装态权限与打包兜底：缺少辅助功能权限时阻止进入 Overlay，自动打开 Settings 与系统“隐私与安全性 > 辅助功能”，并通过稳定 error code 走前端 toast 提示；同时新增 `scripts/tauri-build.mjs` 作为打包入口，自动探测 `Developer ID Application / Apple Distribution / Apple Development` 证书，未命中时显式回退到 `APPLE_SIGNING_IDENTITY="-"`。
 - 2026-03-14：macOS 设置页窗口接入 Dock/托盘生命周期控制：settings 窗口默认 `visible=false`，bundle 合并 `src-tauri/Info.plist`（`LSUIElement=1`）以 agent app 模式启动；打开设置页时显示 Dock，关闭设置页（`Cmd+W` / 关闭按钮）改为隐藏窗口并退回托盘常驻，`Cmd+Q` / 托盘退出时真正结束应用。
 - 2026-03-15：鼠标动作系统收敛为 `mouse.actionCycle + mouse.disabledActions`：默认启用左/右/中/仅移动，默认禁用左键双击与 `Ctrl/Cmd/Shift + 左键`；Settings 动作编辑器改为统一排序+启用/禁用，并将排序实现从原生 HTML5 drag 切换为 `svelte-dnd-action`。
+- 2026-03-22：新增 `drag` 鼠标动作：接入 `mouse.actionCycle + mouse.disabledActions`（默认启用），Overlay 改为“两段式起点/终点选择”并在阶段 2 显示起点标记与连线预览；Native 侧改为先记录起点、二次激活后执行左键拖动。
 - 2026-03-15：Settings 小图标切换为 `@lucide/svelte` 深路径导入，并保留 `AppIcon` 语义封装；继续把表单标签、热键录制器、颜色字段、图层操作、鼠标动作项与 toast 状态统一接入 Lucide，同时通过减法收敛录入框/颜色框/动作项图标与按钮字重、层操作按钮密度等细节，尽量在不增加认知负担的前提下提升扫读效率。
 - 2026-03-15：新增 `app.settingsWindow.theme`（`system/light/dark`）作为设置页专属主题配置；Settings UI 改为基于 CSS 变量的语义 token，主题切换仅作用于 Settings WebView，不影响 Overlay。
 - 2026-03-15：收敛构建链路与告警清理：`scripts/tauri-build.mjs` 的 Tauri CLI 调用改为直接通过当前 Node 进程执行 `@tauri-apps/cli/tauri.js`，避免 Windows 上 `spawnSync npx.cmd` 的兼容性问题并保留 macOS 证书探测与 ad-hoc 回退逻辑；Rust 侧同时将默认配置的平台覆写抽成 helper，并把 macOS 辅助功能权限兜底改为按平台编译，避免非 macOS 上遗留未使用字段、常量与空实现。

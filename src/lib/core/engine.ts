@@ -51,25 +51,25 @@ const KEY_ALIASES: Record<string, string> = {
   arrowdown: "down",
 };
 
-function normalizeKey(value: string): string {
+export function normalizeKeyCode(value: string): string {
   const lower = value.toLowerCase();
   return KEY_ALIASES[lower] ?? lower;
 }
 
 function normalizeControlKeys(config: AppConfig) {
   return {
-    cancel: normalizeKey(config.hotkeys.controls.cancel),
-    undo: normalizeKey(config.hotkeys.controls.undo),
-    directClick: normalizeKey(config.hotkeys.controls.directClick),
+    cancel: normalizeKeyCode(config.hotkeys.controls.cancel),
+    undo: normalizeKeyCode(config.hotkeys.controls.undo),
+    directClick: normalizeKeyCode(config.hotkeys.controls.directClick),
   };
 }
 
 function normalizeNudgeKeys(config: AppConfig) {
   return {
-    left: normalizeKey(config.hotkeys.controls.nudgeLeft),
-    right: normalizeKey(config.hotkeys.controls.nudgeRight),
-    up: normalizeKey(config.hotkeys.controls.nudgeUp),
-    down: normalizeKey(config.hotkeys.controls.nudgeDown),
+    left: normalizeKeyCode(config.hotkeys.controls.nudgeLeft),
+    right: normalizeKeyCode(config.hotkeys.controls.nudgeRight),
+    up: normalizeKeyCode(config.hotkeys.controls.nudgeUp),
+    down: normalizeKeyCode(config.hotkeys.controls.nudgeDown),
   };
 }
 
@@ -146,7 +146,7 @@ export function applyKey(
     return { state, didAdvance: false };
   }
 
-  const normalizedKey = normalizeKey(key);
+  const normalizedKey = normalizeKeyCode(key);
   const controlKeys = normalizeControlKeys(config);
 
   if (normalizedKey === controlKeys.cancel) {
@@ -200,7 +200,7 @@ export function applyKey(
   }
 
   const keyIndex = step.keys.findIndex(
-    (candidate) => normalizeKey(candidate) === normalizedKey,
+    (candidate) => normalizeKeyCode(candidate) === normalizedKey,
   );
   if (keyIndex < 0) {
     return { state, didAdvance: false };

@@ -25,6 +25,7 @@
     "right",
     "middle",
     "moveOnly",
+    "drag",
     "doubleLeft",
     "ctrlLeft",
     "cmdLeft",
@@ -76,6 +77,8 @@
         return $t("overlay.action.middle");
       case "moveOnly":
         return $t("overlay.action.moveOnly");
+      case "drag":
+        return $t("overlay.action.drag");
       case "doubleLeft":
         return $t("overlay.action.doubleLeft");
       case "ctrlLeft":
