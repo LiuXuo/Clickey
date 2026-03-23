@@ -25,9 +25,15 @@ use tauri::{
     Wry,
 };
 use tauri::{
-    AppHandle, Emitter, EventTarget, Manager, PhysicalPosition, PhysicalSize, Position, Size,
-    State, WebviewUrl, WebviewWindowBuilder,
+    AppHandle, Emitter, EventTarget, Manager, Position, Size, State, WebviewUrl,
+    WebviewWindowBuilder,
 };
+
+#[cfg(target_os = "macos")]
+use tauri::{LogicalPosition, LogicalSize};
+
+#[cfg(not(target_os = "macos"))]
+use tauri::{PhysicalPosition, PhysicalSize};
 use tauri_plugin_autostart::ManagerExt as AutoLaunchExt;
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Shortcut, ShortcutState};
 
@@ -1669,6 +1675,7 @@ fn create_overlay_window(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+#[cfg(not(target_os = "macos"))]
 fn monitor_contains_point(monitor: &tauri::Monitor, x: i32, y: i32) -> bool {
     let pos = monitor.position();
     let size = monitor.size();
@@ -1678,28 +1685,63 @@ fn monitor_contains_point(monitor: &tauri::Monitor, x: i32, y: i32) -> bool {
 }
 
 #[cfg(target_os = "macos")]
-fn monitor_for_physical_point<'a>(
+fn monitor_logical_frame(monitor: &tauri::Monitor) -> (f64, f64, f64, f64) {
+    let scale = monitor.scale_factor().max(1.0);
+    let pos = monitor.position();
+    let size = monitor.size();
+    (
+        pos.x as f64 / scale,
+        pos.y as f64 / scale,
+        size.width as f64 / scale,
+        size.height as f64 / scale,
+    )
+}
+
+#[cfg(target_os = "macos")]
+fn monitor_contains_logical_point(monitor: &tauri::Monitor, x: f64, y: f64) -> bool {
+    let (origin_x, origin_y, width, height) = monitor_logical_frame(monitor);
+    x >= origin_x && x < origin_x + width && y >= origin_y && y < origin_y + height
+}
+
+#[cfg(target_os = "macos")]
+fn current_overlay_monitor<'a>(
+    app: &AppHandle,
     monitors: &'a [tauri::Monitor],
-    x: i32,
-    y: i32,
 ) -> Option<&'a tauri::Monitor> {
-    monitors
-        .iter()
-        .find(|monitor| monitor_contains_point(monitor, x, y))
+    if monitors.is_empty() {
+        return None;
+    }
+
+    let state = app.state::<AppState>();
+    let index = state
+        .monitor_index
+        .lock()
+        .ok()
+        .map(|guard| (*guard).min(monitors.len().saturating_sub(1)))?;
+    monitors.get(index)
+}
+
+#[cfg(target_os = "macos")]
+fn macos_cursor_logical_position(app: &AppHandle) -> Option<(f64, f64)> {
+    let cursor = app.cursor_position().ok()?;
+    let primary_scale = app
+        .primary_monitor()
+        .ok()
+        .flatten()
+        .map(|monitor| monitor.scale_factor().max(1.0))
+        .unwrap_or(1.0);
+    Some((cursor.x / primary_scale, cursor.y / primary_scale))
 }
 
 #[cfg(target_os = "macos")]
 fn macos_mouse_space_point(app: &AppHandle, x: f64, y: f64) -> (f64, f64) {
-    let point_x = x.round() as i32;
-    let point_y = y.round() as i32;
     let monitors = available_monitors(app);
-    if let Some(monitor) = monitor_for_physical_point(&monitors, point_x, point_y) {
+    if let Some(monitor) = current_overlay_monitor(app, &monitors) {
         let scale = monitor.scale_factor().max(1.0);
         let pos = monitor.position();
         let local_x = x - pos.x as f64;
         let local_y = y - pos.y as f64;
-        let logical_origin_x = pos.x as f64 / scale;
-        let logical_origin_y = pos.y as f64 / scale;
+        let (logical_origin_x, logical_origin_y, _, _) = monitor_logical_frame(monitor);
         let logical_x = logical_origin_x + (local_x / scale);
         let logical_y = logical_origin_y + (local_y / scale);
         return (logical_x, logical_y);
@@ -1715,41 +1757,91 @@ fn macos_mouse_space_point(_app: &AppHandle, x: f64, y: f64) -> (f64, f64) {
 
 fn show_overlay_window(app: &AppHandle, region: &Region) {
     if let Some(window) = app.get_webview_window("overlay") {
+        #[cfg(target_os = "macos")]
+        {
+            // macOS 混合 DPI 多屏时，窗口位置/尺寸应按目标屏幕的逻辑坐标设置，
+            // 否则 tao 会按“当前窗口所在屏幕”的 scale factor 转换，导致切屏后位置跑偏。
+            let scale = monitor_scale_factor_for_region(app, region);
+            let target_pos = LogicalPosition::new(region.x / scale, region.y / scale);
+            let target_size = LogicalSize::new(
+                (region.width / scale).max(1.0),
+                (region.height / scale).max(1.0),
+            );
+
+            println!(
+                "[overlay] macos logical frame pos=({}, {}) size=({}, {}) scale={}",
+                target_pos.x, target_pos.y, target_size.width, target_size.height, scale
+            );
+
+            let _ = window.set_position(Position::Logical(target_pos));
+            let _ = window.set_size(Size::Logical(target_size));
+        }
+
+        #[cfg(not(target_os = "macos"))]
         let target_pos = PhysicalPosition::new(region.x as i32, region.y as i32);
+        #[cfg(not(target_os = "macos"))]
         let target_size =
             PhysicalSize::new(region.width.max(1.0) as u32, region.height.max(1.0) as u32);
 
+        #[cfg(not(target_os = "macos"))]
         let _ = window.set_position(Position::Physical(target_pos));
+        #[cfg(not(target_os = "macos"))]
         let _ = window.set_size(Size::Physical(target_size));
         let _ = window.set_ignore_cursor_events(true);
         let _ = window.set_focusable(false);
         let _ = window.show();
 
-        // Align client area to the target region to avoid DWM offset on Windows.
-        if let (Ok(outer_pos), Ok(inner_pos)) = (window.outer_position(), window.inner_position()) {
-            let delta_x = inner_pos.x - outer_pos.x;
-            let delta_y = inner_pos.y - outer_pos.y;
-            if delta_x != 0 || delta_y != 0 {
-                let adjusted =
-                    PhysicalPosition::new(target_pos.x - delta_x, target_pos.y - delta_y);
-                let _ = window.set_position(Position::Physical(adjusted));
-                println!("[overlay] adjusted position by ({}, {})", delta_x, delta_y);
+        #[cfg(target_os = "windows")]
+        {
+            // Align client area to the target region to avoid DWM offset on Windows.
+            if let (Ok(outer_pos), Ok(inner_pos)) =
+                (window.outer_position(), window.inner_position())
+            {
+                let delta_x = inner_pos.x - outer_pos.x;
+                let delta_y = inner_pos.y - outer_pos.y;
+                if delta_x != 0 || delta_y != 0 {
+                    let adjusted =
+                        PhysicalPosition::new(target_pos.x - delta_x, target_pos.y - delta_y);
+                    let _ = window.set_position(Position::Physical(adjusted));
+                    println!("[overlay] adjusted position by ({}, {})", delta_x, delta_y);
+                }
             }
-        }
 
-        if let (Ok(outer_size), Ok(inner_size)) = (window.outer_size(), window.inner_size()) {
-            let border_w = outer_size.width as i32 - inner_size.width as i32;
-            let border_h = outer_size.height as i32 - inner_size.height as i32;
-            if border_w != 0 || border_h != 0 {
-                let adjusted_size = PhysicalSize::new(
-                    (target_size.width as i32 + border_w).max(1) as u32,
-                    (target_size.height as i32 + border_h).max(1) as u32,
-                );
-                let _ = window.set_size(Size::Physical(adjusted_size));
-                println!("[overlay] adjusted size by ({}, {})", border_w, border_h);
+            if let (Ok(outer_size), Ok(inner_size)) = (window.outer_size(), window.inner_size()) {
+                let border_w = outer_size.width as i32 - inner_size.width as i32;
+                let border_h = outer_size.height as i32 - inner_size.height as i32;
+                if border_w != 0 || border_h != 0 {
+                    let adjusted_size = PhysicalSize::new(
+                        (target_size.width as i32 + border_w).max(1) as u32,
+                        (target_size.height as i32 + border_h).max(1) as u32,
+                    );
+                    let _ = window.set_size(Size::Physical(adjusted_size));
+                    println!("[overlay] adjusted size by ({}, {})", border_w, border_h);
+                }
             }
         }
     }
+}
+
+#[cfg(target_os = "macos")]
+fn monitor_scale_factor_for_region(app: &AppHandle, region: &Region) -> f64 {
+    let region_x = region.x.round() as i32;
+    let region_y = region.y.round() as i32;
+    let region_width = region.width.round().max(1.0) as u32;
+    let region_height = region.height.round().max(1.0) as u32;
+
+    available_monitors(app)
+        .into_iter()
+        .find(|monitor| {
+            let pos = monitor.position();
+            let size = monitor.size();
+            pos.x == region_x
+                && pos.y == region_y
+                && size.width == region_width
+                && size.height == region_height
+        })
+        .map(|monitor| monitor.scale_factor().max(1.0))
+        .unwrap_or(1.0)
 }
 
 fn available_monitors(app: &AppHandle) -> Vec<tauri::Monitor> {
@@ -1801,6 +1893,17 @@ fn set_start_monitor_index(
     index
 }
 
+#[cfg(target_os = "macos")]
+fn cursor_monitor_index(app: &AppHandle, monitors: &[tauri::Monitor]) -> Option<usize> {
+    let (cursor_x, cursor_y) = macos_cursor_logical_position(app)?;
+    monitors
+        .iter()
+        .enumerate()
+        .find(|(_, monitor)| monitor_contains_logical_point(monitor, cursor_x, cursor_y))
+        .map(|(index, _)| index)
+}
+
+#[cfg(not(target_os = "macos"))]
 fn cursor_monitor_index(app: &AppHandle, monitors: &[tauri::Monitor]) -> Option<usize> {
     let cursor = app.cursor_position().ok()?;
     let x = cursor.x.round() as i32;
@@ -1939,18 +2042,30 @@ fn trigger_overlay(app: &AppHandle) {
         action, region.x, region.y, region.width, region.height
     );
 
-    let config_for_keys = config.clone();
-    emit_overlay_activate(app, state.inner(), region, config, action);
-
     let app_handle = app.clone();
+    let config_for_keys = config.clone();
+    let config_for_overlay = config.clone();
+    let region_for_overlay = region.clone();
+    let action_for_overlay = action.clone();
     std::thread::spawn(move || {
-        if let Err(err) = register_overlay_hotkeys(
-            &app_handle,
-            app_handle.state::<AppState>().inner(),
-            &config_for_keys,
-        ) {
+        let overlay_state = app_handle.state::<AppState>();
+        if let Err(err) =
+            register_overlay_hotkeys(&app_handle, overlay_state.inner(), &config_for_keys)
+        {
             println!("[hotkeys] overlay register failed: {}", err);
+            hide_overlay(&app_handle, overlay_state.inner());
+            return;
         }
+
+        // 先让 Overlay 热键注册完成，再显示窗口，避免首个按键（尤其是 Tab 切屏）
+        // 落在“窗口已显示但热键尚未就绪”的时间窗里被吞掉。
+        emit_overlay_activate(
+            &app_handle,
+            overlay_state.inner(),
+            region_for_overlay,
+            config_for_overlay,
+            action_for_overlay,
+        );
     });
 }
 
