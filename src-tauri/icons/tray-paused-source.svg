@@ -6,12 +6,30 @@
   fill="none"
 >
   <title>Clickey tray icon paused</title>
+  <defs>
+    <linearGradient id="tray-paused-left-vertical-gradient" x1="168" y1="88" x2="184" y2="424" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#B7B7B7" />
+      <stop offset="100%" stop-color="#9A9A9A" />
+    </linearGradient>
+    <linearGradient id="tray-paused-right-vertical-gradient" x1="344" y1="424" x2="328" y2="88" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#B7B7B7" />
+      <stop offset="100%" stop-color="#9A9A9A" />
+    </linearGradient>
+    <linearGradient id="tray-paused-top-horizontal-gradient" x1="424" y1="168" x2="88" y2="184" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#B7B7B7" />
+      <stop offset="100%" stop-color="#8C8C8C" />
+    </linearGradient>
+    <linearGradient id="tray-paused-bottom-horizontal-gradient" x1="88" y1="344" x2="424" y2="328" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#B7B7B7" />
+      <stop offset="100%" stop-color="#8C8C8C" />
+    </linearGradient>
+  </defs>
   <line
     x1="176"
     y1="88"
     x2="176"
     y2="424"
-    stroke="#D1D5DB"
+    stroke="url(#tray-paused-left-vertical-gradient)"
     stroke-width="56"
     stroke-linecap="round"
   />
@@ -20,7 +38,7 @@
     y1="88"
     x2="336"
     y2="424"
-    stroke="#D1D5DB"
+    stroke="url(#tray-paused-right-vertical-gradient)"
     stroke-width="56"
     stroke-linecap="round"
   />
@@ -29,7 +47,7 @@
     y1="176"
     x2="424"
     y2="176"
-    stroke="#D1D5DB"
+    stroke="url(#tray-paused-top-horizontal-gradient)"
     stroke-width="56"
     stroke-linecap="round"
   />
@@ -38,7 +56,7 @@
     y1="336"
     x2="424"
     y2="336"
-    stroke="#D1D5DB"
+    stroke="url(#tray-paused-bottom-horizontal-gradient)"
     stroke-width="56"
     stroke-linecap="round"
   />
