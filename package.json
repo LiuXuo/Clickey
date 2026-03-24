@@ -1,7 +1,7 @@
 {
   "name": "clickey",
   "version": "0.1.0",
-  "author": "LiuXuo",
+  "author": "xhugoliu",
   "description": "Keyboard-driven layered grid tool for precise mouse movement and clicking.",
   "type": "module",
   "scripts": {

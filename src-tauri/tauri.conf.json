@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "clickey",
+  "productName": "Clickey",
   "version": "0.1.0",
-  "identifier": "com.xuo.clickey",
+  "identifier": "com.xhugoliu.clickey",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",

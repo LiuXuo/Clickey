@@ -589,3 +589,4 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 2026-03-21：Overlay 启动显示器选择改为“鼠标当前所在显示器”，不再固定从主显示器开始，文档中的“当前显示器”定义同步收敛。
 - 2026-03-21：前后端统一补齐运行时冲突校验：阻止热键与 layer 键位复用、阻止 override JSON 导入重复 layer 键位，并为后端返回新增稳定错误码。
 - 2026-03-21：Settings 新增气泡点击 playground：训练区只运行在 Settings WebView 内，复用 Core Engine 生成可解目标与推进状态；永远读取“最近一次成功应用”的配置，避免未通过校验的草稿污染练习。
+- 2026-03-24：Tauri bundle 标识由 `com.xuo.clickey` 调整为 `com.xhugoliu.clickey`，`productName` 由 `clickey` 调整为 `Clickey`，统一安装态应用名与包名。
