@@ -1,277 +1,88 @@
 # Clickey
 
-用键盘把鼠标“投送”到屏幕任意位置：按下热键 → 看到全屏网格遮罩 → 连续按几下键把区域逐层缩小 → 自动移动并执行目标动作。
+<p align="center"><sub><strong>简体中文</strong> · <a href="./README.en.md">English</a></sub></p>
 
-> 当前仓库阶段：**Tauri + Rust + Svelte 已独立演化**。`demo/` 下的 AHK 脚本仅作历史归档，不再作为后续迭代基准。
+用分层网格和肌肉记忆，减少手腕在鼠标与键盘之间来回切换。
 
----
+![Playground 演示](./screenshots/playground-demo.gif)
 
-## 这是什么 / 解决什么问题
+## ✨ 功能概览
 
-Clickey 的目标是提供一种高效、精确、可肌肉记忆的鼠标定位方式：
+- 键盘驱动的分层网格定位，支持多步收缩到小目标区域。
+- 支持左键、右键、中键、仅移动、两段式拖动；左键双击与修饰键点击可按需启用。
+- 支持撤销、取消、直达执行、区域微调、多显示器切换。
+- 提供完整 Settings 窗口，可编辑 layers、热键、鼠标行为、遮罩样式、语言与启动项。
+- 配置以“默认值 + override JSON”方式持久化，支持导入、导出、打开配置目录与恢复默认。
+- 内置 Playground 练习区，可在不调用系统鼠标能力的前提下熟悉当前配置。
 
-- **不离开键盘**：用固定键位序列完成“移动 + 执行动作”。
-- **精确可控**：通过“分层网格裁剪”逐步缩小选择区域。
-- **跨平台一致**：最终用 Web 技术统一 UI，Rust 只负责系统能力。
+## ⚡ 默认使用流程
 
-典型使用场景：
+1. 按激活热键，Overlay 在鼠标当前所在显示器上打开。
+2. 按当前层对应的键，逐步把 Region 缩小到目标附近。
+3. 如有需要，用 `Enter` 切换动作，用 Arrow 微调区域，用 `Backspace` 撤销上一步。
+4. 到达满意精度后，继续完成后续层级，或直接按 `Space` 执行当前区域中心点动作。
+5. 如果当前动作是 `drag`，会先选择起点，再选择终点，最后执行一次左键拖动。
 
-- IDE/浏览器里频繁点小按钮、标签页、面板折叠箭头
-- 多显示器 + 高 DPI 下，鼠标移动成本很高
-- 录屏演示/讲解时，需要“可预测”的鼠标轨迹与落点
+激活 Overlay 时，初始动作来自 `mouse.actionCycle` 中第一个未被 `mouse.disabledActions` 禁用的动作。默认顺序是：左键 -> 右键 -> 中键 -> 仅移动 -> 拖动。
 
----
+默认层级方案沿用 v3.1 的思路：先用 combo 两段式选择 15 列和 15 行，再用一层 3x5 单键网格做最后一次精细裁剪。所有层与阶段都支持微调。
 
-## AHK 历史原型（归档）
+## ⚙️ Settings 与配置
 
-仓库里保留了一套版本化的 AutoHotkey（AHK v1）脚本，集中在 `demo/`，用于历史回溯与行为对照：
+Settings 已经覆盖正式使用需要的主要入口，托盘左键可切换设置页显隐，右键菜单提供 `设置 / 暂停(或启动) / 退出`。<br>
+<img src="./screenshots/settings-general.png" alt="设置页 - 通用"><br>
+通用页负责语言、主题、启动项，以及 `导入 / 导出 / 打开目录 / 恢复默认` 这些配置操作。<br>
+<img src="./screenshots/settings-hotkeys.png" alt="设置页 - 热键"><br>
+热键页支持录制激活键和控制键，也会做冲突检测。<br>
+<img src="./screenshots/settings-layers-editor.png" alt="设置页 - 层编辑"><br>
+Layers 支持增删、上下移动、`single/combo` 切换、表格化键位编辑和按层字体大小设置。<br>
+<img src="./screenshots/settings-overlay.png" alt="设置页 - 遮罩"><br>
+Overlay 页集中调整透明度、颜色、线宽、字体，以及网格线和对角线显示。<br>
+<img src="./screenshots/settings-mouse.png" alt="设置页 - 鼠标"><br>
+Mouse 页负责动作顺序与启用状态，以及平滑移动、随机落点、曲率、抖动和步进策略。
 
-- `demo/clickey_v1.0.ahk`：原 `clickey.ahk`，3x3 方案
-- `demo/clickey_v1.1.ahk`：原 `clickeyy.ahk`，5x5 方案
-- 后续版本：`demo/clickey_v2.x.ahk` / `demo/clickey_v3.x.ahk`
-- **冻结版本**：`demo/clickey_v3.1.ahk`（此后不再继续迭代）
+配置以 override JSON 持久化，`settings.override.json` 只记录与默认配置不同的字段。Settings 的“打开目录”会直接打开配置所在目录。
 
-完整迭代说明见 `demo/clickey.md`；这些脚本仅作为历史参考，不再代表当前项目的实现真相。
+## 🛠️ 运行与构建
 
----
+### 从源码运行
 
-## 快速开始（当前项目）
-
-1. 安装依赖：Node.js、Rust、Tauri v2 所需系统依赖。
-2. 安装前端依赖：`npm install`
+1. 安装 Node.js、Rust，以及 Tauri v2 对应的系统依赖。
+2. 安装依赖：`npm install`
 3. 启动开发环境：`npm run tauri:dev`
-4. 在 Settings 中调整配置，使用激活热键进入 Overlay 执行定位与点击。
 
-如果你只想回看历史原型，可单独运行 `demo/clickey_v3.1.ahk`（需 AutoHotkey v1.1），但它不会再跟随主项目更新。
+### 打包
 
-### macOS 打包注意
+- 构建桌面应用：`npm run tauri:build`
+- 仅构建前端：`npm run build`
 
-- `tauri dev` 与安装后的 `Clickey.app` 在 macOS TCC 里是两个不同身份；开发态能点，不代表 `.dmg` 安装态也已经拿到权限。
-- `npm run tauri:build` 现在会优先自动探测本机 keychain 里的签名证书：`Developer ID Application` -> `Apple Distribution` -> `Apple Development`；如果一个都没有，会显式回退到 ad-hoc `"-"`。
-- 如果安装后的版本能唤起 Overlay、但最后不执行鼠标移动/点击，请先把 `Clickey.app` 移到 `/Applications`，然后到“系统设置 > 隐私与安全性 > 辅助功能”里启用它。
-- 本地 `tauri build` 默认多为 adhoc 签名；重打包、换路径或重装后，macOS 可能把它当成新的应用实体，需要删除旧授权后重新勾选。
-- 如果你已经装好了证书，且想固定使用某一个身份，可手动指定：`APPLE_SIGNING_IDENTITY="Developer ID Application: Your Name (TEAMID)" npm run tauri:build`
-- 如果连激活热键都失效，再额外检查“输入监控”权限。
+### 常用检查命令
 
----
+- 单测：`npm test`
+- 类型检查：`npm run check`
+- ESLint：`npm run lint`
+- 格式化：`npm run format`
 
-## Settings UI（Tauri 原型）
+## 🍎 macOS 注意事项
 
-当前 Settings 窗口已提供表单式配置编辑，可读取/保存配置，重启保留。
+- `tauri dev` 与安装后的 `Clickey.app` 在 macOS TCC 里是两个不同身份；开发态能用，不代表安装态已经拿到权限。
+- 如果安装后的版本能打开 Overlay、但不能移动或点击鼠标，请先把 `Clickey.app` 放到 `/Applications`，再到“系统设置 > 隐私与安全性 > 辅助功能”里重新授权。
+- 如果激活热键也不生效，再额外检查“输入监控”权限。
+- `npm run tauri:build` 会优先自动探测本机签名证书：`Developer ID Application` -> `Apple Distribution` -> `Apple Development`；未命中时会显式回退到 ad-hoc `"-"`。
+- macOS 当前仅支持把 `F1` 到 `F20` 用作可注册的全局热键；`F21` 到 `F24` 不可用。
 
-可用能力：
+## 🧩 架构概览
 
-- Layer 编辑：增删 / 排序 / mode 切换（single/combo）/ rows/cols/keys 修改 / auto-fit  
-  combo 固定约束：阶段 1（列）=`1xN`，阶段 2（行）=`Nx1`
-- 热键编辑：activation + controls
-- 鼠标行为：左/右/中/仅移动/拖动的启用与排序，以及平滑移动、按压时长、落点随机、曲线/抖动、远距离提速与步进策略；其中拖动采用“两段式起点/终点选择”；当关闭“指针平滑移动”时，这组隐藏参数整体不参与执行与校验
-- Overlay 样式：alpha/line width/per-layer font size + color picker
-- 设置页主题：`跟随系统 / 浅色 / 深色`，仅作用于 Settings WebView
-- Playground 练习：Settings 内置一个纯前端气泡点击训练区，复用当前已应用配置做本地模拟，方便用户快速熟悉分层缩放、撤销与直达点击
-- 键位输入规则：仅空格分隔；`,` 是合法键位本体，不作为分隔符
-- 热键录制器：`trigger` / `switchAction` / `nudgeUp/Down/Left/Right` 支持“点击录制”，并在冲突时阻止自动生效
-- 配置导入/导出：override JSON（仅包含与默认配置不同的字段）
-- 自动生效：配置改动在前端校验通过后自动应用并持久化（去抖执行）
-- i18n：`system` / `zh-CN` / `en-US`；`system` 会跟随系统语言解析为当前支持的语言，切换后设置页即时生效
-- 托盘联动：
-  - 左键单击托盘图标切换设置页显隐；已打开时再次点击会隐藏到托盘
-  - 右键菜单包含 `设置 / 暂停或启动 / 退出`
-  - 右键菜单文本会跟随 i18n 语言实时变化
-  - 托盘图标独立于应用图标：应用图标保留底板；托盘使用透明几何图标，运行中显示中心圆点，暂停时隐藏圆点
-  - 启动项可配置：`开机自启动` 默认关闭，开启后在下次登录系统时静默常驻托盘；`启动时打开设置页` 默认开启，仅影响手动启动时是否自动显示 Settings
-  - macOS 下应用以 agent app 方式运行；设置页可见时显示 Dock 图标，`Cmd+W` 关闭设置页后回到“仅托盘常驻”，`Cmd+Q` / 托盘退出才会真正结束进程
+- Core Engine（TypeScript）：纯逻辑状态机，负责按键推进、Region 裁剪、撤销、直达与微调。
+- Overlay Renderer（Svelte）：只负责渲染遮罩，不抢焦点、不读键盘。
+- Settings UI（Svelte）：配置编辑、override JSON 导入导出、本地 Playground。
+- Native Layer（Rust）：全局热键、显示器信息、鼠标移动与点击。
+- Desktop Shell（Tauri）：窗口、托盘、配置下发与前后端通信。
 
-按钮：
+## 📦 历史参考
 
-- 无 `Apply` 按钮：配置改动校验通过后会自动应用
-- `Reset to default`：恢复默认配置
-- `Import / Export`：导入/导出 override JSON
+`demo/` 目录里保留了早期原型文件，只用于回看旧交互或做行为对照，不参与当前版本定义。需要时可查看 `demo/clickey.md`。
 
-> 当前配置以“默认配置 + 覆盖项”的方式保存：AppConfig 目录下的 `settings.override.json` 只记录与默认值不同的字段。
+## 🤝 开发协作
 
----
-
-## 快捷键（以当前默认配置为准）
-
-不同配置可在 Settings 调整，以下为当前默认值：
-
-| 操作                                            | 快捷键 / 按键                                                                                                                                    |
-| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
-| 激活（默认左键模式）                            | macOS：`Cmd + ;`；其他平台：`Ctrl + ;`                                                                                                           |
-| 切换动作（默认 左键 -> 右键 -> 中键 -> 仅移动 -> 拖动） | `hotkeys.controls.switchAction`（默认 `Enter`；可在 Settings 调整动作顺序，并单独启用/禁用“拖动 / 左键双击 / Ctrl+左键 / Cmd+左键 / Shift+左键”等动作） |
-| 取消并退出                                      | `Esc`                                                                                                                                            |
-| 回退一步（撤销上一按键）                        | `Backspace`                                                                                                                                      |
-| 直接执行当前区域中心动作（跳过后续层级）        | `Space`                                                                                                                                          |
-| 切换显示器（多屏）                              | `hotkeys.controls.nextMonitor`（默认 `Tab`）                                                                                                     |
-| 区域微调（所有层/阶段）                         | `hotkeys.controls.nudgeUp/Down/Left/Right`（默认 Arrow 四键，步长 `nudge.stepPx`）                                                               |
-
-切到 `drag` 后，Overlay 会先选起点，再选终点，然后由 Native 执行左键拖动；第二阶段支持 `Esc` 取消、`Tab` 切屏、Arrow 微调，若尚未裁剪就按 `Backspace` 会回到起点选择。
-
----
-
-## 它是怎么工作的（分层网格裁剪）
-
-### 基本概念
-
-- **Region（区域）**：当前可选范围（v3.1 初始为当前显示器，即鼠标当前所在显示器；历史版本为虚拟屏幕）。
-- **Grid（网格）**：把 Region 切成 `rows x cols` 个格子。
-- **Key（按键）**：每个格子对应一个键；按下键就选中对应格子，Region 收缩到该格子。
-- 重复上述过程，直到达到你希望的精度，然后点击 Region 中心点。
-
-### 历史基线：v3.1（`demo/clickey_v3.1.ahk`，已冻结）
-
-结构为 2 层：第 1 层为双键（固定顺序先列后行），第 2 层为单键 3x5。
-
-列键（15）：
-
-`q a z w s`  
-`x e d c r`  
-`f v t g b`
-
-行键（15）：
-
-`y h n u j`  
-`m i k , o`  
-`l . p ; /`
-
-单键层 3x5：
-
-`q w e r t`  
-`a s d f g`  
-`z x c v b`
-
-流程：
-
-1. combo 第 1 步：按“列键”选列（15 列）
-2. combo 第 2 步：按“行键”选行（15 行）
-3. single：单键 3x5 精细裁剪；任意层/阶段都可微调区域；`hotkeys.controls.nextMonitor`（默认 `Tab`）切换显示器
-
-### v1.0（历史原型，原 `clickey.ahk` → `demo/clickey_v1.0.ahk`）
-
-键位分两组：
-
-- 行键（9 个）：`w e r / s d f / x c v`
-- 列键（9 个）：`u i o / j k l / m , .`
-
-流程（按键次数更多，但每一步键位更少、更好记）：
-
-1. combo 第 1 步：按“行键”选一个 3x3 大块
-2. combo 第 2 步：按“列键”在大块内再选 3x3
-3. single：再用行键做一次 3x3 精细裁剪
-4. single：再用列键做一次 3x3 精细裁剪
-
-额外调试（仅 v1.0 提供）：
-
-- `Ctrl + Alt + D`：显示屏幕/DPI/虚拟屏范围信息（便于排查多显示器与缩放问题）
-
-### v1.1（历史原型，原 `clickeyy.ahk` → `demo/clickey_v1.1.ahk`）
-
-键位为 5x5：
-
-`q w e r t`  
-`y u i o p`  
-`a s d f g`  
-`h j k l ;`  
-`z x c v b`
-
-流程（按键更少，但键位密度更高）：
-
-1. combo 第 1 步：5x5 选块
-2. combo 第 2 步：块内 5x5 再选一次
-3. single：再 5x5 精细裁剪一次，然后点击
-
----
-
-## 与 AHK 原型的关系（以及接下来的产品形态）
-
-AHK 原型已完成历史使命。当前项目的唯一演进主线是 Tauri + Rust + Svelte 代码本身，后续行为与算法不再以 AHK 脚本为基准。
-
-AHK 脚本保留价值仅限于：
-
-- 回溯历史交互决策
-- 对照某些旧行为与默认键位
-- 排查“是否是历史遗留差异”这类问题
-
-正式版本计划演进为：
-
-- **Core Engine（TypeScript）**：纯逻辑、可单测的状态机与区域裁剪算法
-- **Native Layer（Rust / Tauri）**：全局热键、鼠标控制、屏幕与 DPI 信息
-- **UI（Svelte）**：两类 WebView
-  - **Overlay（遮罩渲染）**：全屏透明、click-through、不抢焦点（Canvas/SVG）
-  - **Settings（设置页）**：普通可交互窗口，用于 layers/热键/overlay 配置管理与 override 导入导出
-
----
-
-## 路线图（高层）
-
-更细的执行细节与任务拆分统一收敛在 `AGENTS.md`，这里只保留“对人类友好”的里程碑视图：
-
-1. **M0：原型验证**（已具备）
-   - AHK 原型归档完成（版本化；冻结于 v3.1）
-   - 交互闭环：热键 → 遮罩 → 定位 → 点击
-2. **M1：核心引擎抽象**
-   - 把“区域裁剪 + 状态机 + undo”抽成可测试的 TS Core
-3. **M2：桌面壳与原生能力**
-   - Tauri 项目初始化
-   - Rust：热键/鼠标/屏幕信息（Windows 优先）
-4. **M3：遮罩与配置 UI**
-   - 透明遮罩窗口
-   - 配置持久化（override JSON）与 layers 编辑
-   - 托盘菜单 + 设置页（WebView）联动
-5. **M4：跨平台与发布**
-   - macOS 权限与适配
-   - Linux（X11 优先，Wayland 功能受限）
-
----
-
-## 设置页与托盘（当前实现）
-
-除“遮罩定位 + 点击”本体外，当前版本已提供 **托盘（system tray）入口**，用于“轻量控制”和“打开设置”：
-
-- **托盘左键**：直接打开设置页。
-- **托盘右键菜单**：`设置 / 暂停(或启动) / 退出`。
-- **菜单 i18n 联动**：菜单文本跟随当前解析语言（`zh-CN` / `en-US`）即时更新；当 `app.locale=system` 时会跟随系统语言。
-- **设置窗口兜底**：即使设置窗口被关闭销毁，托盘“设置”仍会自动重建并打开。
-- **启动项**：默认不勾选“开机自启动”；开启后在下次登录系统时静默常驻托盘。默认勾选“启动时打开设置页”；关闭后手动启动时改为静默启动到托盘，该项在下次启动应用时生效。
-
-可定制项（方向）：
-
-- **交互热键**：单一激活热键（`hotkeys.activation.trigger`）与控制键（`cancel/undo/directClick/switchAction/nextMonitor/nudgeUp/nudgeDown/nudgeLeft/nudgeRight`）。
-- **分层与网格（`layers`）**：基于单一默认配置直接编辑层；每层可定义行列数（`rows x cols`）与模式（`single` / `combo`）。
-- **按键映射**：每个（子）步骤都有自己的 `keys` 列表，决定 `keyIndex → row/col` 的映射。
-- **鼠标策略（`mouse`）**：动作顺序（`actionCycle`）、禁用动作（`disabledActions`）、平滑移动、落点随机、曲率/抖动、时长与步进随机、远距离提速、自适应步长与步数上限；当前动作集合包含 `left/right/middle/moveOnly/drag/doubleLeft/ctrlLeft/cmdLeft/shiftLeft`，其中 `drag` 为两段式起点/终点选择；当 `smoothMove=false` 时，下方隐藏字段整体不参与执行与校验。
-- **遮罩外观**：透明度、线条颜色/粗细、文字颜色/字号（支持按层设置）等。
-
-字段名约定（与 `AGENTS.md` 的配置模型一致）：
-
-- 语言：`app.locale`（`system` / `zh-CN` / `en-US`；`system` 会在运行时解析）
-- 开机自启动：`app.launchOnLogin.enabled`（`true` 时登录系统后静默常驻托盘；`false` 时不注册系统登录项）
-- 手动启动行为：`app.settingsWindow.openOnLaunch`（`true` 时手动启动应用后自动打开 Settings；`false` 时手动启动后静默常驻托盘）
-- 设置页主题：`app.settingsWindow.theme`（`system` / `light` / `dark`，仅影响 Settings）
-- 激活热键：`hotkeys.activation.trigger`
-- 控制键：`hotkeys.controls.cancel` / `hotkeys.controls.undo` / `hotkeys.controls.directClick` / `hotkeys.controls.switchAction` / `hotkeys.controls.nextMonitor` / `hotkeys.controls.nudgeLeft` / `hotkeys.controls.nudgeRight` / `hotkeys.controls.nudgeUp` / `hotkeys.controls.nudgeDown`
-- 鼠标策略：`mouse.*`（`actionCycle` / `disabledActions` / `smoothMove` / `moveDurationMs` / `moveStepMs` / `pressDurationMs` / `landingRadiusPx` / `durationRandomness` / `stepRandomness` / `distanceBoostPx` / `durationDistanceBoost` / `stepDistanceBoost` / `curveAlongRatio` / `curveSpreadRatio` / `jitterRatio` / `adaptiveStrideBasePx` / `adaptiveStrideDistanceRatio` / `adaptiveStrideMaxPx` / `extraStepsMax` / `maxSteps` / `maxStepSleepMs`）；当 `smoothMove=false` 时，从 `moveDurationMs` 起的隐藏字段不参与执行与校验
-- 分层列表：`layers[]`
-- 遮罩外观：`overlay.*`
-- 覆盖配置文件：`settings.override.json`（仅记录与默认配置差异，支持导入/导出）
-
-核心原则：
-
-- **配置是单一事实来源**：设置页只编辑配置；不把业务状态“塞在 UI 里”。
-- **操作解耦**：热键监听、区域裁剪（Core Engine）、遮罩渲染（Overlay）、鼠标执行（Native）彼此独立，才能支持高程度的定制化与后续扩展。
-
-## 贡献（当前阶段）
-
-目前更需要的是“把行为规格写清楚、把边界约束定死”，而不是堆功能：
-
-- 交互细节（撤销、取消、直达点击）是否需要扩展
-- 默认网格方案选择（3x3 vs 5x5，是否支持自定义）
-- 目标平台优先级（Windows 优先 / 多平台并行）
-
-如果你要让大模型接力开发/维护，请先阅读 `AGENTS.md`。
-
----
-
-## License
-
-MIT（见 `LICENSE`）。
+如果你是开发者，直接以仓库里的代码和默认配置为准；如果你要让大模型或智能体接力维护，请先阅读 `AGENTS.md`。

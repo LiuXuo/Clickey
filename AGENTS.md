@@ -67,7 +67,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 
 ### 2.2.1 设置页（Settings WebView）
 
-除遮罩外，正式版本还会提供一个“设置页面”，它本质上是一个**普通 WebView 窗口**（可获取焦点、可交互），用于编辑配置：
+除遮罩外，正式版本提供一个“设置页面”，它本质上是一个**普通 WebView 窗口**（可获取焦点、可交互），用于编辑配置：
 
 - 入口（当前实现）：
   - 托盘左键：切换设置页显隐；Settings 已打开时再次点击会隐藏到托盘。
@@ -77,18 +77,19 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 职责：配置编辑、override JSON 导入导出、热键冲突提示等。
 - 边界：设置页不持有业务状态机；只读写配置并触发“应用配置”。
 
-当前实现（原型）已具备最小可用的表单化设置能力：
+当前实现已具备可发布的表单化设置能力：
 
-- Layer 编辑：增删 / 排序 / mode 切换（single/combo）/ rows/cols/keys 修改 / auto-fit  
-  combo 约束：阶段 1（列）固定 `1xN`，阶段 2（行）固定 `Nx1`
+- Layer 编辑：增删 / 上下移动 / mode 切换（single/combo）/ 表格化键位直编 / 按层字体大小修改  
+  combo 约束：阶段 1（列）固定 `1xN`，阶段 2（行）固定 `Nx1`；single 直接编辑网格单元，combo 在表头/表侧编辑列键与行键
 - 热键编辑：activation + controls
 - 热键录制：`trigger` / `switchAction` / `nudgeUp/Down/Left/Right` 支持点击录制（Esc 取消、Backspace 清空）
 - 通用设置启动项：复选框控制“开机自启动”（默认关闭，变更在下次登录系统生效）与“启动时打开设置页”（默认开启，变更在下次启动生效）；开机自启动场景始终静默常驻托盘，不自动弹出 Settings
 - 设置页主题：`跟随系统 / 浅色 / 深色`，仅作用于 Settings WebView
-- 鼠标行为配置：左/右/中/仅移动动作循环的启用与排序，以及平滑移动、按压时长、落点随机、速度随机、曲率/抖动、远距离提速与步进策略；关闭“指针平滑移动”时，这组隐藏参数整体不参与执行与校验
+- 配置操作：`导入 / 导出 / 打开目录 / 恢复默认`
+- 鼠标行为配置：动作循环与禁用集合（含 `drag`、`doubleLeft`、`ctrlLeft`、`cmdLeft`、`shiftLeft`），以及平滑移动、按压时长、落点随机、速度随机、曲率/抖动、远距离提速与步进策略；关闭“指针平滑移动”时，这组隐藏参数整体不参与执行与校验
 - Overlay 样式：alpha/line width/per-layer font size + color picker
 - Playground 练习：Settings 内纯前端气泡点击训练区，复用 Core Engine 状态机与当前“最近一次成功应用”的配置，不调用 Native 点击或全局热键
-- 导入/导出：override JSON（仅包含与默认配置不同字段）
+- override JSON：仅包含与默认配置不同字段，支持导入/导出
 - 自动生效/Reset：配置改动在校验通过后自动应用并持久化；Reset 恢复默认配置（写入 AppConfig/settings.override.json）
 
 > 遮罩窗口（Overlay）与设置页（Settings）必须是两套不同的窗口策略：Overlay 必须 click-through/不抢焦点；Settings 必须可交互/可聚焦。
@@ -101,7 +102,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 - 托盘：Tauri/system tray 能力（最终以 Tauri v2 实际 API 为准）
 - 开机自启动：`tauri-plugin-autostart`（当前实现）
 
-> 是否最终采用这些 crate 允许调整，但调整必须在本文件“变更记录”里写明原因与替代方案。
+> 是否最终采用这些 crate 允许调整，但调整必须在本文件相应章节写明原因与替代方案。
 
 - macOS 发布包执行鼠标移动/点击依赖系统“辅助功能”权限；`tauri dev` 与安装后的 `.app` 是不同的 TCC 身份。智能体在排查“开发态正常、安装态无法点击/无法控制鼠标”时，优先检查安装包是否已单独授权；adhoc 本地签名在重打包后可能需要重新授权。
 - macOS 当前全局热键链路（`tauri-plugin-global-shortcut` / `global-hotkey`）对函数键的稳定支持上限为 `F20`；Settings WebView 录制函数键时需兼容 AppKit 私有字符（`NSF*FunctionKey`），但 `F21`~`F24` 不能作为可注册的全局热键。
@@ -488,7 +489,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 
 ### 7.2 当前任务面板
 
-> 更新规则：每次完成一个任务，把它从一个栏目移动到下一个栏目，并在“变更记录”里写 1~3 行。
+> 更新规则：每次完成一个任务，把它从一个栏目移动到下一个栏目，并同步更新本文件中受影响的当前态描述。
 
 #### Backlog
 
@@ -504,6 +505,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 
 #### Done
 
+- 1.0 发布前文档收口（README 改为对外说明，AGENTS 修正当前态文案并去掉过时描述）
 - E0.2 产出 Core Engine 规格（从原型抽象成可测试接口与状态机定义）
 - E2 Rust Native PoC（热键/鼠标/屏幕信息在 Windows 可用）
 - E0.1 明确 MVP 边界（以 v3.1 作为默认运行基准，先不考虑历史预设）
@@ -536,57 +538,3 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 2. **可执行**：新人能按 README 跑起当前 Tauri 项目；智能体能按 AGENT 找到下一步。
 3. **边界清晰**：Core/Native/UI 的职责没有混写。
 4. **可回滚**：改动集中、容易 review；不要一次把仓库“重构式大改”。
-
----
-
-## 9. 变更记录（只记关键决策）
-
-> 目的：让后续Agent知道“为什么这么做”，避免反复在同一问题上打转。
-
-- 2026-02-10：将文档收敛为两份：`README.md`（人类）与 `AGENTS.md`（智能体）。
-- 2026-02-10: Initialized Tauri v2 + Svelte/TS skeleton; tray menu, overlay PoC, core engine unit test.
-- 2026-02-17：AHK 原型版本化（v1.0/v1.1 对应原脚本），基准更新为 `demo/clickey_v3.1.ahk`，文档同步。
-- 2026-02-17：MVP 边界确认：以 v3.1 作为默认运行基准，先不考虑历史预设。
-- 2026-02-18：Rust Native PoC 验收通过：全局热键、控制键、鼠标点击、Tab 切屏与 Overlay 位置对齐。
-- 2026-02-18：补齐 Core Engine 状态机规格（输入/输出/状态字段/控制键规则/推进规则）。
-- 2026-02-18：配置模型示例更新为 v3.1 默认预设，与当前基准保持一致。
-- 2026-02-18：Settings UI 原型完成（预设/层/热键/overlay 表单化，支持增删排序、mode 切换、auto-fit、颜色拾取）；配置持久化链路就绪（get/apply/reset，写入 AppConfig/config.json）。
-- 2026-03-03：托盘交互改为“左键直开设置 + 右键菜单控制”；支持运行时暂停/启动热键并保持退出入口。
-- 2026-03-03：新增 `app.locale` 并打通 Settings 与 Rust 托盘联动，菜单文案随 i18n 实时刷新；设置窗口关闭后可由托盘自动重建打开。
-- 2026-03-04：移除预设模型（`activePresetId` / `presets[]`），统一为根级 `layers[]`；持久化改为 `AppConfig/settings.override.json`（仅记录与默认配置差异）；新增 override JSON 导入/导出链路。
-- 2026-03-04：热键模型收敛为单一激活键 `hotkeys.activation.trigger`（非 macOS 默认 `Ctrl+;`，macOS 默认 `Cmd+;`）；Overlay 动作切换改为 `hotkeys.controls.switchAction`（默认 `Enter`，循环左/右/中）；切屏改为 `hotkeys.controls.nextMonitor`（默认 `Tab`），两者均支持在 Settings 中自定义。
-- 2026-03-06：新增 `mouse` 配置分组（含落点随机、速度随机、曲率/抖动、远距离提速、自适应步进等参数），默认配置、前端类型、Rust 结构体与校验规则同步更新。
-- 2026-03-06：Settings 页面新增“鼠标行为”分组；Native 点击日志补充 `requested_x/y` 与 `landing + offset_x/y`，用于验证随机落点与执行路径。
-- 2026-03-06：项目主线与 AHK demo 脚本正式解耦；AHK 冻结于 `demo/clickey_v3.1.ahk`，后续不再迭代，当前行为以仓库内实现与默认配置为准。
-- 2026-03-08：`overlay.font` 新增 `layerSizePx`（按层字号数组）；默认值更新为首层 16、第二层 12，`sizePx` 继续作为回退字号；Settings/Overlay/Rust 校验同步接入。
-- 2026-03-08：组合层约束收敛为固定轴向：`stage0=1xN`（阶段 1，列）+ `stage1=Nx1`（阶段 2，行）；Settings 文案同步改为“阶段 1/阶段 2”。
-- 2026-03-08：键位输入解析改为空白分隔；`,` 不再作为分隔符，恢复为可配置键位本体（用于行键集合）。
-- 2026-03-08：Settings 页面完成结构化拆分（SettingsShell + General/Mouse/Layers/Hotkeys/Overlay sections），并改为 keepalive 分区切换。
-- 2026-03-08：移除 `Apply` 按钮，配置改动改为“前端校验通过后自动生效”（去抖触发）；新增冲突检测（hotkeys 重复时阻止应用）。
-- 2026-03-11：默认激活热键改为按平台区分：macOS 使用 `Cmd+;`，其他平台保持 `Ctrl+;`；前后端热键显示与解析同步兼容 `Meta` / `Cmd` / `Super`。
-- 2026-03-08：新增 hotkey recorder（`trigger` / `switchAction`）与颜色字段 `ColorField`，并补充 toast 反馈与 i18n 目录化拆分（`index + locales`）。
-- 2026-03-10：Settings 层编辑改为表格化直编：single 直接编辑网格单元，combo 在表头/表侧编辑键位并实时展示组合矩阵；移除键数提示与 auto-fit 入口。
-- 2026-03-13：通用设置完成“语言/配置”分区重排（上下排列），新增“打开目录”入口并切换为 `revealItemInDir`，统一按钮文案为“导入/导出/打开目录/恢复默认”，且当 override 为空（`{}`）时自动禁用“恢复默认”。
-- 2026-03-13：Settings 异常提示统一为右上角 toast，错误模型升级为“后端返回稳定 error code、前端按 code 做 i18n 翻译”，移除基于英文错误文案的前端解析，降低跨语言与重构时的耦合风险。
-- 2026-03-13：微调键纳入可配置热键（`nudgeLeft/Right/Up/Down`）；Settings 支持录制与冲突检测；Rust overlay 热键注册与连发逻辑改为读取配置，不再硬编码 Arrow。
-- 2026-03-13：Core 微调范围放开至所有层/阶段（包含 combo stage0/stage1）；移除 `baseRegion` 触边夹紧，改为按配置步长自由平移当前 Region。
-- 2026-03-14：macOS 新增安装态权限与打包兜底：缺少辅助功能权限时阻止进入 Overlay，自动打开 Settings 与系统“隐私与安全性 > 辅助功能”，并通过稳定 error code 走前端 toast 提示；同时新增 `scripts/tauri-build.mjs` 作为打包入口，自动探测 `Developer ID Application / Apple Distribution / Apple Development` 证书，未命中时显式回退到 `APPLE_SIGNING_IDENTITY="-"`。
-- 2026-03-14：macOS 设置页窗口接入 Dock/托盘生命周期控制：settings 窗口默认 `visible=false`，bundle 合并 `src-tauri/Info.plist`（`LSUIElement=1`）以 agent app 模式启动；打开设置页时显示 Dock，关闭设置页（`Cmd+W` / 关闭按钮）改为隐藏窗口并退回托盘常驻，`Cmd+Q` / 托盘退出时真正结束应用。
-- 2026-03-15：鼠标动作系统收敛为 `mouse.actionCycle + mouse.disabledActions`：默认启用左/右/中/仅移动，默认禁用左键双击与 `Ctrl/Cmd/Shift + 左键`；Settings 动作编辑器改为统一排序+启用/禁用，并将排序实现从原生 HTML5 drag 切换为 `svelte-dnd-action`。
-- 2026-03-22：新增 `drag` 鼠标动作：接入 `mouse.actionCycle + mouse.disabledActions`（默认启用），Overlay 改为“两段式起点/终点选择”并在阶段 2 显示起点标记与连线预览；Native 侧改为先记录起点、二次激活后执行左键拖动。
-- 2026-03-15：Settings 小图标切换为 `@lucide/svelte` 深路径导入，并保留 `AppIcon` 语义封装；继续把表单标签、热键录制器、颜色字段、图层操作、鼠标动作项与 toast 状态统一接入 Lucide，同时通过减法收敛录入框/颜色框/动作项图标与按钮字重、层操作按钮密度等细节，尽量在不增加认知负担的前提下提升扫读效率。
-- 2026-03-15：新增 `app.settingsWindow.theme`（`system/light/dark`）作为设置页专属主题配置；Settings UI 改为基于 CSS 变量的语义 token，主题切换仅作用于 Settings WebView，不影响 Overlay。
-- 2026-03-15：收敛构建链路与告警清理：`scripts/tauri-build.mjs` 的 Tauri CLI 调用改为直接通过当前 Node 进程执行 `@tauri-apps/cli/tauri.js`，避免 Windows 上 `spawnSync npx.cmd` 的兼容性问题并保留 macOS 证书探测与 ad-hoc 回退逻辑；Rust 侧同时将默认配置的平台覆写抽成 helper，并把 macOS 辅助功能权限兜底改为按平台编译，避免非 macOS 上遗留未使用字段、常量与空实现。
-- 2026-03-15：修复 macOS 高位函数键录制：Settings 热键录制新增对 AppKit `NSF*FunctionKey` 私有字符的归一化，`F20` 可被正确录制并通过校验；同时将 macOS 全局热键上限明确收敛为 `F20`，`F21`~`F24` 在配置校验阶段直接返回稳定错误码。
-- 2026-03-16：语言配置改为 `app.locale = system/zh-CN/en-US` 三态偏好；默认值切到 `system`，Settings/Overlay/托盘统一按系统语言解析 `system`，未支持语言回退到 `en-US`。
-- 2026-03-18：新增 `app.settingsWindow.openOnLaunch` 启动行为配置；通用设置新增“启动时打开设置页”复选框并调整为配置后的独立启动项（默认开启，变更在下次启动生效）；启动链路改为读取 `openOnLaunch`，开启时启动后自动显示 Settings、关闭时静默常驻托盘，并新增前后端校验避免形成“无可见入口”状态。
-- 2026-03-18：新增 `app.launchOnLogin.enabled` 开机自启动配置；默认关闭，启用后通过 `tauri-plugin-autostart` 同步系统登录项，并向应用传入 `--autostart` 启动参数；自动启动场景始终静默常驻托盘，不受 `app.settingsWindow.openOnLaunch` 影响，同时新增前后端校验要求保留托盘入口。
-- 2026-03-19：收敛 `mouse.smoothMove` 语义：Settings 中从 `moveDurationMs` 起的隐藏字段在 `smoothMove=false` 时整体不参与执行与校验；Native 同步停用随机落点与自定义按压时长，避免“界面已隐藏但运行仍生效”。
-- 2026-03-19：移除 `app.tray.enabled` 配置项；托盘入口改为运行时固定开启，不再作为 Settings/override JSON 的可配置字段，同时删除前后端围绕“禁用托盘”建立的校验与文案。
-- 2026-03-20：修复 macOS 缩放分辨率下的点击坐标错配：保留 Core/Overlay 使用 Tauri monitor physical 坐标，Native 点击前按命中的 monitor `scale_factor` 将 physical clickPoint 转回 Enigo/CGEvent 使用的 mouse-space 坐标，解决外接高分屏在非原生分辨率下的点击偏移问题。
-- 2026-03-21：应用图标与托盘图标正式分离：应用图标保留矩形底板；托盘改为透明几何图标，并按运行时状态切换“有中心点/无中心点”两套资源；macOS 托盘图标启用 template 模式以适配系统明暗菜单栏。
-- 2026-03-21：托盘左键交互补充为 toggle：Settings 已显示时再次左键点击托盘会隐藏窗口回到托盘常驻，避免只能打开不能收起。
-- 2026-03-21：Overlay 启动显示器选择改为“鼠标当前所在显示器”，不再固定从主显示器开始，文档中的“当前显示器”定义同步收敛。
-- 2026-03-21：前后端统一补齐运行时冲突校验：阻止热键与 layer 键位复用、阻止 override JSON 导入重复 layer 键位，并为后端返回新增稳定错误码。
-- 2026-03-21：Settings 新增气泡点击 playground：训练区只运行在 Settings WebView 内，复用 Core Engine 生成可解目标与推进状态；永远读取“最近一次成功应用”的配置，避免未通过校验的草稿污染练习。
-- 2026-03-24：Tauri bundle 标识由 `com.xuo.clickey` 调整为 `com.xhugoliu.clickey`，`productName` 由 `clickey` 调整为 `Clickey`，统一安装态应用名与包名。
