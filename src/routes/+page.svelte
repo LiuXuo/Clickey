@@ -32,6 +32,7 @@
     type ToastItem,
     type ToastTone,
   } from "$lib/features/settings/ui/ToastStack.svelte";
+  import AppIcon from "$lib/features/settings/ui/AppIcon.svelte";
   import {
     controlInputWithMarginClass,
     controlSelectClass,
@@ -131,6 +132,7 @@
   let autoApplyTimer: ReturnType<typeof setTimeout> | null = null;
   let reapplyAfterCurrent = false;
   let lastValidationIssue = "";
+  let persistentApplyError = $state("");
 
   type ComboLayerConfig = Extract<
     AppConfig["layers"][number],
@@ -196,6 +198,14 @@
 
   function dismissToast(id: number) {
     toasts = toasts.filter((toast) => toast.id !== id);
+  }
+
+  function setPersistentApplyError(message: string) {
+    persistentApplyError = message;
+  }
+
+  function clearPersistentApplyError() {
+    persistentApplyError = "";
   }
 
   function resolveErrorMessage(error: unknown): string {
@@ -863,6 +873,7 @@
     const issues = validateConfig(config);
     if (issues.length) {
       const firstIssue = issues[0];
+      setPersistentApplyError(firstIssue);
       if (firstIssue !== lastValidationIssue) {
         lastValidationIssue = firstIssue;
         pushToast("error", firstIssue);
@@ -876,9 +887,11 @@
     try {
       await invoke("apply_config", { config });
       appliedConfig = cloneConfig(config);
+      clearPersistentApplyError();
       await refreshResetAvailability();
     } catch (err) {
       const message = resolveErrorMessage(err);
+      setPersistentApplyError(message);
       pushToast("error", message);
     } finally {
       isApplying = false;
@@ -901,11 +914,13 @@
       config = ensureLayerFontSizesInConfig(reset);
       appliedConfig = cloneConfig(config);
       lastValidationIssue = "";
+      clearPersistentApplyError();
       await refreshResetAvailability();
       setLocalePreference(reset.app.locale);
       pushToast("success", $t("status.reset"));
     } catch (err) {
       const message = resolveErrorMessage(err);
+      setPersistentApplyError(message);
       pushToast("error", message);
     } finally {
       isResetting = false;
@@ -971,11 +986,13 @@
       config = ensureLayerFontSizesInConfig(imported);
       appliedConfig = cloneConfig(config);
       lastValidationIssue = "";
+      clearPersistentApplyError();
       await refreshResetAvailability();
       setLocalePreference(imported.app.locale);
       pushToast("success", $t("status.imported"));
     } catch (err) {
       const message = resolveErrorMessage(err);
+      setPersistentApplyError(message);
       pushToast("error", message);
     } finally {
       isImporting = false;
@@ -1138,9 +1155,6 @@
       pushToast("error", $t("errors.layersRequired"));
       return;
     }
-    if (!confirm($t("errors.removeLayerConfirm", { index: index + 1 }))) {
-      return;
-    }
     config.layers = config.layers.filter(
       (_, layerIndex) => layerIndex !== index,
     );
@@ -1296,7 +1310,9 @@
       unlistenBackendError = await listen<BackendErrorPayload>(
         "backend:error",
         (event) => {
-          pushToast("error", resolveErrorMessage(event.payload.code));
+          const message = resolveErrorMessage(event.payload.code);
+          setPersistentApplyError(message);
+          pushToast("error", message);
         },
       );
     })();
@@ -1307,10 +1323,12 @@
         config = ensureLayerFontSizesInConfig(loaded);
         appliedConfig = cloneConfig(config);
         lastValidationIssue = "";
+        clearPersistentApplyError();
         await refreshResetAvailability();
         setLocalePreference(loaded.app.locale);
       } catch (err) {
         const message = resolveErrorMessage(err);
+        setPersistentApplyError(message);
         pushToast("error", message);
       } finally {
         isLoading = false;
@@ -1340,6 +1358,30 @@
 
   <div class="mx-auto flex min-h-full w-full max-w-7xl flex-col gap-4">
     <div class="flex-1">
+      {#if persistentApplyError}
+        <div
+          class="settings-toast mb-4 rounded-xl px-4 py-3"
+          data-tone="error"
+          role="alert"
+          aria-live="polite"
+        >
+          <div class="flex items-start gap-3">
+            <AppIcon
+              name="error"
+              size={18}
+              strokeWidth={2.2}
+              className="mt-0.5"
+            />
+            <div class="space-y-1">
+              <p class="text-sm font-semibold">
+                {$t("status.pendingApplyErrorTitle")}
+              </p>
+              <p class="text-sm leading-5">{persistentApplyError}</p>
+            </div>
+          </div>
+        </div>
+      {/if}
+
       <SettingsShell {sections} {activeSection} onSelectSection={selectSection}>
         <div class="mt-6" class:hidden={activeSection !== "general"}>
           <GeneralSection

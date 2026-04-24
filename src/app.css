@@ -244,6 +244,17 @@ body {
     color: var(--settings-text-primary);
   }
 
+  .settings-button[data-tone="danger"] {
+    border-color: var(--settings-error-border);
+    background: var(--settings-error-bg);
+    color: var(--settings-text-error);
+  }
+
+  .settings-button[data-tone="danger"]:hover:enabled {
+    border-color: var(--settings-text-error);
+    color: var(--settings-text-error);
+  }
+
   .settings-button:focus-visible {
     box-shadow: 0 0 0 4px var(--settings-accent-ring);
     outline: none;

@@ -75,6 +75,37 @@
 
   const actionIconButtonClass = "settings-icon-button";
   const removeIconButtonClass = "settings-icon-button";
+  const actionButtonClass = controlButtonMdClass;
+  let pendingRemovalIndex = $state<number | null>(null);
+
+  $effect(() => {
+    if (pendingRemovalIndex === null) {
+      return;
+    }
+    if (
+      config.layers.length <= 1 ||
+      pendingRemovalIndex < 0 ||
+      pendingRemovalIndex >= config.layers.length
+    ) {
+      pendingRemovalIndex = null;
+    }
+  });
+
+  function requestLayerRemoval(index: number) {
+    if (isLoading || config.layers.length <= 1) {
+      return;
+    }
+    pendingRemovalIndex = pendingRemovalIndex === index ? null : index;
+  }
+
+  function cancelLayerRemoval() {
+    pendingRemovalIndex = null;
+  }
+
+  function confirmLayerRemoval(index: number) {
+    onRemoveLayer(index);
+    pendingRemovalIndex = null;
+  }
 </script>
 
 <SettingsCard id="layers">
@@ -114,7 +145,7 @@
               type="button"
               class={removeIconButtonClass}
               data-tone="danger"
-              onclick={() => onRemoveLayer(index)}
+              onclick={() => requestLayerRemoval(index)}
               disabled={isLoading || config.layers.length <= 1}
               aria-label={$t("layers.remove")}
               title={$t("layers.remove")}
@@ -123,6 +154,55 @@
             </button>
           </div>
         </div>
+
+        {#if pendingRemovalIndex === index}
+          <div
+            class="settings-toast mt-4 rounded-xl px-3 py-3 text-sm"
+            data-tone="error"
+            role="alert"
+            aria-live="polite"
+          >
+            <div
+              class="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"
+            >
+              <div class="flex items-start gap-2">
+                <AppIcon
+                  name="error"
+                  size={16}
+                  strokeWidth={2.2}
+                  className="mt-0.5"
+                />
+                <div class="space-y-1">
+                  <p class="font-semibold">
+                    {$t("layers.removeConfirmTitle", { index: index + 1 })}
+                  </p>
+                  <p class="leading-5">
+                    {$t("layers.removeConfirmHint")}
+                  </p>
+                </div>
+              </div>
+              <div class="flex shrink-0 flex-wrap gap-2">
+                <button
+                  type="button"
+                  class={actionButtonClass}
+                  onclick={cancelLayerRemoval}
+                  disabled={isLoading}
+                >
+                  {$t("app.cancel")}
+                </button>
+                <button
+                  type="button"
+                  class={actionButtonClass}
+                  data-tone="danger"
+                  onclick={() => confirmLayerRemoval(index)}
+                  disabled={isLoading}
+                >
+                  {$t("layers.removeConfirmAction")}
+                </button>
+              </div>
+            </div>
+          </div>
+        {/if}
 
         <div class="mt-4 grid grid-cols-1 gap-4 md:grid-cols-2">
           <div>

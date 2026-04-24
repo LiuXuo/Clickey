@@ -12,6 +12,7 @@ const en: Record<TranslationKey, string> = {
   "app.openingConfigDir": "Opening directory...",
   "app.openConfigDir": "Open Directory",
   "app.confirm": "OK",
+  "app.cancel": "Cancel",
   "language.label": "Language",
   "language.system": "Follow System",
   "language.zh": "简体中文",
@@ -28,6 +29,7 @@ const en: Record<TranslationKey, string> = {
     "Launch-on-login changes take effect the next time you sign in.",
   "status.startupOpenOnLaunchUpdated":
     "Startup behavior changes take effect the next time the app launches.",
+  "status.pendingApplyErrorTitle": "Recent changes were not applied",
   "general.section": "General",
   "general.title": "General Settings",
   "general.startupLabel": "Startup",
@@ -61,6 +63,10 @@ const en: Record<TranslationKey, string> = {
   "layers.keys": "Keys",
   "layers.stage0": "Stage 1",
   "layers.stage1": "Stage 2",
+  "layers.removeConfirmTitle": "Delete layer {index}?",
+  "layers.removeConfirmHint":
+    "The updated config will be applied immediately. If it is invalid, the reason will stay visible at the top of the page.",
+  "layers.removeConfirmAction": "Delete layer",
   "hotkeys.section": "Hotkeys",
   "hotkeys.title": "Key Bindings",
   "hotkeys.trigger": "Activate",
@@ -129,7 +135,6 @@ const en: Record<TranslationKey, string> = {
   "overlay.action.drag": "Drag",
   "overlay.drag.phaseStart": "Drag · Start",
   "overlay.drag.phaseEnd": "Drag · End",
-  "errors.removeLayerConfirm": "Remove layer {index}?",
   "errors.layersRequired": "At least one layer is required.",
   "errors.comboAxisConstraintSimple":
     "Layer {index} combo must be stage 1 = 1xN, stage 2 = Nx1.",

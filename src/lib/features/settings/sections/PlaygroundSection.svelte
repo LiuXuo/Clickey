@@ -389,7 +389,7 @@
       return;
     }
 
-    appliedConfig;
+    void appliedConfig;
     prepareNextChallenge();
   });
 </script>
@@ -508,7 +508,8 @@
   .playground-bubble {
     position: absolute;
     z-index: 1;
-    border: 3px solid var(--playground-line-color, var(--settings-surface-strong));
+    border: 3px solid
+      var(--playground-line-color, var(--settings-surface-strong));
     border-radius: 9999px;
     background: var(--playground-bubble-fill, rgba(251, 191, 36, 0.92));
     transform: translate(-50%, -50%);
