@@ -1698,6 +1698,26 @@ fn monitor_logical_frame(monitor: &tauri::Monitor) -> (f64, f64, f64, f64) {
 }
 
 #[cfg(target_os = "macos")]
+fn monitor_matching_region<'a>(
+    monitors: &'a [tauri::Monitor],
+    region: &Region,
+) -> Option<&'a tauri::Monitor> {
+    let region_x = region.x.round() as i32;
+    let region_y = region.y.round() as i32;
+    let region_width = region.width.round().max(1.0) as u32;
+    let region_height = region.height.round().max(1.0) as u32;
+
+    monitors.iter().find(|monitor| {
+        let pos = monitor.position();
+        let size = monitor.size();
+        pos.x == region_x
+            && pos.y == region_y
+            && size.width == region_width
+            && size.height == region_height
+    })
+}
+
+#[cfg(target_os = "macos")]
 fn monitor_contains_logical_point(monitor: &tauri::Monitor, x: f64, y: f64) -> bool {
     let (origin_x, origin_y, width, height) = monitor_logical_frame(monitor);
     x >= origin_x && x < origin_x + width && y >= origin_y && y < origin_y + height
@@ -1755,44 +1775,70 @@ fn macos_mouse_space_point(_app: &AppHandle, x: f64, y: f64) -> (f64, f64) {
     (x, y)
 }
 
+#[cfg(target_os = "macos")]
+fn apply_overlay_window_bounds(
+    window: &tauri::WebviewWindow<Wry>,
+    app: &AppHandle,
+    region: &Region,
+) {
+    let scale = monitor_scale_factor_for_region(app, region);
+    let target_pos = LogicalPosition::new(region.x / scale, region.y / scale);
+    let target_size = LogicalSize::new(
+        (region.width / scale).max(1.0),
+        (region.height / scale).max(1.0),
+    );
+
+    let _ = window.set_position(Position::Logical(target_pos));
+    let _ = window.set_size(Size::Logical(target_size));
+}
+
+#[cfg(not(target_os = "macos"))]
+fn apply_overlay_window_bounds(
+    window: &tauri::WebviewWindow<Wry>,
+    _app: &AppHandle,
+    region: &Region,
+) {
+    let target_pos = PhysicalPosition::new(region.x as i32, region.y as i32);
+    let target_size =
+        PhysicalSize::new(region.width.max(1.0) as u32, region.height.max(1.0) as u32);
+
+    let _ = window.set_position(Position::Physical(target_pos));
+    let _ = window.set_size(Size::Physical(target_size));
+}
+
+#[cfg(target_os = "macos")]
+fn correct_overlay_window_bounds_after_show(app: &AppHandle, region: Region) {
+    if let Some(window) = app.get_webview_window("overlay") {
+        apply_overlay_window_bounds(&window, app, &region);
+    }
+
+    let app_handle = app.clone();
+    std::thread::spawn(move || {
+        // The first show of a hidden Accessory window can be nudged by AppKit.
+        // Retry once after the show turn so the overlay lands on the full monitor frame.
+        std::thread::sleep(Duration::from_millis(32));
+        if let Some(window) = app_handle.get_webview_window("overlay") {
+            apply_overlay_window_bounds(&window, &app_handle, &region);
+        }
+    });
+}
+
 fn show_overlay_window(app: &AppHandle, region: &Region) {
     if let Some(window) = app.get_webview_window("overlay") {
-        #[cfg(target_os = "macos")]
-        {
-            // macOS 混合 DPI 多屏时，窗口位置/尺寸应按目标屏幕的逻辑坐标设置，
-            // 否则 tao 会按“当前窗口所在屏幕”的 scale factor 转换，导致切屏后位置跑偏。
-            let scale = monitor_scale_factor_for_region(app, region);
-            let target_pos = LogicalPosition::new(region.x / scale, region.y / scale);
-            let target_size = LogicalSize::new(
-                (region.width / scale).max(1.0),
-                (region.height / scale).max(1.0),
-            );
-
-            println!(
-                "[overlay] macos logical frame pos=({}, {}) size=({}, {}) scale={}",
-                target_pos.x, target_pos.y, target_size.width, target_size.height, scale
-            );
-
-            let _ = window.set_position(Position::Logical(target_pos));
-            let _ = window.set_size(Size::Logical(target_size));
-        }
-
-        #[cfg(not(target_os = "macos"))]
-        let target_pos = PhysicalPosition::new(region.x as i32, region.y as i32);
-        #[cfg(not(target_os = "macos"))]
-        let target_size =
-            PhysicalSize::new(region.width.max(1.0) as u32, region.height.max(1.0) as u32);
-
-        #[cfg(not(target_os = "macos"))]
-        let _ = window.set_position(Position::Physical(target_pos));
-        #[cfg(not(target_os = "macos"))]
-        let _ = window.set_size(Size::Physical(target_size));
+        apply_overlay_window_bounds(&window, app, region);
         let _ = window.set_ignore_cursor_events(true);
         let _ = window.set_focusable(false);
         let _ = window.show();
 
+        #[cfg(target_os = "macos")]
+        correct_overlay_window_bounds_after_show(app, region.clone());
+
         #[cfg(target_os = "windows")]
         {
+            let target_pos = PhysicalPosition::new(region.x as i32, region.y as i32);
+            let target_size =
+                PhysicalSize::new(region.width.max(1.0) as u32, region.height.max(1.0) as u32);
+
             // Align client area to the target region to avoid DWM offset on Windows.
             if let (Ok(outer_pos), Ok(inner_pos)) =
                 (window.outer_position(), window.inner_position())
@@ -1825,21 +1871,8 @@ fn show_overlay_window(app: &AppHandle, region: &Region) {
 
 #[cfg(target_os = "macos")]
 fn monitor_scale_factor_for_region(app: &AppHandle, region: &Region) -> f64 {
-    let region_x = region.x.round() as i32;
-    let region_y = region.y.round() as i32;
-    let region_width = region.width.round().max(1.0) as u32;
-    let region_height = region.height.round().max(1.0) as u32;
-
-    available_monitors(app)
-        .into_iter()
-        .find(|monitor| {
-            let pos = monitor.position();
-            let size = monitor.size();
-            pos.x == region_x
-                && pos.y == region_y
-                && size.width == region_width
-                && size.height == region_height
-        })
+    let monitors = available_monitors(app);
+    monitor_matching_region(&monitors, region)
         .map(|monitor| monitor.scale_factor().max(1.0))
         .unwrap_or(1.0)
 }
