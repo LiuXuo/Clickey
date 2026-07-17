@@ -1345,7 +1345,7 @@ pub fn run() {
                     .unwrap_or(false);
                 if overlay_active {
                     println!("[shortcut] activation cancels active overlay");
-                    hide_overlay(app, state.inner());
+                    request_hide_overlay(app, state.inner());
                 } else {
                     trigger_overlay(app);
                 }
@@ -2112,7 +2112,7 @@ fn trigger_overlay(app: &AppHandle) {
     let action_for_overlay = action.clone();
     std::thread::spawn(move || {
         let overlay_state = app_handle.state::<AppState>();
-        let registration_error = {
+        let registration_result = {
             let _lifecycle_guard = overlay_state
                 .overlay_lifecycle
                 .lock()
@@ -2124,26 +2124,39 @@ fn trigger_overlay(app: &AppHandle) {
             if let Err(err) =
                 register_overlay_hotkeys(&app_handle, overlay_state.inner(), &config_for_keys)
             {
-                Some(err)
+                Err(err)
             } else if !overlay_session_is_current(overlay_state.inner(), generation) {
                 let _ = unregister_overlay_hotkeys(&app_handle, overlay_state.inner());
                 return;
             } else {
-                // 先让 Overlay 热键注册完成，再显示窗口，避免首个按键（尤其是 Tab 切屏）
-                // 落在“窗口已显示但热键尚未就绪”的时间窗里被吞掉。
-                emit_overlay_activate(
-                    &app_handle,
-                    overlay_state.inner(),
-                    region_for_overlay,
-                    config_for_overlay,
-                    action_for_overlay,
-                );
-                None
+                Ok(())
             }
         };
 
-        if let Some(err) = registration_error {
+        if let Err(err) = registration_result {
             println!("[hotkeys] overlay register failed: {}", err);
+            hide_overlay(&app_handle, overlay_state.inner());
+            return;
+        }
+
+        // Window operations must run after the registration lock is released. Otherwise a
+        // second activation can block the main thread while the background thread waits for it.
+        let show_app = app_handle.clone();
+        if let Err(err) = app_handle.run_on_main_thread(move || {
+            let show_state = show_app.state::<AppState>();
+            if !overlay_session_is_current(show_state.inner(), generation) {
+                return;
+            }
+            emit_overlay_activate(
+                &show_app,
+                show_state.inner(),
+                region_for_overlay,
+                config_for_overlay,
+                action_for_overlay,
+            );
+            println!("[overlay] shown generation={}", generation);
+        }) {
+            println!("[overlay] failed to schedule show: {}", err);
             hide_overlay(&app_handle, overlay_state.inner());
         }
     });
@@ -2162,25 +2175,59 @@ fn overlay_session_is_active(state: &AppState) -> bool {
         .unwrap_or(false)
 }
 
-fn hide_overlay(app: &AppHandle, state: &AppState) {
-    state.overlay_generation.fetch_add(1, Ordering::SeqCst);
+fn invalidate_overlay_session(state: &AppState) -> u64 {
+    let generation = state.overlay_generation.fetch_add(1, Ordering::SeqCst) + 1;
     if let Ok(mut active) = state.overlay_active.lock() {
         *active = false;
     }
-    let _lifecycle_guard = state
-        .overlay_lifecycle
-        .lock()
-        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    generation
+}
+
+fn request_hide_overlay(app: &AppHandle, state: &AppState) {
+    let generation = invalidate_overlay_session(state);
+    clear_overlay_runtime(app, state);
+
+    let cleanup_app = app.clone();
+    std::thread::spawn(move || {
+        let cleanup_state = cleanup_app.state::<AppState>();
+        let _lifecycle_guard = cleanup_state
+            .overlay_lifecycle
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if cleanup_state.overlay_generation.load(Ordering::SeqCst) != generation
+            || overlay_session_is_active(cleanup_state.inner())
+        {
+            return;
+        }
+        let _ = unregister_overlay_hotkeys(&cleanup_app, cleanup_state.inner());
+        println!("[overlay] hidden generation={}", generation);
+    });
+}
+
+fn clear_overlay_runtime(app: &AppHandle, state: &AppState) {
     if let Some(window) = app.get_webview_window("overlay") {
         let _ = window.hide();
     }
-    let _ = unregister_overlay_hotkeys(app, state);
     stop_nudge_repeat(state);
     if let Ok(mut action) = state.overlay_click_action.lock() {
         *action = None;
     }
     clear_drag_session(state);
+}
+
+fn finish_hide_overlay(app: &AppHandle, state: &AppState) {
+    let _lifecycle_guard = state
+        .overlay_lifecycle
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    clear_overlay_runtime(app, state);
+    let _ = unregister_overlay_hotkeys(app, state);
     println!("[overlay] hidden");
+}
+
+fn hide_overlay(app: &AppHandle, state: &AppState) {
+    let _ = invalidate_overlay_session(state);
+    finish_hide_overlay(app, state);
 }
 
 fn restart_drag_session(app: &AppHandle, state: &AppState) -> Result<(), String> {
