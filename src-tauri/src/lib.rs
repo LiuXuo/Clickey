@@ -9,7 +9,7 @@ use std::{
     fs, io,
     path::PathBuf,
     sync::{
-        atomic::{AtomicBool, Ordering},
+        atomic::{AtomicBool, AtomicU64, Ordering},
         Arc, Mutex,
     },
     time::{Duration, SystemTime, UNIX_EPOCH},
@@ -143,9 +143,12 @@ struct AppState {
     config: Mutex<AppConfig>,
     activation_ids: Mutex<ActivationHotkeyIds>,
     activation_shortcuts: Mutex<Vec<Shortcut>>,
+    activation_pressed: AtomicBool,
     overlay_shortcuts: Mutex<Vec<Shortcut>>,
     overlay_key_map: Mutex<HashMap<u32, String>>,
     overlay_active: Mutex<bool>,
+    overlay_generation: AtomicU64,
+    overlay_lifecycle: Mutex<()>,
     overlay_click_action: Mutex<Option<ClickAction>>,
     drag_session: Mutex<Option<DragSession>>,
     monitor_index: Mutex<usize>,
@@ -1158,7 +1161,13 @@ fn apply_runtime_config(
         .map(|guard| *guard)
         .unwrap_or(false);
     if overlay_active && !paused {
-        register_overlay_hotkeys(app, state, &config)?;
+        let _lifecycle_guard = state
+            .overlay_lifecycle
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        if overlay_session_is_active(state) {
+            register_overlay_hotkeys(app, state, &config)?;
+        }
     } else if overlay_active {
         hide_overlay(app, state);
     }
@@ -1280,8 +1289,21 @@ pub fn run() {
     let global_shortcut_plugin = tauri_plugin_global_shortcut::Builder::new()
         .with_handler(|app, shortcut, event| {
             let state = app.state::<AppState>();
+            let is_activation_trigger = {
+                let ids = state
+                    .activation_ids
+                    .lock()
+                    .map(|guard| guard.clone())
+                    .unwrap_or_default();
+                ids.is_trigger_id(shortcut.id())
+            };
 
             if event.state == ShortcutState::Released {
+                if is_activation_trigger {
+                    state.activation_pressed.store(false, Ordering::SeqCst);
+                    return;
+                }
+
                 let overlay_active = state
                     .overlay_active
                     .lock()
@@ -1311,18 +1333,22 @@ pub fn run() {
             }
             println!("[shortcut] pressed id={}", shortcut.id());
 
-            let is_activation_trigger = {
-                let ids = state
-                    .activation_ids
-                    .lock()
-                    .map(|guard| guard.clone())
-                    .unwrap_or_default();
-                ids.is_trigger_id(shortcut.id())
-            };
-
             if is_activation_trigger {
+                if state.activation_pressed.swap(true, Ordering::SeqCst) {
+                    return;
+                }
                 println!("[shortcut] activation trigger");
-                trigger_overlay(app);
+                let overlay_active = state
+                    .overlay_active
+                    .lock()
+                    .map(|guard| *guard)
+                    .unwrap_or(false);
+                if overlay_active {
+                    println!("[shortcut] activation cancels active overlay");
+                    hide_overlay(app, state.inner());
+                } else {
+                    trigger_overlay(app);
+                }
                 return;
             }
 
@@ -1394,9 +1420,12 @@ pub fn run() {
             config: Mutex::new(default_cfg),
             activation_ids: Mutex::new(activation_ids),
             activation_shortcuts: Mutex::new(Vec::new()),
+            activation_pressed: AtomicBool::new(false),
             overlay_shortcuts: Mutex::new(Vec::new()),
             overlay_key_map: Mutex::new(HashMap::new()),
             overlay_active: Mutex::new(false),
+            overlay_generation: AtomicU64::new(0),
+            overlay_lifecycle: Mutex::new(()),
             overlay_click_action: Mutex::new(None),
             drag_session: Mutex::new(None),
             monitor_index: Mutex::new(0),
@@ -2067,6 +2096,7 @@ fn trigger_overlay(app: &AppHandle) {
     clear_drag_session(state.inner());
     let action = resolved_overlay_click_action(&config, None);
 
+    let generation = state.overlay_generation.fetch_add(1, Ordering::SeqCst) + 1;
     if let Ok(mut active) = state.overlay_active.lock() {
         *active = true;
     }
@@ -2082,35 +2112,70 @@ fn trigger_overlay(app: &AppHandle) {
     let action_for_overlay = action.clone();
     std::thread::spawn(move || {
         let overlay_state = app_handle.state::<AppState>();
-        if let Err(err) =
-            register_overlay_hotkeys(&app_handle, overlay_state.inner(), &config_for_keys)
-        {
+        let registration_error = {
+            let _lifecycle_guard = overlay_state
+                .overlay_lifecycle
+                .lock()
+                .unwrap_or_else(|poisoned| poisoned.into_inner());
+            if !overlay_session_is_current(overlay_state.inner(), generation) {
+                return;
+            }
+
+            if let Err(err) =
+                register_overlay_hotkeys(&app_handle, overlay_state.inner(), &config_for_keys)
+            {
+                Some(err)
+            } else if !overlay_session_is_current(overlay_state.inner(), generation) {
+                let _ = unregister_overlay_hotkeys(&app_handle, overlay_state.inner());
+                return;
+            } else {
+                // 先让 Overlay 热键注册完成，再显示窗口，避免首个按键（尤其是 Tab 切屏）
+                // 落在“窗口已显示但热键尚未就绪”的时间窗里被吞掉。
+                emit_overlay_activate(
+                    &app_handle,
+                    overlay_state.inner(),
+                    region_for_overlay,
+                    config_for_overlay,
+                    action_for_overlay,
+                );
+                None
+            }
+        };
+
+        if let Some(err) = registration_error {
             println!("[hotkeys] overlay register failed: {}", err);
             hide_overlay(&app_handle, overlay_state.inner());
-            return;
         }
-
-        // 先让 Overlay 热键注册完成，再显示窗口，避免首个按键（尤其是 Tab 切屏）
-        // 落在“窗口已显示但热键尚未就绪”的时间窗里被吞掉。
-        emit_overlay_activate(
-            &app_handle,
-            overlay_state.inner(),
-            region_for_overlay,
-            config_for_overlay,
-            action_for_overlay,
-        );
     });
 }
 
+fn overlay_session_is_current(state: &AppState, generation: u64) -> bool {
+    overlay_session_is_active(state)
+        && state.overlay_generation.load(Ordering::SeqCst) == generation
+}
+
+fn overlay_session_is_active(state: &AppState) -> bool {
+    state
+        .overlay_active
+        .lock()
+        .map(|guard| *guard)
+        .unwrap_or(false)
+}
+
 fn hide_overlay(app: &AppHandle, state: &AppState) {
+    state.overlay_generation.fetch_add(1, Ordering::SeqCst);
+    if let Ok(mut active) = state.overlay_active.lock() {
+        *active = false;
+    }
+    let _lifecycle_guard = state
+        .overlay_lifecycle
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
     if let Some(window) = app.get_webview_window("overlay") {
         let _ = window.hide();
     }
     let _ = unregister_overlay_hotkeys(app, state);
     stop_nudge_repeat(state);
-    if let Ok(mut active) = state.overlay_active.lock() {
-        *active = false;
-    }
     if let Ok(mut action) = state.overlay_click_action.lock() {
         *action = None;
     }
@@ -2609,6 +2674,7 @@ fn register_activation_hotkeys(
     state: &AppState,
     config: &AppConfig,
 ) -> Result<(), String> {
+    state.activation_pressed.store(false, Ordering::SeqCst);
     let shortcut_manager = app.global_shortcut();
     if let Ok(previous) = state.activation_shortcuts.lock().map(|guard| guard.clone()) {
         if !previous.is_empty() {
@@ -2641,6 +2707,7 @@ fn register_activation_hotkeys(
 }
 
 fn unregister_activation_hotkeys(app: &AppHandle, state: &AppState) -> Result<(), String> {
+    state.activation_pressed.store(false, Ordering::SeqCst);
     let shortcut_manager = app.global_shortcut();
     if let Ok(previous) = state.activation_shortcuts.lock().map(|guard| guard.clone()) {
         if !previous.is_empty() {

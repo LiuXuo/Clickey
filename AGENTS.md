@@ -31,7 +31,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 
 ### 1.1 通用交互（以当前默认配置为准）
 
-- 激活：`hotkeys.activation.trigger`（macOS 默认 `Cmd+;`，其他平台默认 `Ctrl+;`，进入 Overlay 时按“`mouse.actionCycle` 顺序里第一个未被 `mouse.disabledActions` 禁用的动作”作为初始动作；默认是左键）
+- 激活：`hotkeys.activation.trigger`（macOS 默认 `Cmd+;`，其他平台默认 `Ctrl+;`，进入 Overlay 时按“`mouse.actionCycle` 顺序里第一个未被 `mouse.disabledActions` 禁用的动作”作为初始动作；默认是左键；Overlay 已激活或正在启动时再次按下会取消当前会话，不执行动作）
 - 切换动作：`hotkeys.controls.switchAction`（默认 `Enter`，按 `mouse.actionCycle` 顺序在“未禁用动作”之间循环；默认顺序：左键 -> 右键 -> 中键 -> 仅移动 -> 拖动；左键双击 / Ctrl+左键 / Cmd+左键 / Shift+左键默认禁用）
 - 取消：`Esc`（直接退出，不点击）
 - 回退：`Backspace`（撤销最近一次按键，恢复上一次 Region）
@@ -505,6 +505,7 @@ Clickey 是一个“键盘驱动的分层网格定位”工具：热键激活全
 
 #### Done
 
+- 激活热键二次按下取消 Overlay（含快速连按注册竞态保护）
 - 1.0 发布前文档收口（README 改为对外说明，AGENTS 修正当前态文案并去掉过时描述）
 - E0.2 产出 Core Engine 规格（从原型抽象成可测试接口与状态机定义）
 - E2 Rust Native PoC（热键/鼠标/屏幕信息在 Windows 可用）
